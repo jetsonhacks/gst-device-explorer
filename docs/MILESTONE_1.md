@@ -1,47 +1,112 @@
 # Milestone 1
 
-Milestone 1 begins with documentation and project metadata, then later adds the
-first CLI/probe foundation for GStreamer-oriented media exploration.
+Milestone 1 establishes the first usable CLI/probe foundation for
+GStreamer-oriented media exploration.
 
-## This Commit
+This milestone is a release candidate for discovery and pipeline candidate
+generation. It is not a media playback, preview, recording, editing, or GUI
+application.
 
-This first commit is expected to create only:
+## Current Status
 
-- Initial README
-- Minimal uv-compatible `pyproject.toml`
-- Development principles
-- Specification
-- Architecture notes
-- Milestone 1 scope
+Milestone 1 currently includes:
 
-No implementation code is expected in this first commit.
+- Documentation and uv project metadata
+- Core normalized data models
+- GStreamer environment inspection
+- V4L2 video device discovery
+- V4L2 video capability parsing
+- ALSA audio input discovery
+- ALSA audio output discovery
+- Generic Linux V4L2 video preview pipeline candidates
+- Jetson NVIDIA MJPEG video preview pipeline candidates
+- Human-readable CLI rendering
+- JSON output for relevant commands
 
-## Later Milestone 1 Work
+Latest smoke test result:
 
-Later work in Milestone 1 may add a narrow CLI and initial probes for video
-input discovery, audio input discovery, audio output discovery, GStreamer
-environment inspection, and pipeline candidate generation.
+```text
+73 tests passed
+```
 
-That later work should remain focused on discovery and structured output. It
-should not add GUI support, live preview execution, recording, editing, or full
-media playback application behavior.
+## CLI Commands
+
+The current CLI commands are:
+
+- `gst-device-explorer devices`
+- `gst-device-explorer env`
+- `gst-device-explorer audio-inputs`
+- `gst-device-explorer audio-outputs`
+- `gst-device-explorer video <device>`
+- `gst-device-explorer pipeline video <device>`
+
+Relevant commands support `--json`.
+
+Pipeline candidate output is limited by default in text mode. The
+`pipeline video` command shows the top candidates first and supports:
+
+- `--all`
+- `--limit N`
+
+JSON pipeline output returns all candidates by default unless `--limit N` is
+provided.
+
+## Implemented Probe Scope
+
+Hardware support is currently limited to:
+
+- V4L2 video devices
+- ALSA audio input devices
+- ALSA audio output devices
+- GStreamer environment inspection
+
+PulseAudio and PipeWire probing are not implemented yet.
+
+## Pipeline Candidate Scope
+
+Pipeline candidates are generated but not executed.
+
+Implemented pipeline candidate families:
+
+- Generic Linux V4L2 video preview
+- Jetson NVIDIA MJPEG video preview
+
+Jetson candidate selection is based on detected capability and GStreamer element
+availability. It does not rely on hard-coded JetPack version checks.
+
+Audio pipeline generation is not implemented yet.
 
 ## Profile Awareness
 
-Milestone 1 should account for the concept of profiles in the design. Profiles
-describe platform and operating-system-specific behavior, such as generic Linux
-or Jetson / JetPack / Linux for Tegra behavior.
+Milestone 1 includes the first profile concepts through pipeline candidate
+selection:
 
-Initial implementation work may introduce only the smallest useful profile
-foundation. Implementation should prefer capability detection over hard-coded
-version checks. Profiles should express preferences and known-good patterns, not
-random patches.
+- `generic-linux-video-preview`
+- `jetson-video-preview`
+
+Profiles express preferences and known-good patterns. They should not become
+random patch buckets.
+
+## Explicit Non-Goals
+
+Milestone 1 does not include:
+
+- Pipeline execution
+- Live preview windows
+- Recording
+- Editing
+- GUI implementation
+- Full media playback application behavior
+- Audio pipeline generation
+- PulseAudio probing
+- PipeWire probing
+- Non-media exploration plugins
 
 ## Extensibility Boundary
 
-The project should be designed as GStreamer-oriented device exploration first,
-extensible hardware exploration later. Future exploration plugins may inspect
-robot hardware, actuators, Dynamixel servos, sensors, or other device classes.
+The project remains GStreamer-oriented device exploration first, extensible
+hardware exploration later.
 
-That plugin system is not part of Milestone 1 implementation. No non-media
-exploration plugins are expected in this milestone.
+Future exploration plugins may inspect robot hardware, actuators, Dynamixel
+servos, sensors, or other device classes. That plugin system is not part of
+Milestone 1.

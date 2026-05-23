@@ -549,9 +549,133 @@ def test_pipeline_video_json_output_with_no_candidates(monkeypatch, capsys) -> N
     assert json.loads(capsys.readouterr().out) == []
 
 
+def test_pipeline_video_text_output_shows_top_three_by_default(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(index) for index in range(1, 5)],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "candidate 1" in output
+    assert "candidate 2" in output
+    assert "candidate 3" in output
+    assert "candidate 4" not in output
+
+
+def test_pipeline_video_text_output_all_shows_every_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(index) for index in range(1, 5)],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--all"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "candidate 1" in output
+    assert "candidate 2" in output
+    assert "candidate 3" in output
+    assert "candidate 4" in output
+
+
+def test_pipeline_video_text_output_limit_one_shows_one_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(index) for index in range(1, 4)],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--limit", "1"])
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "candidate 1" in output
+    assert "candidate 2" not in output
+    assert "candidate 3" not in output
+
+
+def test_pipeline_video_json_output_returns_all_candidates_by_default(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(index) for index in range(1, 4)],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert [item["purpose"] for item in data] == [
+        "candidate 1",
+        "candidate 2",
+        "candidate 3",
+    ]
+
+
+def test_pipeline_video_json_output_limit_one_returns_one_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(index) for index in range(1, 4)],
+    )
+
+    exit_code = main(
+        ["pipeline", "video", "/dev/video0", "--json", "--limit", "1"]
+    )
+    data = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert [item["purpose"] for item in data] == ["candidate 1"]
+
+
 def test_unknown_command_exits_with_error(capsys) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["unknown"])
 
     assert exc_info.value.code == 2
     assert "invalid choice" in capsys.readouterr().err
+
+
+def _mock_pipeline_video_candidates(monkeypatch, candidates) -> None:
+    monkeypatch.setattr(
+        cli_main.v4l2_probe,
+        "discover_v4l2_capabilities",
+        lambda device_path: [],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.pipelines,
+        "build_video_preview_candidates",
+        lambda device, capabilities, facts: candidates,
+    )
+
+
+def _pipeline_candidate(index: int) -> PipelineCandidate:
+    return PipelineCandidate(
+        purpose=f"candidate {index}",
+        command=f"gst-launch-1.0 candidate-{index}",
+        confidence=1.0 - (index / 10),
+        reasons=[],
+        warnings=[],
+        required_elements=["v4l2src"],
+        selected_profile="generic-linux-video-preview",
+    )

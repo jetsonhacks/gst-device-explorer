@@ -83,6 +83,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             candidates,
             device_path=args.device_path,
             as_json=args.json,
+            show_all=args.all,
+            limit=args.limit,
         )
         return 0
 
@@ -169,6 +171,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Render pipeline candidates as JSON.",
     )
+    pipeline_video_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Render every pipeline candidate in text mode.",
+    )
+    pipeline_video_parser.add_argument(
+        "--limit",
+        type=int,
+        help="Limit the number of rendered pipeline candidates.",
+    )
 
     return parser
 
@@ -249,17 +261,26 @@ def _print_pipeline_candidates(
     candidates: list[PipelineCandidate],
     device_path: str,
     as_json: bool,
+    show_all: bool = False,
+    limit: int | None = None,
 ) -> None:
+    rendered_candidates = _select_pipeline_candidates(
+        candidates,
+        as_json=as_json,
+        show_all=show_all,
+        limit=limit,
+    )
+
     if as_json:
-        print(_to_json(candidates))
+        print(_to_json(rendered_candidates))
         return
 
-    if not candidates:
+    if not rendered_candidates:
         print(f"No video preview pipeline candidates found for {device_path}.")
         return
 
     print(f"Video preview pipeline candidates for {device_path}:")
-    for index, candidate in enumerate(candidates, start=1):
+    for index, candidate in enumerate(rendered_candidates, start=1):
         print(f"{index}. {candidate.purpose}")
         print(f"   command: {candidate.command}")
         print(f"   confidence: {candidate.confidence}")
@@ -278,6 +299,19 @@ def _print_pipeline_candidates(
             print("   warnings:")
             for warning in candidate.warnings:
                 print(f"   - {warning}")
+
+
+def _select_pipeline_candidates(
+    candidates: list[PipelineCandidate],
+    as_json: bool,
+    show_all: bool,
+    limit: int | None,
+) -> list[PipelineCandidate]:
+    if limit is not None:
+        return candidates[: max(limit, 0)]
+    if as_json or show_all:
+        return candidates
+    return candidates[:3]
 
 
 def _to_json(
