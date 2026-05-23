@@ -7,8 +7,14 @@ from dataclasses import asdict
 import json
 from typing import Sequence
 
-from gst_device_explorer.core.models import Capability, Device, EnvironmentFact
+from gst_device_explorer.core.models import (
+    Capability,
+    Device,
+    EnvironmentFact,
+    PipelineCandidate,
+)
 import gst_device_explorer.core.discovery as discovery
+import gst_device_explorer.core.pipelines as pipelines
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
@@ -54,6 +60,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         capabilities = v4l2_probe.discover_v4l2_capabilities(args.device_path)
         _print_video_capabilities(
             capabilities,
+            device_path=args.device_path,
+            as_json=args.json,
+        )
+        return 0
+
+    if args.command == "pipeline" and args.pipeline_command == "video":
+        device = Device(
+            id=args.device_path,
+            kind="video_input",
+            name=args.device_path,
+            metadata={"backend": "v4l2", "path": args.device_path},
+        )
+        capabilities = v4l2_probe.discover_v4l2_capabilities(args.device_path)
+        environment = gst_probe.inspect_gstreamer_environment()
+        candidates = pipelines.build_video_preview_candidates(
+            device,
+            capabilities,
+            environment,
+        )
+        _print_pipeline_candidates(
+            candidates,
             device_path=args.device_path,
             as_json=args.json,
         )
@@ -119,6 +146,28 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Render video capabilities as JSON.",
+    )
+
+    pipeline_parser = subparsers.add_parser(
+        "pipeline",
+        help="Build pipeline candidates.",
+    )
+    pipeline_subparsers = pipeline_parser.add_subparsers(
+        dest="pipeline_command",
+        required=True,
+    )
+    pipeline_video_parser = pipeline_subparsers.add_parser(
+        "video",
+        help="Build V4L2 video preview pipeline candidates.",
+    )
+    pipeline_video_parser.add_argument(
+        "device_path",
+        help="Path to a video device.",
+    )
+    pipeline_video_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render pipeline candidates as JSON.",
     )
 
     return parser
@@ -194,7 +243,47 @@ def _print_video_capabilities(
             print(f"  source: {capability.source}")
 
 
-def _to_json(items: list[Device] | list[EnvironmentFact] | list[Capability]) -> str:
+def _print_pipeline_candidates(
+    candidates: list[PipelineCandidate],
+    device_path: str,
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(_to_json(candidates))
+        return
+
+    if not candidates:
+        print(f"No video preview pipeline candidates found for {device_path}.")
+        return
+
+    print(f"Video preview pipeline candidates for {device_path}:")
+    for index, candidate in enumerate(candidates, start=1):
+        print(f"{index}. {candidate.purpose}")
+        print(f"   command: {candidate.command}")
+        print(f"   confidence: {candidate.confidence}")
+        if candidate.selected_profile is not None:
+            print(f"   profile: {candidate.selected_profile}")
+        if candidate.required_elements:
+            print(
+                "   required elements: "
+                + ", ".join(candidate.required_elements)
+            )
+        if candidate.reasons:
+            print("   reasons:")
+            for reason in candidate.reasons:
+                print(f"   - {reason}")
+        if candidate.warnings:
+            print("   warnings:")
+            for warning in candidate.warnings:
+                print(f"   - {warning}")
+
+
+def _to_json(
+    items: list[Device]
+    | list[EnvironmentFact]
+    | list[Capability]
+    | list[PipelineCandidate],
+) -> str:
     return json.dumps([asdict(item) for item in items], indent=2, sort_keys=True)
 
 

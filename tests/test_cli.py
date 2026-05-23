@@ -8,7 +8,12 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gst_device_explorer.cli.main import main
-from gst_device_explorer.core.models import Capability, Device, EnvironmentFact
+from gst_device_explorer.core.models import (
+    Capability,
+    Device,
+    EnvironmentFact,
+    PipelineCandidate,
+)
 import gst_device_explorer.cli.main as cli_main
 
 
@@ -371,6 +376,173 @@ def test_video_json_output_with_no_capabilities(monkeypatch, capsys) -> None:
     )
 
     exit_code = main(["video", "/dev/video0", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == []
+
+
+def test_pipeline_video_text_output_with_one_candidate(monkeypatch, capsys) -> None:
+    capability = Capability(
+        name="video_format",
+        values={"media_type": "video", "pixel_format": "MJPG"},
+        source="v4l2-ctl",
+    )
+    environment = [
+        EnvironmentFact(
+            name="gstreamer_element_available",
+            value=True,
+            source="gst-inspect-1.0",
+            metadata={"element": "v4l2src"},
+        )
+    ]
+    candidate = PipelineCandidate(
+        purpose="preview V4L2 video input",
+        command=(
+            "gst-launch-1.0 v4l2src device=/dev/video0 ! "
+            "image/jpeg, width=640, height=480, framerate=30/1 ! "
+            "videoconvert ! autovideosink sync=false"
+        ),
+        confidence=0.8,
+        reasons=[
+            "selected device path: /dev/video0",
+            "selected pixel format: MJPG",
+        ],
+        warnings=[],
+        required_elements=["v4l2src", "videoconvert", "autovideosink"],
+        selected_profile="generic-linux-video-preview",
+    )
+
+    monkeypatch.setattr(
+        cli_main.v4l2_probe,
+        "discover_v4l2_capabilities",
+        lambda device_path: [capability],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: environment,
+    )
+
+    def fake_build(device, capabilities, facts):
+        assert device.id == "/dev/video0"
+        assert device.kind == "video_input"
+        assert device.metadata["path"] == "/dev/video0"
+        assert capabilities == [capability]
+        assert facts == environment
+        return [candidate]
+
+    monkeypatch.setattr(
+        cli_main.pipelines,
+        "build_video_preview_candidates",
+        fake_build,
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Video preview pipeline candidates for /dev/video0:\n"
+        "1. preview V4L2 video input\n"
+        "   command: gst-launch-1.0 v4l2src device=/dev/video0 ! "
+        "image/jpeg, width=640, height=480, framerate=30/1 ! "
+        "videoconvert ! autovideosink sync=false\n"
+        "   confidence: 0.8\n"
+        "   profile: generic-linux-video-preview\n"
+        "   required elements: v4l2src, videoconvert, autovideosink\n"
+        "   reasons:\n"
+        "   - selected device path: /dev/video0\n"
+        "   - selected pixel format: MJPG\n"
+    )
+
+
+def test_pipeline_video_json_output_with_one_candidate(monkeypatch, capsys) -> None:
+    candidate = PipelineCandidate(
+        purpose="preview V4L2 video input",
+        command="gst-launch-1.0 v4l2src device=/dev/video0 ! autovideosink",
+        confidence=0.8,
+        reasons=["selected device path: /dev/video0"],
+        warnings=[],
+        required_elements=["v4l2src", "autovideosink"],
+        selected_profile="generic-linux-video-preview",
+    )
+
+    monkeypatch.setattr(
+        cli_main.v4l2_probe,
+        "discover_v4l2_capabilities",
+        lambda device_path: [],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.pipelines,
+        "build_video_preview_candidates",
+        lambda device, capabilities, facts: [candidate],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == [
+        {
+            "command": (
+                "gst-launch-1.0 v4l2src device=/dev/video0 ! autovideosink"
+            ),
+            "confidence": 0.8,
+            "purpose": "preview V4L2 video input",
+            "reasons": ["selected device path: /dev/video0"],
+            "required_elements": ["v4l2src", "autovideosink"],
+            "selected_profile": "generic-linux-video-preview",
+            "warnings": [],
+        }
+    ]
+
+
+def test_pipeline_video_text_output_with_no_candidates(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.v4l2_probe,
+        "discover_v4l2_capabilities",
+        lambda device_path: [],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.pipelines,
+        "build_video_preview_candidates",
+        lambda device, capabilities, facts: [],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "No video preview pipeline candidates found for /dev/video0.\n"
+    )
+
+
+def test_pipeline_video_json_output_with_no_candidates(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.v4l2_probe,
+        "discover_v4l2_capabilities",
+        lambda device_path: [],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.pipelines,
+        "build_video_preview_candidates",
+        lambda device, capabilities, facts: [],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--json"])
 
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == []

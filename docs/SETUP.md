@@ -16,6 +16,7 @@ uv run gst-device-explorer devices
 uv run gst-device-explorer audio-inputs
 uv run gst-device-explorer audio-outputs
 uv run gst-device-explorer video /dev/video0
+uv run gst-device-explorer pipeline video /dev/video0
 ```
 
 ## System Tools
