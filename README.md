@@ -19,11 +19,11 @@ other device classes, such as robot hardware, actuators, Dynamixel servos, or
 sensors, but that is not part of the initial implementation scope.
 
 The project is currently in an early implementation phase. It has initial
-probing models, CLI renderers, video pipeline candidate generation, and safe
-execution for selected video preview candidates. It can also render composite
-device groups computed from discovered device metadata. GUI, recording, editing,
-audio pipeline generation, and preview-window lifecycle management are not
-implemented yet.
+probing models, CLI renderers, video and audio pipeline candidate generation,
+and safe execution for selected video preview and ALSA audio test candidates. It
+can also render composite device groups computed from discovered device
+metadata. GUI, recording, editing, audio loopback, group-based execution, and
+preview-window lifecycle management are not implemented yet.
 
 ## Composite Device Groups
 
@@ -83,8 +83,7 @@ Orbbec Femto Bolt attached alongside the robot, remain independent.
 Use `groups --metadata` as the diagnostic view for the normalized records
 feeding the grouping engine when a group is missing or unexpected. Group-based
 pipeline generation and group-based execution are not included; use the existing
-`pipeline video <device>` and `run video <device>` commands for individual video
-devices.
+`pipeline` and `run` commands for individual video and audio devices.
 
 ## Video Pipeline Candidates and Run
 
@@ -106,6 +105,32 @@ gst-device-explorer run video /dev/video0 --candidate jetson-uvc-mjpeg-nvjpeg-nv
 `--dry-run` prints the selected candidate ID and GStreamer command without
 starting GStreamer. Without `--dry-run`, the selected candidate is executed with
 an argv-style subprocess call. Press Ctrl+C to stop a running pipeline.
+
+## Audio Pipeline Candidates and Run
+
+Use `pipeline` to inspect generated ALSA audio test candidates:
+
+```sh
+gst-device-explorer pipeline audio-input hw:0,0
+gst-device-explorer pipeline audio-input hw:0,0 --json
+gst-device-explorer pipeline audio-output hw:0,0
+gst-device-explorer pipeline audio-output hw:0,0 --json
+```
+
+Use `run` to select and execute one generated audio candidate:
+
+```sh
+gst-device-explorer run audio-input hw:0,0 --dry-run
+gst-device-explorer run audio-output hw:0,0 --dry-run
+gst-device-explorer run audio-input hw:0,0
+gst-device-explorer run audio-output hw:0,0
+gst-device-explorer run audio-output hw:0,0 --candidate generic-alsa-audio-output-sine-alsasink
+```
+
+The audio input level test is intended to run without audible output. The audio
+output sine test should play a 440 Hz tone. Audio execution uses generated
+`PipelineCandidate.argv` values and does not accept arbitrary GStreamer pipeline
+strings. Press Ctrl+C to stop a running audio pipeline.
 
 ## Setup
 

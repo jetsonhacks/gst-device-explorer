@@ -137,6 +137,16 @@ def test_default_elements_include_generic_video_preview_requirements() -> None:
     assert "autovideosink" in DEFAULT_GSTREAMER_ELEMENTS
 
 
+def test_default_elements_include_audio_pipeline_requirements() -> None:
+    assert "alsasrc" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "audiotestsrc" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "audioconvert" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "audioresample" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "level" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "fakesink" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "alsasink" in DEFAULT_GSTREAMER_ELEMENTS
+
+
 def test_subprocess_failure_does_not_raise(monkeypatch) -> None:
     monkeypatch.setattr("shutil.which", lambda command: f"/usr/bin/{command}")
 

@@ -18,6 +18,7 @@ from gst_device_explorer.core.models import (
 from gst_device_explorer.core.grouping import GroupableDevice
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.execution as execution
+import gst_device_explorer.core.audio_pipelines as audio_pipelines
 import gst_device_explorer.core.pipelines as pipelines
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
@@ -92,44 +93,71 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_pipeline_candidates(
             candidates,
             device_path=args.device_path,
+            heading="Video preview pipeline candidates",
+            empty_message="No video preview pipeline candidates found",
             as_json=args.json,
             show_all=args.all,
             limit=args.limit,
         )
         return 0
 
+    if args.command == "pipeline" and args.pipeline_command == "audio-input":
+        candidates = _build_audio_input_test_candidates(args.alsa_device)
+        _print_pipeline_candidates(
+            candidates,
+            device_path=args.alsa_device,
+            heading="Audio input pipeline candidates",
+            empty_message="No audio input pipeline candidates found",
+            as_json=args.json,
+        )
+        return 0
+
+    if args.command == "pipeline" and args.pipeline_command == "audio-output":
+        candidates = _build_audio_output_test_candidates(args.alsa_device)
+        _print_pipeline_candidates(
+            candidates,
+            device_path=args.alsa_device,
+            heading="Audio output pipeline candidates",
+            empty_message="No audio output pipeline candidates found",
+            as_json=args.json,
+        )
+        return 0
+
     if args.command == "run" and args.run_command == "video":
         candidates = _build_video_preview_candidates(args.device_path)
-        if not candidates:
-            print(
-                f"No pipeline candidates were generated for {args.device_path}."
-            )
-            print()
-            print("Try:")
-            print(f"  gst-device-explorer video {args.device_path}")
-            print("  gst-device-explorer env")
-            return 1
+        return _run_selected_candidate(
+            candidates,
+            device_label=args.device_path,
+            inspect_commands=[f"gst-device-explorer video {args.device_path}"],
+            selection=args.candidate,
+            dry_run=args.dry_run,
+        )
 
-        try:
-            candidate = execution.select_pipeline_candidate(
-                candidates,
-                selection=args.candidate,
-            )
-        except execution.CandidateSelectionError as error:
-            print(f"Error: {error}")
-            return 1
+    if args.command == "run" and args.run_command == "audio-input":
+        candidates = _build_audio_input_test_candidates(args.alsa_device)
+        return _run_selected_candidate(
+            candidates,
+            device_label=args.alsa_device,
+            inspect_commands=[
+                "gst-device-explorer audio-inputs",
+                f"gst-device-explorer pipeline audio-input {args.alsa_device}",
+            ],
+            selection=args.candidate,
+            dry_run=args.dry_run,
+        )
 
-        plan = execution.create_execution_plan(candidate)
-        _print_execution_plan(plan, dry_run=args.dry_run)
-
-        if args.dry_run:
-            return 0
-
-        try:
-            return execution.run_execution_plan(plan)
-        except execution.ExecutionStartError as error:
-            print(f"Error: could not start pipeline: {error}")
-            return 1
+    if args.command == "run" and args.run_command == "audio-output":
+        candidates = _build_audio_output_test_candidates(args.alsa_device)
+        return _run_selected_candidate(
+            candidates,
+            device_label=args.alsa_device,
+            inspect_commands=[
+                "gst-device-explorer audio-outputs",
+                f"gst-device-explorer pipeline audio-output {args.alsa_device}",
+            ],
+            selection=args.candidate,
+            dry_run=args.dry_run,
+        )
 
     parser.error("unknown command")
     return 2
@@ -250,6 +278,32 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Limit the number of rendered pipeline candidates.",
     )
+    pipeline_audio_input_parser = pipeline_subparsers.add_parser(
+        "audio-input",
+        help="Build ALSA audio input test pipeline candidates.",
+    )
+    pipeline_audio_input_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    pipeline_audio_input_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render pipeline candidates as JSON.",
+    )
+    pipeline_audio_output_parser = pipeline_subparsers.add_parser(
+        "audio-output",
+        help="Build ALSA audio output test pipeline candidates.",
+    )
+    pipeline_audio_output_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    pipeline_audio_output_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render pipeline candidates as JSON.",
+    )
 
     run_parser = subparsers.add_parser(
         "run",
@@ -276,6 +330,40 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the selected command without starting GStreamer.",
     )
+    run_audio_input_parser = run_subparsers.add_parser(
+        "audio-input",
+        help="Run one generated ALSA audio input test pipeline candidate.",
+    )
+    run_audio_input_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    run_audio_input_parser.add_argument(
+        "--candidate",
+        help="Candidate zero-based index or stable candidate ID.",
+    )
+    run_audio_input_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the selected command without starting GStreamer.",
+    )
+    run_audio_output_parser = run_subparsers.add_parser(
+        "audio-output",
+        help="Run one generated ALSA audio output test pipeline candidate.",
+    )
+    run_audio_output_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    run_audio_output_parser.add_argument(
+        "--candidate",
+        help="Candidate zero-based index or stable candidate ID.",
+    )
+    run_audio_output_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the selected command without starting GStreamer.",
+    )
 
     return parser
 
@@ -293,6 +381,51 @@ def _build_video_preview_candidates(device_path: str) -> list[PipelineCandidate]
         device,
         capabilities,
         environment,
+    )
+
+
+def _build_audio_input_test_candidates(alsa_device: str) -> list[PipelineCandidate]:
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_inputs(),
+        alsa_device,
+        kind="audio_input",
+    )
+    if device is None:
+        return []
+
+    environment = gst_probe.inspect_gstreamer_environment()
+    return audio_pipelines.build_audio_input_test_candidates(device, environment)
+
+
+def _build_audio_output_test_candidates(alsa_device: str) -> list[PipelineCandidate]:
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_outputs(),
+        alsa_device,
+        kind="audio_output",
+    )
+    if device is None:
+        return []
+
+    environment = gst_probe.inspect_gstreamer_environment()
+    return audio_pipelines.build_audio_output_test_candidates(device, environment)
+
+
+def _find_alsa_device(
+    devices: list[Device],
+    alsa_device: str,
+    kind: str,
+) -> Device | None:
+    return next(
+        (
+            device
+            for device in devices
+            if device.kind == kind
+            and (
+                device.id == alsa_device
+                or device.metadata.get("alsa_device") == alsa_device
+            )
+        ),
+        None,
     )
 
 
@@ -450,6 +583,8 @@ def _print_video_capabilities(
 def _print_pipeline_candidates(
     candidates: list[PipelineCandidate],
     device_path: str,
+    heading: str,
+    empty_message: str,
     as_json: bool,
     show_all: bool = False,
     limit: int | None = None,
@@ -466,12 +601,14 @@ def _print_pipeline_candidates(
         return
 
     if not rendered_candidates:
-        print(f"No video preview pipeline candidates found for {device_path}.")
+        print(f"{empty_message} for {device_path}.")
         return
 
-    print(f"Video preview pipeline candidates for {device_path}:")
+    print(f"{heading} for {device_path}:")
     for index, candidate in enumerate(rendered_candidates, start=1):
         print(f"{index}. {candidate.purpose}")
+        if candidate.candidate_id:
+            print(f"   id: {candidate.candidate_id}")
         print(f"   command: {candidate.command}")
         print(f"   confidence: {candidate.confidence}")
         if candidate.selected_profile is not None:
@@ -502,6 +639,44 @@ def _select_pipeline_candidates(
     if as_json or show_all:
         return candidates
     return candidates[:3]
+
+
+def _run_selected_candidate(
+    candidates: list[PipelineCandidate],
+    device_label: str,
+    inspect_commands: list[str],
+    selection: str | None,
+    dry_run: bool,
+) -> int:
+    if not candidates:
+        print(f"No pipeline candidates were generated for {device_label}.")
+        print()
+        print("Try:")
+        for command in inspect_commands:
+            print(f"  {command}")
+        print("  gst-device-explorer env")
+        return 1
+
+    try:
+        candidate = execution.select_pipeline_candidate(
+            candidates,
+            selection=selection,
+        )
+    except execution.CandidateSelectionError as error:
+        print(f"Error: {error}")
+        return 1
+
+    plan = execution.create_execution_plan(candidate)
+    _print_execution_plan(plan, dry_run=dry_run)
+
+    if dry_run:
+        return 0
+
+    try:
+        return execution.run_execution_plan(plan)
+    except execution.ExecutionStartError as error:
+        print(f"Error: could not start pipeline: {error}")
+        return 1
 
 
 def _print_execution_plan(plan: ExecutionPlan, dry_run: bool) -> None:
@@ -539,6 +714,8 @@ def _to_json(
 
 def _pipeline_candidate_to_json_dict(candidate: PipelineCandidate) -> dict:
     return {
+        "argv": candidate.argv,
+        "candidate_id": candidate.candidate_id,
         "command": candidate.command,
         "confidence": candidate.confidence,
         "purpose": candidate.purpose,

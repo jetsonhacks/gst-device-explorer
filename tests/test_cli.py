@@ -571,6 +571,7 @@ def test_pipeline_video_text_output_with_one_candidate(monkeypatch, capsys) -> N
         )
     ]
     candidate = PipelineCandidate(
+        candidate_id="generic-v4l2-mjpeg-jpegdec-autovideosink",
         purpose="preview V4L2 video input",
         command=(
             "gst-launch-1.0 v4l2src device=/dev/video0 ! "
@@ -618,6 +619,7 @@ def test_pipeline_video_text_output_with_one_candidate(monkeypatch, capsys) -> N
     assert capsys.readouterr().out == (
         "Video preview pipeline candidates for /dev/video0:\n"
         "1. preview V4L2 video input\n"
+        "   id: generic-v4l2-mjpeg-jpegdec-autovideosink\n"
         "   command: gst-launch-1.0 v4l2src device=/dev/video0 ! "
         "image/jpeg, width=640, height=480, framerate=30/1 ! "
         "videoconvert ! autovideosink sync=false\n"
@@ -632,9 +634,11 @@ def test_pipeline_video_text_output_with_one_candidate(monkeypatch, capsys) -> N
 
 def test_pipeline_video_json_output_with_one_candidate(monkeypatch, capsys) -> None:
     candidate = PipelineCandidate(
+        candidate_id="generic-v4l2-video-preview",
         purpose="preview V4L2 video input",
         command="gst-launch-1.0 v4l2src device=/dev/video0 ! autovideosink",
         confidence=0.8,
+        argv=["gst-launch-1.0", "v4l2src", "device=/dev/video0"],
         reasons=["selected device path: /dev/video0"],
         warnings=[],
         required_elements=["v4l2src", "autovideosink"],
@@ -662,6 +666,8 @@ def test_pipeline_video_json_output_with_one_candidate(monkeypatch, capsys) -> N
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == [
         {
+            "argv": ["gst-launch-1.0", "v4l2src", "device=/dev/video0"],
+            "candidate_id": "generic-v4l2-video-preview",
             "command": (
                 "gst-launch-1.0 v4l2src device=/dev/video0 ! autovideosink"
             ),
@@ -721,6 +727,157 @@ def test_pipeline_video_json_output_with_no_candidates(monkeypatch, capsys) -> N
 
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out) == []
+
+
+def test_pipeline_audio_input_text_output_with_one_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    device = _audio_device(kind="audio_input")
+    environment = [_element_fact("alsasrc")]
+    candidate = PipelineCandidate(
+        candidate_id="generic-alsa-audio-input-level-fakesink",
+        purpose="test ALSA audio input levels",
+        command=(
+            "gst-launch-1.0 alsasrc device=hw:0,0 ! audioconvert ! "
+            "audioresample ! level interval=1000000000 ! fakesink"
+        ),
+        confidence=0.8,
+        argv=["gst-launch-1.0", "alsasrc", "device=hw:0,0"],
+        reasons=["selected ALSA input device: hw:0,0"],
+        warnings=[],
+        required_elements=[
+            "alsasrc",
+            "audioconvert",
+            "audioresample",
+            "level",
+            "fakesink",
+        ],
+        selected_profile="generic-alsa-audio-input-test",
+    )
+
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [device],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: environment,
+    )
+
+    def fake_build(found_device, facts):
+        assert found_device == device
+        assert facts == environment
+        return [candidate]
+
+    monkeypatch.setattr(
+        cli_main.audio_pipelines,
+        "build_audio_input_test_candidates",
+        fake_build,
+    )
+
+    exit_code = main(["pipeline", "audio-input", "hw:0,0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Audio input pipeline candidates for hw:0,0:\n"
+        "1. test ALSA audio input levels\n"
+        "   id: generic-alsa-audio-input-level-fakesink\n"
+        "   command: gst-launch-1.0 alsasrc device=hw:0,0 ! "
+        "audioconvert ! audioresample ! level interval=1000000000 ! fakesink\n"
+        "   confidence: 0.8\n"
+        "   profile: generic-alsa-audio-input-test\n"
+        "   required elements: alsasrc, audioconvert, audioresample, level, "
+        "fakesink\n"
+        "   reasons:\n"
+        "   - selected ALSA input device: hw:0,0\n"
+    )
+
+
+def test_pipeline_audio_output_json_output_with_one_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    candidate = PipelineCandidate(
+        candidate_id="generic-alsa-audio-output-sine-alsasink",
+        purpose="test ALSA audio output with sine wave",
+        command=(
+            "gst-launch-1.0 audiotestsrc wave=sine freq=440 ! "
+            "audioconvert ! audioresample ! alsasink device=hw:0,0"
+        ),
+        confidence=0.8,
+        argv=["gst-launch-1.0", "audiotestsrc", "wave=sine"],
+        reasons=["selected ALSA output device: hw:0,0"],
+        warnings=[],
+        required_elements=[
+            "audiotestsrc",
+            "audioconvert",
+            "audioresample",
+            "alsasink",
+        ],
+        selected_profile="generic-alsa-audio-output-test",
+    )
+
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_outputs",
+        lambda: [_audio_device(kind="audio_output")],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.audio_pipelines,
+        "build_audio_output_test_candidates",
+        lambda device, facts: [candidate],
+    )
+
+    exit_code = main(["pipeline", "audio-output", "hw:0,0", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == [
+        {
+            "argv": ["gst-launch-1.0", "audiotestsrc", "wave=sine"],
+            "candidate_id": "generic-alsa-audio-output-sine-alsasink",
+            "command": (
+                "gst-launch-1.0 audiotestsrc wave=sine freq=440 ! "
+                "audioconvert ! audioresample ! alsasink device=hw:0,0"
+            ),
+            "confidence": 0.8,
+            "purpose": "test ALSA audio output with sine wave",
+            "reasons": ["selected ALSA output device: hw:0,0"],
+            "required_elements": [
+                "audiotestsrc",
+                "audioconvert",
+                "audioresample",
+                "alsasink",
+            ],
+            "selected_profile": "generic-alsa-audio-output-test",
+            "warnings": [],
+        }
+    ]
+
+
+def test_pipeline_audio_input_text_output_with_no_matching_device(
+    monkeypatch,
+    capsys,
+) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [],
+    )
+
+    exit_code = main(["pipeline", "audio-input", "hw:0,0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "No audio input pipeline candidates found for hw:0,0.\n"
+    )
 
 
 def test_pipeline_video_text_output_shows_top_three_by_default(
@@ -1012,6 +1169,210 @@ def test_run_video_reports_subprocess_start_error(monkeypatch, capsys) -> None:
     assert "Error: could not start pipeline: gst-launch-1.0" in capsys.readouterr().out
 
 
+def test_run_audio_input_dry_run_selects_structured_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_input_candidates(
+        monkeypatch,
+        [_audio_pipeline_candidate("input")],
+    )
+
+    exit_code = main(["run", "audio-input", "hw:0,0", "--dry-run"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Selected pipeline candidate: generic-alsa-audio-input-level-fakesink\n"
+        "\n"
+        "gst-launch-1.0 alsasrc device=hw:0,0 ! audioconvert ! "
+        "audioresample ! level interval=1000000000 ! fakesink\n"
+        "\n"
+        "Dry run only. Pipeline was not executed.\n"
+    )
+
+
+def test_run_audio_output_dry_run_selects_structured_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_output_candidates(
+        monkeypatch,
+        [_audio_pipeline_candidate("output")],
+    )
+
+    exit_code = main(["run", "audio-output", "hw:0,0", "--dry-run"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Selected pipeline candidate: generic-alsa-audio-output-sine-alsasink\n"
+        "\n"
+        "gst-launch-1.0 audiotestsrc wave=sine freq=440 ! audioconvert ! "
+        "audioresample ! alsasink device=hw:0,0\n"
+        "\n"
+        "Dry run only. Pipeline was not executed.\n"
+    )
+
+
+def test_run_audio_output_dry_run_selects_candidate_by_id(
+    monkeypatch,
+    capsys,
+) -> None:
+    candidates = [
+        _pipeline_candidate(1),
+        _audio_pipeline_candidate("output"),
+    ]
+    _mock_pipeline_audio_output_candidates(monkeypatch, candidates)
+
+    exit_code = main(
+        [
+            "run",
+            "audio-output",
+            "hw:0,0",
+            "--candidate",
+            "generic-alsa-audio-output-sine-alsasink",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    assert (
+        "Selected pipeline candidate: generic-alsa-audio-output-sine-alsasink\n"
+        in capsys.readouterr().out
+    )
+
+
+def test_run_audio_input_invokes_subprocess_with_selected_candidate_argv(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_input_candidates(
+        monkeypatch,
+        [_audio_pipeline_candidate("input")],
+    )
+    calls = []
+
+    class FakeProcess:
+        def wait(self):
+            return 0
+
+    def fake_popen(*args, **kwargs):
+        calls.append((args, kwargs))
+        return FakeProcess()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    exit_code = main(["run", "audio-input", "hw:0,0"])
+
+    assert exit_code == 0
+    assert calls == [
+        (
+            (
+                [
+                    "gst-launch-1.0",
+                    "alsasrc",
+                    "device=hw:0,0",
+                    "!",
+                    "audioconvert",
+                    "!",
+                    "audioresample",
+                    "!",
+                    "level",
+                    "interval=1000000000",
+                    "!",
+                    "fakesink",
+                ],
+            ),
+            {},
+        )
+    ]
+    assert "Running pipeline. Press Ctrl+C to stop." in capsys.readouterr().out
+
+
+def test_run_audio_output_invokes_subprocess_without_shell(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_output_candidates(
+        monkeypatch,
+        [_audio_pipeline_candidate("output")],
+    )
+    calls = []
+
+    class FakeProcess:
+        def wait(self):
+            return 0
+
+    def fake_popen(*args, **kwargs):
+        calls.append((args, kwargs))
+        return FakeProcess()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    exit_code = main(["run", "audio-output", "hw:0,0"])
+
+    assert exit_code == 0
+    assert calls[0][0] == (
+        [
+            "gst-launch-1.0",
+            "audiotestsrc",
+            "wave=sine",
+            "freq=440",
+            "!",
+            "audioconvert",
+            "!",
+            "audioresample",
+            "!",
+            "alsasink",
+            "device=hw:0,0",
+        ],
+    )
+    assert "shell" not in calls[0][1]
+    assert "Running pipeline. Press Ctrl+C to stop." in capsys.readouterr().out
+
+
+def test_run_audio_input_no_candidates_returns_diagnostic(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_input_candidates(monkeypatch, [])
+
+    exit_code = main(["run", "audio-input", "hw:0,0", "--dry-run"])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out == (
+        "No pipeline candidates were generated for hw:0,0.\n"
+        "\n"
+        "Try:\n"
+        "  gst-device-explorer audio-inputs\n"
+        "  gst-device-explorer pipeline audio-input hw:0,0\n"
+        "  gst-device-explorer env\n"
+    )
+
+
+def test_run_audio_output_invalid_candidate_id_returns_error(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_output_candidates(
+        monkeypatch,
+        [_audio_pipeline_candidate("output")],
+    )
+
+    exit_code = main(
+        [
+            "run",
+            "audio-output",
+            "hw:0,0",
+            "--candidate",
+            "missing-candidate",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 1
+    assert "candidate ID 'missing-candidate' was not found" in capsys.readouterr().out
+
+
 def test_unknown_command_exits_with_error(capsys) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["unknown"])
@@ -1038,6 +1399,42 @@ def _mock_pipeline_video_candidates(monkeypatch, candidates) -> None:
     )
 
 
+def _mock_pipeline_audio_input_candidates(monkeypatch, candidates) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [_audio_device(kind="audio_input")],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.audio_pipelines,
+        "build_audio_input_test_candidates",
+        lambda device, facts: candidates,
+    )
+
+
+def _mock_pipeline_audio_output_candidates(monkeypatch, candidates) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_outputs",
+        lambda: [_audio_device(kind="audio_output")],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.audio_pipelines,
+        "build_audio_output_test_candidates",
+        lambda device, facts: candidates,
+    )
+
+
 def _pipeline_candidate(index: int) -> PipelineCandidate:
     return PipelineCandidate(
         candidate_id=f"test-candidate-{index}",
@@ -1049,6 +1446,93 @@ def _pipeline_candidate(index: int) -> PipelineCandidate:
         warnings=[],
         required_elements=["v4l2src"],
         selected_profile="generic-linux-video-preview",
+    )
+
+
+def _audio_pipeline_candidate(kind: str) -> PipelineCandidate:
+    if kind == "input":
+        return PipelineCandidate(
+            candidate_id="generic-alsa-audio-input-level-fakesink",
+            purpose="test ALSA audio input levels",
+            command=(
+                "gst-launch-1.0 alsasrc device=hw:0,0 ! audioconvert ! "
+                "audioresample ! level interval=1000000000 ! fakesink"
+            ),
+            confidence=0.8,
+            argv=[
+                "gst-launch-1.0",
+                "alsasrc",
+                "device=hw:0,0",
+                "!",
+                "audioconvert",
+                "!",
+                "audioresample",
+                "!",
+                "level",
+                "interval=1000000000",
+                "!",
+                "fakesink",
+            ],
+            reasons=[],
+            warnings=[],
+            required_elements=[
+                "alsasrc",
+                "audioconvert",
+                "audioresample",
+                "level",
+                "fakesink",
+            ],
+            selected_profile="generic-alsa-audio-input-test",
+        )
+
+    return PipelineCandidate(
+        candidate_id="generic-alsa-audio-output-sine-alsasink",
+        purpose="test ALSA audio output with sine wave",
+        command=(
+            "gst-launch-1.0 audiotestsrc wave=sine freq=440 ! "
+            "audioconvert ! audioresample ! alsasink device=hw:0,0"
+        ),
+        confidence=0.8,
+        argv=[
+            "gst-launch-1.0",
+            "audiotestsrc",
+            "wave=sine",
+            "freq=440",
+            "!",
+            "audioconvert",
+            "!",
+            "audioresample",
+            "!",
+            "alsasink",
+            "device=hw:0,0",
+        ],
+        reasons=[],
+        warnings=[],
+        required_elements=[
+            "audiotestsrc",
+            "audioconvert",
+            "audioresample",
+            "alsasink",
+        ],
+        selected_profile="generic-alsa-audio-output-test",
+    )
+
+
+def _audio_device(kind: str) -> Device:
+    return Device(
+        id="hw:0,0",
+        kind=kind,
+        name="USB Audio",
+        metadata={"backend": "alsa", "alsa_device": "hw:0,0"},
+    )
+
+
+def _element_fact(element: str, available: bool = True) -> EnvironmentFact:
+    return EnvironmentFact(
+        name="gstreamer_element_available",
+        value=available,
+        source="gst-inspect-1.0",
+        metadata={"element": element},
     )
 
 

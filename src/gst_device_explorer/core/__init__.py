@@ -61,6 +61,32 @@ def build_video_preview_candidates(
     return _build_video_preview_candidates(device, capabilities, environment)
 
 
+def build_audio_input_test_candidates(
+    device: Device,
+    environment: list[EnvironmentFact],
+) -> list[PipelineCandidate]:
+    """Build audio input test pipeline candidates."""
+
+    from gst_device_explorer.core.audio_pipelines import (
+        build_audio_input_test_candidates as _build_audio_input_test_candidates,
+    )
+
+    return _build_audio_input_test_candidates(device, environment)
+
+
+def build_audio_output_test_candidates(
+    device: Device,
+    environment: list[EnvironmentFact],
+) -> list[PipelineCandidate]:
+    """Build audio output test pipeline candidates."""
+
+    from gst_device_explorer.core.audio_pipelines import (
+        build_audio_output_test_candidates as _build_audio_output_test_candidates,
+    )
+
+    return _build_audio_output_test_candidates(device, environment)
+
+
 __all__ = [
     "Capability",
     "CompositeDevice",
@@ -73,6 +99,8 @@ __all__ = [
     "PipelineCandidate",
     "Profile",
     "RendererOutput",
+    "build_audio_input_test_candidates",
+    "build_audio_output_test_candidates",
     "build_composite_devices",
     "build_groupable_devices",
     "build_video_preview_candidates",

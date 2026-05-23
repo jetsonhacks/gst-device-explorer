@@ -178,14 +178,60 @@ normalized records feeding the grouping engine.
 Milestone 3 does not add group-based pipeline generation or group-based
 execution. Pipeline generation and execution still target individual devices.
 
-## 8. Current Limitations
+## 8. Verify Milestone 4 Audio Pipelines
+
+Discover audio devices and groups first:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer audio-inputs
+/home/jim/.local/bin/uv run gst-device-explorer audio-outputs
+/home/jim/.local/bin/uv run gst-device-explorer groups
+```
+
+On the Reachy Mini hardware validated so far, the ALSA input and output are
+`hw:0,0`. Inspect the generated candidates:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0 --json
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0 --json
+```
+
+Check the selected commands without starting GStreamer:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0 --dry-run
+/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0 --dry-run
+```
+
+Run the selected audio tests:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0
+/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0
+```
+
+Expected behavior:
+
+- The audio input level test should run without audible output.
+- The audio output sine test should produce a 440 Hz tone.
+- Press Ctrl+C to stop a running audio pipeline.
+
+Audio loopback is intentionally deferred because it can create feedback or
+surprising routing behavior. ASR, TTS, WebRTC, PulseAudio, PipeWire, effects,
+echo cancellation, recording workflows, synchronized audio/video workflows, and
+group-based execution are also out of scope.
+
+## 9. Current Limitations
 
 - GUI is not implemented.
-- Audio pipeline generation is not implemented.
-- Audio pipeline execution is not implemented.
+- Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.
 - Group-based pipeline execution is not implemented.
 - Preview-window lifecycle management is not implemented.
-- PulseAudio and PipeWire probing are not implemented yet.
+- PulseAudio and PipeWire probing are not implemented.
+- ASR, TTS, WebRTC, effects, echo cancellation, recording workflows, and
+  synchronized audio/video workflows are not implemented.
 - Empty output may mean tools are missing, no matching hardware is present,
   permissions prevent access, or the device is not yet supported.
