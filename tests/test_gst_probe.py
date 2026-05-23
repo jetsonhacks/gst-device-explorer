@@ -25,6 +25,10 @@ def _fact_by_element(facts, element):
     )
 
 
+def _version_fact(facts):
+    return next(fact for fact in facts if fact.name == "gstreamer_version")
+
+
 def test_gstreamer_tools_available_and_version_is_normalized(monkeypatch) -> None:
     def fake_which(command):
         return f"/usr/bin/{command}"
@@ -54,7 +58,7 @@ def test_gstreamer_tools_available_and_version_is_normalized(monkeypatch) -> Non
         "/usr/bin/gst-launch-1.0"
     )
 
-    version_fact = next(fact for fact in facts if fact.name == "gstreamer_version")
+    version_fact = _version_fact(facts)
     assert version_fact.value == "1.22.8"
     assert version_fact.metadata["available"] is True
 
@@ -67,7 +71,34 @@ def test_missing_gstreamer_tools_return_unavailable_facts(monkeypatch) -> None:
     assert _fact_by_tool(facts, "gst-launch-1.0").value is False
     assert _fact_by_tool(facts, "gst-inspect-1.0").value is False
     assert _fact_by_element(facts, "v4l2src").value is False
-    assert not any(fact.name == "gstreamer_version" for fact in facts)
+
+    version_fact = _version_fact(facts)
+    assert version_fact.value is None
+    assert version_fact.metadata["available"] is False
+
+
+def test_version_fact_reports_unavailable_when_parsing_fails(monkeypatch) -> None:
+    def fake_which(command):
+        return f"/usr/bin/{command}"
+
+    def fake_run(command, check, capture_output, text, timeout):
+        if command == ["gst-launch-1.0", "--version"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout="gst-launch-1.0 custom output\n",
+                stderr="",
+            )
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("shutil.which", fake_which)
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    facts = inspect_gstreamer_environment(elements=[])
+
+    version_fact = _version_fact(facts)
+    assert version_fact.value is None
+    assert version_fact.metadata["available"] is False
 
 
 def test_element_availability_is_reported_per_element(monkeypatch) -> None:
@@ -107,6 +138,7 @@ def test_subprocess_failure_does_not_raise(monkeypatch) -> None:
 
     facts = inspect_gstreamer_environment(elements=["alsasrc"])
 
-    version_fact = next(fact for fact in facts if fact.name == "gstreamer_version")
+    version_fact = _version_fact(facts)
     assert version_fact.value is None
+    assert version_fact.metadata["available"] is False
     assert _fact_by_element(facts, "alsasrc").value is False

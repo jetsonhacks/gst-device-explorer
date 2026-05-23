@@ -56,16 +56,15 @@ def inspect_gstreamer_environment(
         )
     )
 
-    if gst_launch_path is not None:
-        version = _get_gstreamer_version()
-        facts.append(
-            EnvironmentFact(
-                name="gstreamer_version",
-                value=version,
-                source=GST_LAUNCH,
-                metadata={"available": version is not None},
-            )
+    version = _get_gstreamer_version() if gst_launch_path is not None else None
+    facts.append(
+        EnvironmentFact(
+            name="gstreamer_version",
+            value=version,
+            source=GST_LAUNCH,
+            metadata={"available": version is not None},
         )
+    )
 
     if gst_inspect_path is None:
         for element in selected_elements:
