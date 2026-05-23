@@ -13,6 +13,8 @@ uv run python -m pytest
 uv run gst-device-explorer --help
 uv run gst-device-explorer env
 uv run gst-device-explorer devices
+uv run gst-device-explorer audio-inputs
+uv run gst-device-explorer audio-outputs
 uv run gst-device-explorer video /dev/video0
 ```
 

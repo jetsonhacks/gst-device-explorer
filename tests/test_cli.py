@@ -133,6 +133,150 @@ def test_env_json_output(monkeypatch, capsys) -> None:
     ]
 
 
+def test_audio_inputs_text_output(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [
+            Device(
+                id="hw:2,0",
+                kind="audio_input",
+                name="USB Camera: USB Audio",
+                metadata={"backend": "alsa"},
+            )
+        ],
+    )
+
+    exit_code = main(["audio-inputs"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Audio input devices:\n"
+        "- audio_input: USB Camera: USB Audio (hw:2,0)\n"
+        "  backend: alsa\n"
+    )
+
+
+def test_audio_inputs_json_output(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [
+            Device(
+                id="hw:2,0",
+                kind="audio_input",
+                name="USB Camera: USB Audio",
+                metadata={"backend": "alsa", "alsa_device": "hw:2,0"},
+            )
+        ],
+    )
+
+    exit_code = main(["audio-inputs", "--json"])
+
+    assert exit_code == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data == [
+        {
+            "capabilities": [],
+            "id": "hw:2,0",
+            "kind": "audio_input",
+            "metadata": {"alsa_device": "hw:2,0", "backend": "alsa"},
+            "name": "USB Camera: USB Audio",
+        }
+    ]
+
+
+def test_audio_outputs_text_output(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_outputs",
+        lambda: [
+            Device(
+                id="hw:0,3",
+                kind="audio_output",
+                name="HDA Intel PCH: HDMI 0",
+                metadata={"backend": "alsa"},
+            )
+        ],
+    )
+
+    exit_code = main(["audio-outputs"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Audio output devices:\n"
+        "- audio_output: HDA Intel PCH: HDMI 0 (hw:0,3)\n"
+        "  backend: alsa\n"
+    )
+
+
+def test_audio_outputs_json_output(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_outputs",
+        lambda: [
+            Device(
+                id="hw:0,3",
+                kind="audio_output",
+                name="HDA Intel PCH: HDMI 0",
+                metadata={"backend": "alsa", "alsa_device": "hw:0,3"},
+            )
+        ],
+    )
+
+    exit_code = main(["audio-outputs", "--json"])
+
+    assert exit_code == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data == [
+        {
+            "capabilities": [],
+            "id": "hw:0,3",
+            "kind": "audio_output",
+            "metadata": {"alsa_device": "hw:0,3", "backend": "alsa"},
+            "name": "HDA Intel PCH: HDMI 0",
+        }
+    ]
+
+
+def test_audio_inputs_no_device_behavior(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [],
+    )
+
+    text_exit_code = main(["audio-inputs"])
+    text_output = capsys.readouterr().out
+
+    json_exit_code = main(["audio-inputs", "--json"])
+    json_output = capsys.readouterr().out
+
+    assert text_exit_code == 0
+    assert text_output == "No ALSA audio input devices found.\n"
+    assert json_exit_code == 0
+    assert json.loads(json_output) == []
+
+
+def test_audio_outputs_no_device_behavior(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_outputs",
+        lambda: [],
+    )
+
+    text_exit_code = main(["audio-outputs"])
+    text_output = capsys.readouterr().out
+
+    json_exit_code = main(["audio-outputs", "--json"])
+    json_output = capsys.readouterr().out
+
+    assert text_exit_code == 0
+    assert text_output == "No ALSA audio output devices found.\n"
+    assert json_exit_code == 0
+    assert json.loads(json_output) == []
+
+
 def test_video_text_output_with_capabilities(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
         cli_main.v4l2_probe,

@@ -9,6 +9,7 @@ from typing import Sequence
 
 from gst_device_explorer.core.models import Capability, Device, EnvironmentFact
 import gst_device_explorer.core.discovery as discovery
+import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
 
@@ -27,6 +28,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "env":
         facts = gst_probe.inspect_gstreamer_environment()
         _print_environment(facts, as_json=args.json)
+        return 0
+
+    if args.command == "audio-inputs":
+        devices = alsa_probe.discover_alsa_audio_inputs()
+        _print_devices(
+            devices,
+            as_json=args.json,
+            empty_message="No ALSA audio input devices found.",
+            heading="Audio input devices:",
+        )
+        return 0
+
+    if args.command == "audio-outputs":
+        devices = alsa_probe.discover_alsa_audio_outputs()
+        _print_devices(
+            devices,
+            as_json=args.json,
+            empty_message="No ALSA audio output devices found.",
+            heading="Audio output devices:",
+        )
         return 0
 
     if args.command == "video":
@@ -69,6 +90,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Render environment facts as JSON.",
     )
 
+    audio_inputs_parser = subparsers.add_parser(
+        "audio-inputs",
+        help="Discover ALSA audio input devices.",
+    )
+    audio_inputs_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render audio input devices as JSON.",
+    )
+
+    audio_outputs_parser = subparsers.add_parser(
+        "audio-outputs",
+        help="Discover ALSA audio output devices.",
+    )
+    audio_outputs_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render audio output devices as JSON.",
+    )
+
     video_parser = subparsers.add_parser(
         "video",
         help="Inspect one V4L2 video device.",
@@ -83,16 +124,21 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _print_devices(devices: list[Device], as_json: bool) -> None:
+def _print_devices(
+    devices: list[Device],
+    as_json: bool,
+    empty_message: str = "No devices found.",
+    heading: str = "Devices:",
+) -> None:
     if as_json:
         print(_to_json(devices))
         return
 
     if not devices:
-        print("No devices found.")
+        print(empty_message)
         return
 
-    print("Devices:")
+    print(heading)
     for device in devices:
         backend = device.metadata.get("backend", "unknown")
         print(f"- {device.kind}: {device.name} ({device.id})")
