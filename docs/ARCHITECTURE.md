@@ -1,14 +1,25 @@
 # Architecture
 
 `gst-device-explorer` should be organized around separate layers that each own a
-specific responsibility. The goal is to make probing, modeling, pipeline
-construction, and presentation evolve independently.
+specific responsibility. The goal is to make probing, modeling, profile
+selection, pipeline construction, and presentation evolve independently.
+
+The first implementation domain is GStreamer-oriented media exploration. The
+architecture should also leave room for future exploration plugins without
+turning Milestone 1 into a generic hardware inventory system.
+
+The core architecture should separate the exploration framework from the initial
+media-specific probes. GStreamer video/audio support is the first domain, not
+the only possible domain.
 
 ## Probes
 
 Probes inspect the local system and collect raw information from tools and APIs
 such as GStreamer, v4l2, ALSA, PulseAudio, PipeWire, and platform-specific
 commands. They should avoid making final product decisions.
+
+Initial probes should focus on video inputs, audio inputs, audio outputs, and
+the local GStreamer environment.
 
 ## Normalized Models
 
@@ -19,15 +30,25 @@ directly.
 
 ## Profiles
 
-Profiles express preferences for particular platforms or workflows. A Jetson
-profile, for example, may prefer hardware-accelerated or Jetson-specific
-GStreamer elements when the local system reports that they are available.
+Profiles express preferences for particular platforms, operating systems, and
+workflows. Example profiles include generic Linux, NVIDIA Jetson running
+different JetPack / Linux for Tegra versions, and other platform profiles added
+later.
+
+A Jetson profile, for example, may prefer hardware-accelerated or
+Jetson-specific GStreamer elements when the local system reports that they are
+available. Profiles should capture preferences and known-good patterns, not
+random patches.
 
 ## Pipeline Builders
 
 Pipeline builders consume normalized models and profiles to produce structured
 pipeline candidates. Builders should record assumptions, requirements, ranking
 signals, and warnings alongside the rendered GStreamer pipeline string.
+
+Pipeline builders are part of the initial media exploration domain. Other future
+exploration plugins may have their own candidate builders or recommendation
+objects.
 
 ## Renderers
 
@@ -36,10 +57,21 @@ representations. The first renderer is expected to be a CLI. A future GUI should
 use the same underlying models and builders rather than duplicating discovery or
 pipeline logic.
 
+## Exploration Plugins
+
+The core architecture should allow future exploration plugins to add new probe
+families, normalized models, profiles, builders, and renderers. A later plugin
+might inspect robot hardware such as actuators, Dynamixel servos, sensors, or
+other device classes.
+
+This extensibility should remain secondary to the first domain. Milestone 1
+should establish GStreamer-oriented device exploration first and leave clean
+extension points for hardware exploration later.
+
 ## Separation of Concerns
 
 Each layer should communicate through explicit data structures. Probes should not
 format CLI output. Renderers should not inspect hardware directly. Profiles
 should guide selection without hiding probe failures or capability gaps. This
-separation keeps Milestone 1 small while leaving room for richer interfaces
-later.
+separation keeps Milestone 1 small while leaving room for richer interfaces and
+future exploration plugins later.
