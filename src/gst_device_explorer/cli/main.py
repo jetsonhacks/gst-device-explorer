@@ -7,9 +7,10 @@ from dataclasses import asdict
 import json
 from typing import Sequence
 
-from gst_device_explorer.core.models import Device, EnvironmentFact
+from gst_device_explorer.core.models import Capability, Device, EnvironmentFact
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.probes.gst as gst_probe
+import gst_device_explorer.probes.v4l2 as v4l2_probe
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -26,6 +27,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "env":
         facts = gst_probe.inspect_gstreamer_environment()
         _print_environment(facts, as_json=args.json)
+        return 0
+
+    if args.command == "video":
+        capabilities = v4l2_probe.discover_v4l2_capabilities(args.device_path)
+        _print_video_capabilities(
+            capabilities,
+            device_path=args.device_path,
+            as_json=args.json,
+        )
         return 0
 
     parser.error("unknown command")
@@ -57,6 +67,17 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Render environment facts as JSON.",
+    )
+
+    video_parser = subparsers.add_parser(
+        "video",
+        help="Inspect one V4L2 video device.",
+    )
+    video_parser.add_argument("device_path", help="Path to a video device.")
+    video_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render video capabilities as JSON.",
     )
 
     return parser
@@ -94,7 +115,40 @@ def _print_environment(facts: list[EnvironmentFact], as_json: bool) -> None:
             print(f"  source: {fact.source}")
 
 
-def _to_json(items: list[Device] | list[EnvironmentFact]) -> str:
+def _print_video_capabilities(
+    capabilities: list[Capability],
+    device_path: str,
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(_to_json(capabilities))
+        return
+
+    if not capabilities:
+        print(f"No video capabilities found for {device_path}.")
+        return
+
+    print(f"Video capabilities for {device_path}:")
+    for capability in capabilities:
+        values = capability.values
+        pixel_format = values.get("pixel_format", "unknown")
+        description = values.get("description", "")
+        width = values.get("width", "unknown")
+        height = values.get("height", "unknown")
+        fps_values = values.get("fps", [])
+        fps = ", ".join(str(value) for value in fps_values) or "unknown"
+
+        label = f"{pixel_format}"
+        if description:
+            label = f"{label} ({description})"
+
+        print(f"- {label}: {width}x{height}")
+        print(f"  fps: {fps}")
+        if capability.source is not None:
+            print(f"  source: {capability.source}")
+
+
+def _to_json(items: list[Device] | list[EnvironmentFact] | list[Capability]) -> str:
     return json.dumps([asdict(item) for item in items], indent=2, sort_keys=True)
 
 
