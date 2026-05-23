@@ -9,6 +9,15 @@ from gst_device_explorer.core.models import (
     RendererOutput,
 )
 
+
+def discover_devices() -> list[Device]:
+    """Discover known media devices using the current probe set."""
+
+    from gst_device_explorer.core.discovery import discover_devices as _discover_devices
+
+    return _discover_devices()
+
+
 __all__ = [
     "Capability",
     "Device",
@@ -16,4 +25,5 @@ __all__ = [
     "PipelineCandidate",
     "Profile",
     "RendererOutput",
+    "discover_devices",
 ]

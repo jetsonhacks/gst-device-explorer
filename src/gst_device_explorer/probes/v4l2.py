@@ -8,7 +8,7 @@ import shutil
 import stat
 import subprocess
 
-from gst_device_explorer.core import Capability, Device
+from gst_device_explorer.core.models import Capability, Device
 
 
 V4L2_CTL = "v4l2-ctl"

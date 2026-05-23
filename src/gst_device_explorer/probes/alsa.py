@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 
-from gst_device_explorer.core import Device
+from gst_device_explorer.core.models import Device
 
 
 ARECORD = "arecord"

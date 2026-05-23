@@ -6,7 +6,7 @@ import re
 import shutil
 import subprocess
 
-from gst_device_explorer.core import EnvironmentFact
+from gst_device_explorer.core.models import EnvironmentFact
 
 
 GST_LAUNCH = "gst-launch-1.0"
