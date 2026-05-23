@@ -18,6 +18,7 @@ from gst_device_explorer.core.models import (
     EnvironmentFact,
     GroupingEvidence,
     PipelineCandidate,
+    PipelineDiagnostic,
 )
 import gst_device_explorer.cli.main as cli_main
 
@@ -729,6 +730,99 @@ def test_pipeline_video_json_output_with_no_candidates(monkeypatch, capsys) -> N
     assert json.loads(capsys.readouterr().out) == []
 
 
+def test_pipeline_video_diagnostics_text_output(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_diagnostics(
+        monkeypatch,
+        [_video_diagnostic(status="available")],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--diagnostics"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Pipeline diagnostics for video /dev/video0\n"
+        "\n"
+        "Candidate: generic-v4l2-mjpeg-jpegdec-autovideosink\n"
+        "Status: available\n"
+        "Reason: Required GStreamer elements are available and the device "
+        "exposes a compatible video format.\n"
+        "\n"
+        "Required elements:\n"
+        "  ok: v4l2src\n"
+        "  ok: videoconvert\n"
+        "  ok: autovideosink\n"
+        "\n"
+        "Suggested next step:\n"
+        "  gst-device-explorer run video /dev/video0 --dry-run\n"
+    )
+
+
+def test_pipeline_video_diagnostics_text_output_with_missing_element(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_diagnostics(
+        monkeypatch,
+        [_video_diagnostic(status="unavailable")],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--diagnostics"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Pipeline diagnostics for video /dev/video0\n"
+        "\n"
+        "Candidate: generic-v4l2-mjpeg-jpegdec-autovideosink\n"
+        "Status: unavailable\n"
+        "Reason: Required GStreamer elements are missing.\n"
+        "\n"
+        "Required elements:\n"
+        "  ok: v4l2src\n"
+        "  ok: videoconvert\n"
+        "  missing: autovideosink\n"
+        "\n"
+        "Suggested checks:\n"
+        "  gst-inspect-1.0 autovideosink\n"
+    )
+
+
+def test_pipeline_video_diagnostics_json_output(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_diagnostics(
+        monkeypatch,
+        [_video_diagnostic(status="available")],
+    )
+
+    exit_code = main(["pipeline", "video", "/dev/video0", "--diagnostics", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "device": "/dev/video0",
+        "device_kind": "video",
+        "diagnostics": [
+            {
+                "available_elements": [
+                    "v4l2src",
+                    "videoconvert",
+                    "autovideosink",
+                ],
+                "candidate_id": "generic-v4l2-mjpeg-jpegdec-autovideosink",
+                "missing_elements": [],
+                "reason": (
+                    "Required GStreamer elements are available and the device "
+                    "exposes a compatible video format."
+                ),
+                "required_elements": [
+                    "v4l2src",
+                    "videoconvert",
+                    "autovideosink",
+                ],
+                "status": "available",
+                "suggested_next_checks": [],
+            }
+        ],
+    }
+
+
 def test_pipeline_audio_input_text_output_with_one_candidate(
     monkeypatch,
     capsys,
@@ -878,6 +972,133 @@ def test_pipeline_audio_input_text_output_with_no_matching_device(
     assert capsys.readouterr().out == (
         "No audio input pipeline candidates found for hw:0,0.\n"
     )
+
+
+def test_pipeline_audio_input_diagnostics_text_output(
+    monkeypatch,
+    capsys,
+) -> None:
+    device = _audio_device(kind="audio_input")
+    environment = [_element_fact("alsasrc")]
+    diagnostic = _audio_diagnostic("input", status="available")
+
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [device],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: environment,
+    )
+
+    def fake_build(found_device, facts):
+        assert found_device == device
+        assert facts == environment
+        return [diagnostic]
+
+    monkeypatch.setattr(
+        cli_main.audio_diagnostics,
+        "build_audio_input_test_diagnostics",
+        fake_build,
+    )
+
+    exit_code = main(["pipeline", "audio-input", "hw:0,0", "--diagnostics"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Pipeline diagnostics for audio-input hw:0,0\n"
+        "\n"
+        "Candidate: generic-alsa-audio-input-level-fakesink\n"
+        "Status: available\n"
+        "Reason: ALSA capture device and required GStreamer elements are "
+        "available.\n"
+        "\n"
+        "Required elements:\n"
+        "  ok: alsasrc\n"
+        "  ok: audioconvert\n"
+        "  ok: audioresample\n"
+        "  ok: level\n"
+        "  ok: fakesink\n"
+        "\n"
+        "Suggested next step:\n"
+        "  gst-device-explorer run audio-input hw:0,0 --dry-run\n"
+    )
+
+
+def test_pipeline_audio_output_diagnostics_text_output_with_missing_element(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_output_diagnostics(
+        monkeypatch,
+        [_audio_diagnostic("output", status="unavailable")],
+    )
+
+    exit_code = main(["pipeline", "audio-output", "hw:0,0", "--diagnostics"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Pipeline diagnostics for audio-output hw:0,0\n"
+        "\n"
+        "Candidate: generic-alsa-audio-output-sine-alsasink\n"
+        "Status: unavailable\n"
+        "Reason: Required GStreamer elements are missing.\n"
+        "\n"
+        "Required elements:\n"
+        "  ok: audiotestsrc\n"
+        "  ok: audioconvert\n"
+        "  ok: audioresample\n"
+        "  missing: alsasink\n"
+        "\n"
+        "Suggested checks:\n"
+        "  gst-inspect-1.0 alsasink\n"
+    )
+
+
+def test_pipeline_audio_output_diagnostics_json_output(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_audio_output_diagnostics(
+        monkeypatch,
+        [_audio_diagnostic("output", status="available")],
+    )
+
+    exit_code = main(
+        ["pipeline", "audio-output", "hw:0,0", "--diagnostics", "--json"]
+    )
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "device": "hw:0,0",
+        "device_kind": "audio-output",
+        "diagnostics": [
+            {
+                "available_elements": [
+                    "audiotestsrc",
+                    "audioconvert",
+                    "audioresample",
+                    "alsasink",
+                ],
+                "candidate_id": "generic-alsa-audio-output-sine-alsasink",
+                "missing_elements": [],
+                "reason": (
+                    "ALSA playback device and required GStreamer elements "
+                    "are available."
+                ),
+                "required_elements": [
+                    "audiotestsrc",
+                    "audioconvert",
+                    "audioresample",
+                    "alsasink",
+                ],
+                "status": "available",
+                "suggested_next_checks": [],
+            }
+        ],
+    }
 
 
 def test_pipeline_video_text_output_shows_top_three_by_default(
@@ -1399,6 +1620,24 @@ def _mock_pipeline_video_candidates(monkeypatch, candidates) -> None:
     )
 
 
+def _mock_pipeline_video_diagnostics(monkeypatch, diagnostics) -> None:
+    monkeypatch.setattr(
+        cli_main.v4l2_probe,
+        "discover_v4l2_capabilities",
+        lambda device_path: [],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.video_diagnostics,
+        "build_video_preview_diagnostics",
+        lambda device, capabilities, facts: diagnostics,
+    )
+
+
 def _mock_pipeline_audio_input_candidates(monkeypatch, candidates) -> None:
     monkeypatch.setattr(
         cli_main.alsa_probe,
@@ -1435,6 +1674,24 @@ def _mock_pipeline_audio_output_candidates(monkeypatch, candidates) -> None:
     )
 
 
+def _mock_pipeline_audio_output_diagnostics(monkeypatch, diagnostics) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_outputs",
+        lambda: [_audio_device(kind="audio_output")],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.audio_diagnostics,
+        "build_audio_output_test_diagnostics",
+        lambda device, facts: diagnostics,
+    )
+
+
 def _pipeline_candidate(index: int) -> PipelineCandidate:
     return PipelineCandidate(
         candidate_id=f"test-candidate-{index}",
@@ -1446,6 +1703,109 @@ def _pipeline_candidate(index: int) -> PipelineCandidate:
         warnings=[],
         required_elements=["v4l2src"],
         selected_profile="generic-linux-video-preview",
+    )
+
+
+def _video_diagnostic(status: str) -> PipelineDiagnostic:
+    if status == "unavailable":
+        return PipelineDiagnostic(
+            candidate_id="generic-v4l2-mjpeg-jpegdec-autovideosink",
+            device_kind="video",
+            device="/dev/video0",
+            status="unavailable",
+            reason="Required GStreamer elements are missing.",
+            required_elements=["v4l2src", "videoconvert", "autovideosink"],
+            available_elements=["v4l2src", "videoconvert"],
+            missing_elements=["autovideosink"],
+            suggested_next_checks=["gst-inspect-1.0 autovideosink"],
+        )
+
+    return PipelineDiagnostic(
+        candidate_id="generic-v4l2-mjpeg-jpegdec-autovideosink",
+        device_kind="video",
+        device="/dev/video0",
+        status="available",
+        reason=(
+            "Required GStreamer elements are available and the device exposes "
+            "a compatible video format."
+        ),
+        required_elements=["v4l2src", "videoconvert", "autovideosink"],
+        available_elements=["v4l2src", "videoconvert", "autovideosink"],
+        missing_elements=[],
+        suggested_next_checks=[],
+    )
+
+
+def _audio_diagnostic(kind: str, status: str) -> PipelineDiagnostic:
+    if kind == "input":
+        return PipelineDiagnostic(
+            candidate_id="generic-alsa-audio-input-level-fakesink",
+            device_kind="audio-input",
+            device="hw:0,0",
+            status=status,
+            reason=(
+                "ALSA capture device and required GStreamer elements are available."
+            ),
+            required_elements=[
+                "alsasrc",
+                "audioconvert",
+                "audioresample",
+                "level",
+                "fakesink",
+            ],
+            available_elements=[
+                "alsasrc",
+                "audioconvert",
+                "audioresample",
+                "level",
+                "fakesink",
+            ],
+            missing_elements=[],
+            suggested_next_checks=[],
+        )
+
+    if status == "unavailable":
+        return PipelineDiagnostic(
+            candidate_id="generic-alsa-audio-output-sine-alsasink",
+            device_kind="audio-output",
+            device="hw:0,0",
+            status="unavailable",
+            reason="Required GStreamer elements are missing.",
+            required_elements=[
+                "audiotestsrc",
+                "audioconvert",
+                "audioresample",
+                "alsasink",
+            ],
+            available_elements=[
+                "audiotestsrc",
+                "audioconvert",
+                "audioresample",
+            ],
+            missing_elements=["alsasink"],
+            suggested_next_checks=["gst-inspect-1.0 alsasink"],
+        )
+
+    return PipelineDiagnostic(
+        candidate_id="generic-alsa-audio-output-sine-alsasink",
+        device_kind="audio-output",
+        device="hw:0,0",
+        status="available",
+        reason="ALSA playback device and required GStreamer elements are available.",
+        required_elements=[
+            "audiotestsrc",
+            "audioconvert",
+            "audioresample",
+            "alsasink",
+        ],
+        available_elements=[
+            "audiotestsrc",
+            "audioconvert",
+            "audioresample",
+            "alsasink",
+        ],
+        missing_elements=[],
+        suggested_next_checks=[],
     )
 
 

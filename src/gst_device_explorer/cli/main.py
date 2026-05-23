@@ -14,11 +14,14 @@ from gst_device_explorer.core.models import (
     EnvironmentFact,
     ExecutionPlan,
     PipelineCandidate,
+    PipelineDiagnostic,
 )
 from gst_device_explorer.core.grouping import GroupableDevice
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.execution as execution
+import gst_device_explorer.core.audio_diagnostics as audio_diagnostics
 import gst_device_explorer.core.audio_pipelines as audio_pipelines
+import gst_device_explorer.core.video_diagnostics as video_diagnostics
 import gst_device_explorer.core.pipelines as pipelines
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
@@ -89,6 +92,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "pipeline" and args.pipeline_command == "video":
+        if args.diagnostics:
+            diagnostics = _build_video_preview_diagnostics(args.device_path)
+            _print_pipeline_diagnostics(
+                diagnostics,
+                device_kind="video",
+                device_path=args.device_path,
+                as_json=args.json,
+            )
+            return 0
+
         candidates = _build_video_preview_candidates(args.device_path)
         _print_pipeline_candidates(
             candidates,
@@ -102,6 +115,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "pipeline" and args.pipeline_command == "audio-input":
+        if args.diagnostics:
+            diagnostics = _build_audio_input_test_diagnostics(args.alsa_device)
+            _print_pipeline_diagnostics(
+                diagnostics,
+                device_kind="audio-input",
+                device_path=args.alsa_device,
+                as_json=args.json,
+            )
+            return 0
+
         candidates = _build_audio_input_test_candidates(args.alsa_device)
         _print_pipeline_candidates(
             candidates,
@@ -113,6 +136,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "pipeline" and args.pipeline_command == "audio-output":
+        if args.diagnostics:
+            diagnostics = _build_audio_output_test_diagnostics(args.alsa_device)
+            _print_pipeline_diagnostics(
+                diagnostics,
+                device_kind="audio-output",
+                device_path=args.alsa_device,
+                as_json=args.json,
+            )
+            return 0
+
         candidates = _build_audio_output_test_candidates(args.alsa_device)
         _print_pipeline_candidates(
             candidates,
@@ -278,6 +311,11 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Limit the number of rendered pipeline candidates.",
     )
+    pipeline_video_parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Render structured diagnostics instead of pipeline candidates.",
+    )
     pipeline_audio_input_parser = pipeline_subparsers.add_parser(
         "audio-input",
         help="Build ALSA audio input test pipeline candidates.",
@@ -291,6 +329,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Render pipeline candidates as JSON.",
     )
+    pipeline_audio_input_parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Render structured diagnostics instead of pipeline candidates.",
+    )
     pipeline_audio_output_parser = pipeline_subparsers.add_parser(
         "audio-output",
         help="Build ALSA audio output test pipeline candidates.",
@@ -303,6 +346,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Render pipeline candidates as JSON.",
+    )
+    pipeline_audio_output_parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Render structured diagnostics instead of pipeline candidates.",
     )
 
     run_parser = subparsers.add_parser(
@@ -384,6 +432,22 @@ def _build_video_preview_candidates(device_path: str) -> list[PipelineCandidate]
     )
 
 
+def _build_video_preview_diagnostics(device_path: str) -> list[PipelineDiagnostic]:
+    device = Device(
+        id=device_path,
+        kind="video_input",
+        name=device_path,
+        metadata={"backend": "v4l2", "path": device_path},
+    )
+    capabilities = v4l2_probe.discover_v4l2_capabilities(device_path)
+    environment = gst_probe.inspect_gstreamer_environment()
+    return video_diagnostics.build_video_preview_diagnostics(
+        device,
+        capabilities,
+        environment,
+    )
+
+
 def _build_audio_input_test_candidates(alsa_device: str) -> list[PipelineCandidate]:
     device = _find_alsa_device(
         alsa_probe.discover_alsa_audio_inputs(),
@@ -397,6 +461,21 @@ def _build_audio_input_test_candidates(alsa_device: str) -> list[PipelineCandida
     return audio_pipelines.build_audio_input_test_candidates(device, environment)
 
 
+def _build_audio_input_test_diagnostics(
+    alsa_device: str,
+) -> list[PipelineDiagnostic]:
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_inputs(),
+        alsa_device,
+        kind="audio_input",
+    )
+    if device is None:
+        return []
+
+    environment = gst_probe.inspect_gstreamer_environment()
+    return audio_diagnostics.build_audio_input_test_diagnostics(device, environment)
+
+
 def _build_audio_output_test_candidates(alsa_device: str) -> list[PipelineCandidate]:
     device = _find_alsa_device(
         alsa_probe.discover_alsa_audio_outputs(),
@@ -408,6 +487,21 @@ def _build_audio_output_test_candidates(alsa_device: str) -> list[PipelineCandid
 
     environment = gst_probe.inspect_gstreamer_environment()
     return audio_pipelines.build_audio_output_test_candidates(device, environment)
+
+
+def _build_audio_output_test_diagnostics(
+    alsa_device: str,
+) -> list[PipelineDiagnostic]:
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_outputs(),
+        alsa_device,
+        kind="audio_output",
+    )
+    if device is None:
+        return []
+
+    environment = gst_probe.inspect_gstreamer_environment()
+    return audio_diagnostics.build_audio_output_test_diagnostics(device, environment)
 
 
 def _find_alsa_device(
@@ -641,6 +735,55 @@ def _select_pipeline_candidates(
     return candidates[:3]
 
 
+def _print_pipeline_diagnostics(
+    diagnostics: list[PipelineDiagnostic],
+    device_kind: str,
+    device_path: str,
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "device_kind": device_kind,
+                    "device": device_path,
+                    "diagnostics": [
+                        _pipeline_diagnostic_to_json_dict(diagnostic)
+                        for diagnostic in diagnostics
+                    ],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    if not diagnostics:
+        print(f"No pipeline diagnostics found for {device_kind} {device_path}.")
+        return
+
+    print(f"Pipeline diagnostics for {device_kind} {device_path}")
+    for diagnostic in diagnostics:
+        print()
+        print(f"Candidate: {diagnostic.candidate_id}")
+        print(f"Status: {diagnostic.status}")
+        print(f"Reason: {diagnostic.reason}")
+        print()
+        print("Required elements:")
+        for element in diagnostic.required_elements:
+            marker = "ok" if element in diagnostic.available_elements else "missing"
+            print(f"  {marker}: {element}")
+        if diagnostic.suggested_next_checks:
+            print()
+            print("Suggested checks:")
+            for check in diagnostic.suggested_next_checks:
+                print(f"  {check}")
+        elif diagnostic.status == "available":
+            print()
+            print("Suggested next step:")
+            print(f"  gst-device-explorer run {device_kind} {device_path} --dry-run")
+
+
 def _run_selected_candidate(
     candidates: list[PipelineCandidate],
     device_label: str,
@@ -723,6 +866,18 @@ def _pipeline_candidate_to_json_dict(candidate: PipelineCandidate) -> dict:
         "required_elements": candidate.required_elements,
         "selected_profile": candidate.selected_profile,
         "warnings": candidate.warnings,
+    }
+
+
+def _pipeline_diagnostic_to_json_dict(diagnostic: PipelineDiagnostic) -> dict:
+    return {
+        "available_elements": diagnostic.available_elements,
+        "candidate_id": diagnostic.candidate_id,
+        "missing_elements": diagnostic.missing_elements,
+        "reason": diagnostic.reason,
+        "required_elements": diagnostic.required_elements,
+        "status": diagnostic.status,
+        "suggested_next_checks": diagnostic.suggested_next_checks,
     }
 
 

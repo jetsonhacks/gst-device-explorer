@@ -71,6 +71,21 @@ class PipelineCandidate:
 
 
 @dataclass(frozen=True)
+class PipelineDiagnostic:
+    """A structured explanation of one pipeline candidate decision."""
+
+    candidate_id: str
+    device_kind: str
+    device: str
+    status: str
+    reason: str
+    required_elements: list[str] = field(default_factory=list)
+    available_elements: list[str] = field(default_factory=list)
+    missing_elements: list[str] = field(default_factory=list)
+    suggested_next_checks: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ExecutionPlan:
     """A selected pipeline candidate prepared for safe execution."""
 

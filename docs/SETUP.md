@@ -223,7 +223,58 @@ surprising routing behavior. ASR, TTS, WebRTC, PulseAudio, PipeWire, effects,
 echo cancellation, recording workflows, synchronized audio/video workflows, and
 group-based execution are also out of scope.
 
-## 9. Current Limitations
+## 9. Verify Milestone 5 Diagnostics
+
+Diagnostics explain why existing pipeline candidates are available or
+unavailable. They do not execute pipelines.
+
+Recommended workflow:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer devices
+/home/jim/.local/bin/uv run gst-device-explorer audio-inputs
+/home/jim/.local/bin/uv run gst-device-explorer audio-outputs
+/home/jim/.local/bin/uv run gst-device-explorer groups
+```
+
+Inspect candidates, then inspect diagnostics if a candidate is missing or you
+want to see required elements:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0
+/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0 --diagnostics
+/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0 --diagnostics --json
+
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0 --diagnostics
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0 --diagnostics --json
+
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0 --diagnostics
+/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0 --diagnostics --json
+```
+
+When diagnostics report missing GStreamer elements, check them directly:
+
+```sh
+gst-inspect-1.0 autovideosink
+gst-inspect-1.0 alsasink
+```
+
+Then dry-run and run the selected candidate:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer run video /dev/video0 --dry-run
+/home/jim/.local/bin/uv run gst-device-explorer run video /dev/video0
+
+/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0 --dry-run
+/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0
+
+/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0 --dry-run
+/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0
+```
+
+## 10. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.

@@ -91,6 +91,9 @@ Use `pipeline` to inspect generated video preview candidates:
 
 ```sh
 gst-device-explorer pipeline video /dev/video0
+gst-device-explorer pipeline video /dev/video0 --json
+gst-device-explorer pipeline video /dev/video0 --diagnostics
+gst-device-explorer pipeline video /dev/video0 --diagnostics --json
 ```
 
 Use `run` to select and execute one generated candidate:
@@ -113,8 +116,12 @@ Use `pipeline` to inspect generated ALSA audio test candidates:
 ```sh
 gst-device-explorer pipeline audio-input hw:0,0
 gst-device-explorer pipeline audio-input hw:0,0 --json
+gst-device-explorer pipeline audio-input hw:0,0 --diagnostics
+gst-device-explorer pipeline audio-input hw:0,0 --diagnostics --json
 gst-device-explorer pipeline audio-output hw:0,0
 gst-device-explorer pipeline audio-output hw:0,0 --json
+gst-device-explorer pipeline audio-output hw:0,0 --diagnostics
+gst-device-explorer pipeline audio-output hw:0,0 --diagnostics --json
 ```
 
 Use `run` to select and execute one generated audio candidate:
@@ -131,6 +138,32 @@ The audio input level test is intended to run without audible output. The audio
 output sine test should play a 440 Hz tone. Audio execution uses generated
 `PipelineCandidate.argv` values and does not accept arbitrary GStreamer pipeline
 strings. Press Ctrl+C to stop a running audio pipeline.
+
+## Diagnostics Workflow
+
+Use diagnostics when a candidate is missing or when you want to understand why a
+candidate is available:
+
+```sh
+gst-device-explorer devices
+gst-device-explorer audio-inputs
+gst-device-explorer audio-outputs
+gst-device-explorer groups
+
+gst-device-explorer pipeline video /dev/video0
+gst-device-explorer pipeline video /dev/video0 --diagnostics
+gst-device-explorer run video /dev/video0 --dry-run
+gst-device-explorer run video /dev/video0
+```
+
+Diagnostics explain candidate availability and missing requirements; they do not
+execute pipelines. Missing GStreamer elements are reported with suggested
+checks such as:
+
+```sh
+gst-inspect-1.0 autovideosink
+gst-inspect-1.0 alsasink
+```
 
 ## Setup
 

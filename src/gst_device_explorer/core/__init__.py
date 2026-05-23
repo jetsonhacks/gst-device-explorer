@@ -8,6 +8,7 @@ from gst_device_explorer.core.models import (
     EnvironmentFact,
     ExecutionPlan,
     GroupingEvidence,
+    PipelineDiagnostic,
     PipelineCandidate,
     Profile,
     RendererOutput,
@@ -61,6 +62,20 @@ def build_video_preview_candidates(
     return _build_video_preview_candidates(device, capabilities, environment)
 
 
+def build_video_preview_diagnostics(
+    device: Device,
+    capabilities: list[Capability],
+    environment: list[EnvironmentFact],
+) -> list[PipelineDiagnostic]:
+    """Build diagnostics for video preview pipeline candidates."""
+
+    from gst_device_explorer.core.video_diagnostics import (
+        build_video_preview_diagnostics as _build_video_preview_diagnostics,
+    )
+
+    return _build_video_preview_diagnostics(device, capabilities, environment)
+
+
 def build_audio_input_test_candidates(
     device: Device,
     environment: list[EnvironmentFact],
@@ -87,6 +102,32 @@ def build_audio_output_test_candidates(
     return _build_audio_output_test_candidates(device, environment)
 
 
+def build_audio_input_test_diagnostics(
+    device: Device,
+    environment: list[EnvironmentFact],
+) -> list[PipelineDiagnostic]:
+    """Build diagnostics for audio input test pipeline candidates."""
+
+    from gst_device_explorer.core.audio_diagnostics import (
+        build_audio_input_test_diagnostics as _build_audio_input_test_diagnostics,
+    )
+
+    return _build_audio_input_test_diagnostics(device, environment)
+
+
+def build_audio_output_test_diagnostics(
+    device: Device,
+    environment: list[EnvironmentFact],
+) -> list[PipelineDiagnostic]:
+    """Build diagnostics for audio output test pipeline candidates."""
+
+    from gst_device_explorer.core.audio_diagnostics import (
+        build_audio_output_test_diagnostics as _build_audio_output_test_diagnostics,
+    )
+
+    return _build_audio_output_test_diagnostics(device, environment)
+
+
 __all__ = [
     "Capability",
     "CompositeDevice",
@@ -96,14 +137,18 @@ __all__ = [
     "ExecutionPlan",
     "GroupingEvidence",
     "GroupableDevice",
+    "PipelineDiagnostic",
     "PipelineCandidate",
     "Profile",
     "RendererOutput",
     "build_audio_input_test_candidates",
+    "build_audio_input_test_diagnostics",
     "build_audio_output_test_candidates",
+    "build_audio_output_test_diagnostics",
     "build_composite_devices",
     "build_groupable_devices",
     "build_video_preview_candidates",
+    "build_video_preview_diagnostics",
     "discover_composite_devices",
     "discover_devices",
     "discover_groupable_devices",
