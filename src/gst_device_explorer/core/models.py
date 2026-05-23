@@ -58,6 +58,8 @@ class PipelineCandidate:
     purpose: str
     command: str
     confidence: float
+    candidate_id: str = ""
+    argv: list[str] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     required_elements: list[str] = field(default_factory=list)
@@ -66,6 +68,16 @@ class PipelineCandidate:
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between 0.0 and 1.0")
+
+
+@dataclass(frozen=True)
+class ExecutionPlan:
+    """A selected pipeline candidate prepared for safe execution."""
+
+    candidate_id: str
+    argv: list[str]
+    display_command: str
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

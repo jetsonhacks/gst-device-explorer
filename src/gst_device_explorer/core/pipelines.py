@@ -87,7 +87,7 @@ def _generic_video_preview_candidate(
     if caps is None:
         raise ValueError("generic video preview candidate requires supported caps")
 
-    command_parts = [
+    argv = [
         "gst-launch-1.0",
         "v4l2src",
         f"device={device_path}",
@@ -101,9 +101,11 @@ def _generic_video_preview_candidate(
     ]
 
     return PipelineCandidate(
+        candidate_id=_generic_candidate_id(capability.values),
         purpose="preview V4L2 video input",
-        command=" ".join(command_parts),
+        command=" ".join(argv),
         confidence=0.8,
+        argv=argv,
         reasons=_generic_candidate_reasons(
             device_path=device_path,
             values=capability.values,
@@ -128,7 +130,7 @@ def _jetson_mjpeg_preview_candidate(
         return None
 
     caps = _build_mjpg_caps(values)
-    command_parts = [
+    argv = [
         "gst-launch-1.0",
         "v4l2src",
         f"device={device_path}",
@@ -141,20 +143,22 @@ def _jetson_mjpeg_preview_candidate(
         "!",
         "nvjpegdec",
         "!",
-        "'video/x-raw(memory:NVMM), format=Y42B'",
+        "video/x-raw(memory:NVMM), format=Y42B",
         "!",
         "nvvidconv",
         "!",
-        "'video/x-raw(memory:NVMM), format=NV12'",
+        "video/x-raw(memory:NVMM), format=NV12",
         "!",
         "nveglglessink",
         "sync=false",
     ]
 
     return PipelineCandidate(
+        candidate_id="jetson-uvc-mjpeg-nvjpeg-nveglglessink",
         purpose="preview V4L2 MJPEG video input with Jetson NVIDIA elements",
-        command=" ".join(command_parts),
+        command=_render_display_command(argv),
         confidence=0.9,
+        argv=argv,
         reasons=_jetson_candidate_reasons(
             device_path=device_path,
             values=values,
@@ -206,6 +210,26 @@ def _format_score(values: dict[str, Any]) -> int:
     if values.get("pixel_format") == "YUYV":
         return 1
     return 0
+
+
+def _generic_candidate_id(values: dict[str, Any]) -> str:
+    pixel_format = values.get("pixel_format")
+    if pixel_format == "MJPG":
+        return "generic-v4l2-mjpeg-jpegdec-autovideosink"
+    if pixel_format == "YUYV":
+        return "generic-v4l2-yuyv-videoconvert-autovideosink"
+    return "generic-v4l2-video-preview"
+
+
+def _render_display_command(argv: list[str]) -> str:
+    quoted_caps = {
+        "video/x-raw(memory:NVMM), format=Y42B",
+        "video/x-raw(memory:NVMM), format=NV12",
+    }
+    return " ".join(
+        f"'{argument}'" if argument in quoted_caps else argument
+        for argument in argv
+    )
 
 
 def _build_caps(values: dict[str, Any]) -> str | None:

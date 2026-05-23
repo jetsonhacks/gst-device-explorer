@@ -19,8 +19,31 @@ other device classes, such as robot hardware, actuators, Dynamixel servos, or
 sensors, but that is not part of the initial implementation scope.
 
 The project is currently in an early implementation phase. It has initial
-probing models and CLI renderers, but no pipeline generation, preview/run
-behavior, GUI, recording, or editing support yet.
+probing models, CLI renderers, video pipeline candidate generation, and safe
+execution for selected video preview candidates. GUI, recording, editing, audio
+pipeline generation, and preview-window lifecycle management are not implemented
+yet.
+
+## Video Pipeline Candidates and Run
+
+Use `pipeline` to inspect generated video preview candidates:
+
+```sh
+gst-device-explorer pipeline video /dev/video0
+```
+
+Use `run` to select and execute one generated candidate:
+
+```sh
+gst-device-explorer run video /dev/video0 --dry-run
+gst-device-explorer run video /dev/video0
+gst-device-explorer run video /dev/video0 --candidate 0
+gst-device-explorer run video /dev/video0 --candidate jetson-uvc-mjpeg-nvjpeg-nveglglessink
+```
+
+`--dry-run` prints the selected candidate ID and GStreamer command without
+starting GStreamer. Without `--dry-run`, the selected candidate is executed with
+an argv-style subprocess call. Press Ctrl+C to stop a running pipeline.
 
 ## Setup
 
@@ -28,4 +51,4 @@ See `docs/SETUP.md` for Python setup, required Linux tools, useful GStreamer
 packages, verification commands, and prerequisites for useful CLI output.
 
 See the `docs/` directory for the specification, architecture notes, development
-principles, pipeline candidate design, and Milestone 1 scope.
+principles, pipeline candidate design, and milestone scope.

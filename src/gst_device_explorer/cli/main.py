@@ -11,9 +11,11 @@ from gst_device_explorer.core.models import (
     Capability,
     Device,
     EnvironmentFact,
+    ExecutionPlan,
     PipelineCandidate,
 )
 import gst_device_explorer.core.discovery as discovery
+import gst_device_explorer.core.execution as execution
 import gst_device_explorer.core.pipelines as pipelines
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
@@ -66,19 +68,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "pipeline" and args.pipeline_command == "video":
-        device = Device(
-            id=args.device_path,
-            kind="video_input",
-            name=args.device_path,
-            metadata={"backend": "v4l2", "path": args.device_path},
-        )
-        capabilities = v4l2_probe.discover_v4l2_capabilities(args.device_path)
-        environment = gst_probe.inspect_gstreamer_environment()
-        candidates = pipelines.build_video_preview_candidates(
-            device,
-            capabilities,
-            environment,
-        )
+        candidates = _build_video_preview_candidates(args.device_path)
         _print_pipeline_candidates(
             candidates,
             device_path=args.device_path,
@@ -87,6 +77,39 @@ def main(argv: Sequence[str] | None = None) -> int:
             limit=args.limit,
         )
         return 0
+
+    if args.command == "run" and args.run_command == "video":
+        candidates = _build_video_preview_candidates(args.device_path)
+        if not candidates:
+            print(
+                f"No pipeline candidates were generated for {args.device_path}."
+            )
+            print()
+            print("Try:")
+            print(f"  gst-device-explorer video {args.device_path}")
+            print("  gst-device-explorer env")
+            return 1
+
+        try:
+            candidate = execution.select_pipeline_candidate(
+                candidates,
+                selection=args.candidate,
+            )
+        except execution.CandidateSelectionError as error:
+            print(f"Error: {error}")
+            return 1
+
+        plan = execution.create_execution_plan(candidate)
+        _print_execution_plan(plan, dry_run=args.dry_run)
+
+        if args.dry_run:
+            return 0
+
+        try:
+            return execution.run_execution_plan(plan)
+        except execution.ExecutionStartError as error:
+            print(f"Error: could not start pipeline: {error}")
+            return 1
 
     parser.error("unknown command")
     return 2
@@ -182,7 +205,49 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Limit the number of rendered pipeline candidates.",
     )
 
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Select and run one pipeline candidate.",
+    )
+    run_subparsers = run_parser.add_subparsers(
+        dest="run_command",
+        required=True,
+    )
+    run_video_parser = run_subparsers.add_parser(
+        "video",
+        help="Run one generated V4L2 video preview pipeline candidate.",
+    )
+    run_video_parser.add_argument(
+        "device_path",
+        help="Path to a video device.",
+    )
+    run_video_parser.add_argument(
+        "--candidate",
+        help="Candidate zero-based index or stable candidate ID.",
+    )
+    run_video_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the selected command without starting GStreamer.",
+    )
+
     return parser
+
+
+def _build_video_preview_candidates(device_path: str) -> list[PipelineCandidate]:
+    device = Device(
+        id=device_path,
+        kind="video_input",
+        name=device_path,
+        metadata={"backend": "v4l2", "path": device_path},
+    )
+    capabilities = v4l2_probe.discover_v4l2_capabilities(device_path)
+    environment = gst_probe.inspect_gstreamer_environment()
+    return pipelines.build_video_preview_candidates(
+        device,
+        capabilities,
+        environment,
+    )
 
 
 def _print_devices(
@@ -314,13 +379,47 @@ def _select_pipeline_candidates(
     return candidates[:3]
 
 
+def _print_execution_plan(plan: ExecutionPlan, dry_run: bool) -> None:
+    print(f"Selected pipeline candidate: {plan.candidate_id}")
+    print()
+    print(plan.display_command)
+    if plan.warnings:
+        print()
+        print("Warnings:")
+        for warning in plan.warnings:
+            print(f"- {warning}")
+    print()
+    if dry_run:
+        print("Dry run only. Pipeline was not executed.")
+    else:
+        print("Running pipeline. Press Ctrl+C to stop.")
+
+
 def _to_json(
     items: list[Device]
     | list[EnvironmentFact]
     | list[Capability]
     | list[PipelineCandidate],
 ) -> str:
+    if items and isinstance(items[0], PipelineCandidate):
+        return json.dumps(
+            [_pipeline_candidate_to_json_dict(item) for item in items],
+            indent=2,
+            sort_keys=True,
+        )
     return json.dumps([asdict(item) for item in items], indent=2, sort_keys=True)
+
+
+def _pipeline_candidate_to_json_dict(candidate: PipelineCandidate) -> dict:
+    return {
+        "command": candidate.command,
+        "confidence": candidate.confidence,
+        "purpose": candidate.purpose,
+        "reasons": candidate.reasons,
+        "required_elements": candidate.required_elements,
+        "selected_profile": candidate.selected_profile,
+        "warnings": candidate.warnings,
+    }
 
 
 if __name__ == "__main__":

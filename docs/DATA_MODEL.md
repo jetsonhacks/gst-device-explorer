@@ -83,17 +83,42 @@ A pipeline candidate is a structured recommendation for a GStreamer pipeline.
 
 It should include:
 
+- Candidate ID
 - Purpose
-- Command
+- Display command
+- Execution argv
 - Confidence
 - Reasons
 - Warnings
 - Required elements
 - Selected profile, if any
 
+The candidate ID identifies the pipeline strategy or family. It should be stable
+enough for CLI selection, documentation, tests, and future GUI use, but it does
+not need to encode every caps detail.
+
+The display command is for humans. The execution argv is for subprocess
+execution. Rendered shell command strings are not executed.
+
 The command is only one representation of the candidate. The surrounding
 metadata should explain why the candidate exists, what it requires, and what
 tradeoffs or risks a user should understand.
+
+## ExecutionPlan
+
+An execution plan is a selected pipeline candidate prepared for safe execution.
+
+It should include:
+
+- Candidate ID
+- Execution argv
+- Display command
+- Warnings
+
+The display command is rendered for humans before execution. The argv list is
+passed to `subprocess.Popen(argv)`. These forms are related, but they are not
+interchangeable: runtime correctness depends on argv, not shell quoting in the
+display command.
 
 ## RendererOutput
 

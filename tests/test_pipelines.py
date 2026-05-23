@@ -31,6 +31,19 @@ def test_mjpg_generic_video_preview_candidate() -> None:
         "image/jpeg, width=1920, height=1080, framerate=60/1 ! "
         "videoconvert ! autovideosink sync=false"
     )
+    assert candidate.candidate_id == "generic-v4l2-mjpeg-jpegdec-autovideosink"
+    assert candidate.argv == [
+        "gst-launch-1.0",
+        "v4l2src",
+        "device=/dev/video0",
+        "!",
+        "image/jpeg, width=1920, height=1080, framerate=60/1",
+        "!",
+        "videoconvert",
+        "!",
+        "autovideosink",
+        "sync=false",
+    ]
     assert candidate.selected_profile == "generic-linux-video-preview"
     assert candidate.confidence == 0.8
 
@@ -56,6 +69,10 @@ def test_yuyv_generic_video_preview_candidate() -> None:
         "gst-launch-1.0 v4l2src device=/dev/video0 ! "
         "video/x-raw, format=YUY2, width=1280, height=720, framerate=30/1 ! "
         "videoconvert ! autovideosink sync=false"
+    )
+    assert (
+        candidates[0].candidate_id
+        == "generic-v4l2-yuyv-videoconvert-autovideosink"
     )
 
 
@@ -138,6 +155,29 @@ def test_jetson_mjpg_candidate_is_generated_when_elements_are_present() -> None:
         "'video/x-raw(memory:NVMM), format=Y42B' ! nvvidconv ! "
         "'video/x-raw(memory:NVMM), format=NV12' ! nveglglessink sync=false"
     )
+    assert jetson_candidate.candidate_id == "jetson-uvc-mjpeg-nvjpeg-nveglglessink"
+    assert jetson_candidate.argv == [
+        "gst-launch-1.0",
+        "v4l2src",
+        "device=/dev/video0",
+        "io-mode=2",
+        "do-timestamp=true",
+        "!",
+        "image/jpeg, width=1920, height=1080, framerate=60/1",
+        "!",
+        "jpegparse",
+        "!",
+        "nvjpegdec",
+        "!",
+        "video/x-raw(memory:NVMM), format=Y42B",
+        "!",
+        "nvvidconv",
+        "!",
+        "video/x-raw(memory:NVMM), format=NV12",
+        "!",
+        "nveglglessink",
+        "sync=false",
+    ]
     assert jetson_candidate.required_elements == [
         "v4l2src",
         "jpegparse",

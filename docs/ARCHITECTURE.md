@@ -57,6 +57,28 @@ representations. The first renderer is expected to be a CLI. A future GUI should
 use the same underlying models and builders rather than duplicating discovery or
 pipeline logic.
 
+## Execution Flow
+
+Safe execution is a separate layer that consumes structured pipeline candidates.
+The CLI acts as a renderer/controller: it asks probes and builders for data,
+renders the selected plan for the user, and delegates subprocess handling to the
+execution helper.
+
+```text
+probe device
+  -> normalize capabilities
+  -> build ranked PipelineCandidate objects
+  -> select candidate
+  -> create ExecutionPlan
+  -> render display command
+  -> execute argv
+```
+
+Pipeline generation and pipeline execution remain separate. A
+`PipelineCandidate` contains both a display command and an argv representation.
+The display command is for humans; the argv list is what execution passes to
+`subprocess.Popen(argv)`.
+
 ## Exploration Plugins
 
 The core architecture should allow future exploration plugins to add new probe

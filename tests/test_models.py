@@ -10,6 +10,7 @@ from gst_device_explorer.core import (
     Capability,
     Device,
     EnvironmentFact,
+    ExecutionPlan,
     PipelineCandidate,
     Profile,
     RendererOutput,
@@ -73,9 +74,17 @@ def test_profile_expresses_preferences_and_patterns() -> None:
 
 def test_pipeline_candidate_contains_structured_recommendation() -> None:
     candidate = PipelineCandidate(
+        candidate_id="generic-v4l2-yuyv-videoconvert-autovideosink",
         purpose="preview video input",
         command="gst-launch-1.0 v4l2src device=/dev/video0 ! autovideosink",
         confidence=0.75,
+        argv=[
+            "gst-launch-1.0",
+            "v4l2src",
+            "device=/dev/video0",
+            "!",
+            "autovideosink",
+        ],
         reasons=["v4l2src is available", "device exposes video capabilities"],
         warnings=["pipeline has not been executed"],
         required_elements=["v4l2src", "autovideosink"],
@@ -83,7 +92,15 @@ def test_pipeline_candidate_contains_structured_recommendation() -> None:
     )
 
     assert candidate.purpose == "preview video input"
+    assert candidate.candidate_id == "generic-v4l2-yuyv-videoconvert-autovideosink"
     assert candidate.confidence == 0.75
+    assert candidate.argv == [
+        "gst-launch-1.0",
+        "v4l2src",
+        "device=/dev/video0",
+        "!",
+        "autovideosink",
+    ]
     assert candidate.required_elements == ["v4l2src", "autovideosink"]
     assert candidate.selected_profile == "generic-linux"
 
@@ -95,6 +112,20 @@ def test_pipeline_candidate_rejects_invalid_confidence() -> None:
             command="gst-launch-1.0 fakesrc ! fakesink",
             confidence=1.5,
         )
+
+
+def test_execution_plan_contains_argv_and_display_command() -> None:
+    plan = ExecutionPlan(
+        candidate_id="generic-v4l2-yuyv-videoconvert-autovideosink",
+        argv=["gst-launch-1.0", "fakesrc", "!", "fakesink"],
+        display_command="gst-launch-1.0 fakesrc ! fakesink",
+        warnings=["example warning"],
+    )
+
+    assert plan.candidate_id == "generic-v4l2-yuyv-videoconvert-autovideosink"
+    assert plan.argv == ["gst-launch-1.0", "fakesrc", "!", "fakesink"]
+    assert plan.display_command == "gst-launch-1.0 fakesrc ! fakesink"
+    assert plan.warnings == ["example warning"]
 
 
 def test_renderer_output_presents_structured_data() -> None:

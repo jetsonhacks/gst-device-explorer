@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import subprocess
 import sys
 
 import pytest
@@ -643,6 +644,201 @@ def test_pipeline_video_json_output_limit_one_returns_one_candidate(
     assert [item["purpose"] for item in data] == ["candidate 1"]
 
 
+def test_run_video_dry_run_selects_top_candidate(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(1), _pipeline_candidate(2)],
+    )
+
+    exit_code = main(["run", "video", "/dev/video0", "--dry-run"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Selected pipeline candidate: test-candidate-1\n"
+        "\n"
+        "gst-launch-1.0 candidate-1\n"
+        "\n"
+        "Dry run only. Pipeline was not executed.\n"
+    )
+
+
+def test_run_video_dry_run_does_not_invoke_subprocess(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(monkeypatch, [_pipeline_candidate(1)])
+
+    def fail_popen(*args, **kwargs):
+        raise AssertionError("subprocess.Popen should not be called")
+
+    monkeypatch.setattr(subprocess, "Popen", fail_popen)
+
+    exit_code = main(["run", "video", "/dev/video0", "--dry-run"])
+
+    assert exit_code == 0
+    assert "Dry run only. Pipeline was not executed." in capsys.readouterr().out
+
+
+def test_run_video_dry_run_selects_candidate_by_index(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(1), _pipeline_candidate(2)],
+    )
+
+    exit_code = main(
+        ["run", "video", "/dev/video0", "--candidate", "1", "--dry-run"]
+    )
+
+    assert exit_code == 0
+    assert "Selected pipeline candidate: test-candidate-2\n" in capsys.readouterr().out
+
+
+def test_run_video_dry_run_accepts_zero_candidate_index(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(1), _pipeline_candidate(2)],
+    )
+
+    exit_code = main(
+        ["run", "video", "/dev/video0", "--candidate", "0", "--dry-run"]
+    )
+
+    assert exit_code == 0
+    assert "Selected pipeline candidate: test-candidate-1\n" in capsys.readouterr().out
+
+
+def test_run_video_dry_run_selects_candidate_by_id(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(1), _pipeline_candidate(2)],
+    )
+
+    exit_code = main(
+        [
+            "run",
+            "video",
+            "/dev/video0",
+            "--candidate",
+            "test-candidate-2",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    assert "Selected pipeline candidate: test-candidate-2\n" in capsys.readouterr().out
+
+
+def test_run_video_invalid_candidate_index_returns_error(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(monkeypatch, [_pipeline_candidate(1)])
+
+    exit_code = main(
+        ["run", "video", "/dev/video0", "--candidate", "2", "--dry-run"]
+    )
+
+    assert exit_code == 1
+    assert "candidate index 2 is out of range" in capsys.readouterr().out
+
+
+def test_run_video_invalid_candidate_id_returns_error(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(monkeypatch, [_pipeline_candidate(1)])
+
+    exit_code = main(
+        [
+            "run",
+            "video",
+            "/dev/video0",
+            "--candidate",
+            "missing-candidate",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 1
+    assert "candidate ID 'missing-candidate' was not found" in capsys.readouterr().out
+
+
+def test_run_video_no_candidates_returns_diagnostic(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(monkeypatch, [])
+
+    exit_code = main(["run", "video", "/dev/video0", "--dry-run"])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out == (
+        "No pipeline candidates were generated for /dev/video0.\n"
+        "\n"
+        "Try:\n"
+        "  gst-device-explorer video /dev/video0\n"
+        "  gst-device-explorer env\n"
+    )
+
+
+def test_run_video_invokes_subprocess_with_selected_candidate_argv(
+    monkeypatch,
+    capsys,
+) -> None:
+    _mock_pipeline_video_candidates(
+        monkeypatch,
+        [_pipeline_candidate(1), _pipeline_candidate(2)],
+    )
+    calls = []
+
+    class FakeProcess:
+        def wait(self):
+            return 0
+
+    def fake_popen(*args, **kwargs):
+        calls.append((args, kwargs))
+        return FakeProcess()
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    exit_code = main(
+        ["run", "video", "/dev/video0", "--candidate", "test-candidate-2"]
+    )
+
+    assert exit_code == 0
+    assert calls == [((["gst-launch-1.0", "candidate-2"],), {})]
+    assert capsys.readouterr().out == (
+        "Selected pipeline candidate: test-candidate-2\n"
+        "\n"
+        "gst-launch-1.0 candidate-2\n"
+        "\n"
+        "Running pipeline. Press Ctrl+C to stop.\n"
+    )
+
+
+def test_run_video_propagates_child_return_code(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(monkeypatch, [_pipeline_candidate(1)])
+
+    class FakeProcess:
+        def wait(self):
+            return 23
+
+    monkeypatch.setattr(subprocess, "Popen", lambda argv: FakeProcess())
+
+    exit_code = main(["run", "video", "/dev/video0"])
+
+    assert exit_code == 23
+    assert "Running pipeline. Press Ctrl+C to stop." in capsys.readouterr().out
+
+
+def test_run_video_reports_subprocess_start_error(monkeypatch, capsys) -> None:
+    _mock_pipeline_video_candidates(monkeypatch, [_pipeline_candidate(1)])
+
+    def fake_popen(argv):
+        raise FileNotFoundError("gst-launch-1.0")
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    exit_code = main(["run", "video", "/dev/video0"])
+
+    assert exit_code == 1
+    assert "Error: could not start pipeline: gst-launch-1.0" in capsys.readouterr().out
+
+
 def test_unknown_command_exits_with_error(capsys) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["unknown"])
@@ -671,9 +867,11 @@ def _mock_pipeline_video_candidates(monkeypatch, candidates) -> None:
 
 def _pipeline_candidate(index: int) -> PipelineCandidate:
     return PipelineCandidate(
+        candidate_id=f"test-candidate-{index}",
         purpose=f"candidate {index}",
         command=f"gst-launch-1.0 candidate-{index}",
         confidence=1.0 - (index / 10),
+        argv=["gst-launch-1.0", f"candidate-{index}"],
         reasons=[],
         warnings=[],
         required_elements=["v4l2src"],

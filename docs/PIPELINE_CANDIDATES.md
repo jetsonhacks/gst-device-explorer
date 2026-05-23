@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Pipeline candidates are recommendations, not executed commands. They describe
-possible GStreamer pipelines that a user or renderer can inspect before any
-future execution feature exists.
+Pipeline candidates are structured recommendations. They describe possible
+GStreamer pipelines that a user or renderer can inspect before selecting one for
+execution.
 
 A candidate should explain why it was suggested, what it requires, what profile
 influenced it, and what warnings apply. The rendered GStreamer command is one
@@ -28,7 +28,9 @@ into structured recommendations.
 Candidate builders produce `PipelineCandidate` objects with:
 
 - `purpose`
+- `candidate_id`
 - `command`
+- `argv`
 - `confidence`
 - `reasons`
 - `warnings`
@@ -37,6 +39,32 @@ Candidate builders produce `PipelineCandidate` objects with:
 
 The command should be constructed intentionally from model data and profile
 preferences. It should not be rewritten afterward with ad hoc string patches.
+
+`command` is the human-readable display form. `argv` is the subprocess execution
+form. The execution path uses `argv`, not the rendered command string.
+
+## Candidate IDs and Selection
+
+Each candidate has a stable candidate ID that identifies the pipeline strategy
+or family without encoding every caps detail.
+
+Example IDs:
+
+```text
+jetson-uvc-mjpeg-nvjpeg-nveglglessink
+generic-v4l2-mjpeg-jpegdec-autovideosink
+generic-v4l2-yuyv-videoconvert-autovideosink
+```
+
+Candidate IDs are suitable for CLI selection, documentation, tests, and future
+GUI use. Numeric indexes are convenient for quick terminal use, but they are
+less stable than IDs because candidate ordering can change when capabilities or
+available GStreamer elements change.
+
+Candidate generation remains separate from execution. The `pipeline` command
+renders candidates for inspection. The `run` command selects one generated
+candidate, creates an execution plan, and executes the plan's argv form unless
+`--dry-run` is requested.
 
 ## First Supported Media Case
 
@@ -91,11 +119,10 @@ In this path:
 This lesson should become a `PipelineCandidate` with reasons and warnings, not a
 hard-coded one-off patch.
 
-## Non-Goals For First Pipeline Work
+## Non-Goals For Pipeline Candidate Generation
 
-The first pipeline work should not:
+Pipeline candidate generation should not:
 
-- Execute pipelines
 - Add preview windows
 - Add recording
 - Add audio pipelines yet
