@@ -18,9 +18,14 @@ extensible hardware exploration later. Future exploration plugins may inspect
 other device classes, such as robot hardware, actuators, Dynamixel servos, or
 sensors, but that is not part of the initial implementation scope.
 
-The project is currently in the documentation and design phase. No application
-code, CLI, GUI, probing implementation, or pipeline execution support exists
-yet.
+The project is currently in an early implementation phase. It has initial
+probing models and CLI renderers, but no pipeline generation, preview/run
+behavior, GUI, recording, or editing support yet.
 
-See the `docs/` directory for the initial specification, architecture notes,
-development principles, and Milestone 1 scope.
+## Setup
+
+See `docs/SETUP.md` for Python setup, required Linux tools, useful GStreamer
+packages, verification commands, and prerequisites for useful CLI output.
+
+See the `docs/` directory for the specification, architecture notes, development
+principles, and Milestone 1 scope.
