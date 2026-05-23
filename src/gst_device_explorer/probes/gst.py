@@ -14,6 +14,8 @@ GST_INSPECT = "gst-inspect-1.0"
 
 DEFAULT_GSTREAMER_ELEMENTS = [
     "v4l2src",
+    "videoconvert",
+    "autovideosink",
     "alsasrc",
     "alsasink",
     "autoaudiosrc",

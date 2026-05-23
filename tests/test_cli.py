@@ -106,6 +106,7 @@ def test_env_text_output(monkeypatch, capsys) -> None:
         "- gstreamer_version: 1.22.8\n"
         "  source: gst-launch-1.0\n"
         "- gstreamer_element_available: True\n"
+        "  element: v4l2src\n"
         "  source: gst-inspect-1.0\n"
     )
 

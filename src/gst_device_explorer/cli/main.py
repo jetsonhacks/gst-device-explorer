@@ -206,6 +206,8 @@ def _print_environment(facts: list[EnvironmentFact], as_json: bool) -> None:
     print("Environment:")
     for fact in facts:
         print(f"- {fact.name}: {fact.value}")
+        if "element" in fact.metadata:
+            print(f"  element: {fact.metadata['element']}")
         if fact.source is not None:
             print(f"  source: {fact.source}")
 

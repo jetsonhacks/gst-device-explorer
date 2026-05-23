@@ -5,7 +5,10 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gst_device_explorer.probes.gst import inspect_gstreamer_environment
+from gst_device_explorer.probes.gst import (
+    DEFAULT_GSTREAMER_ELEMENTS,
+    inspect_gstreamer_environment,
+)
 
 
 def _fact_by_tool(facts, tool):
@@ -126,6 +129,12 @@ def test_element_availability_is_reported_per_element(monkeypatch) -> None:
 
     assert _fact_by_element(facts, "v4l2src").value is True
     assert _fact_by_element(facts, "nvjpegdec").value is False
+
+
+def test_default_elements_include_generic_video_preview_requirements() -> None:
+    assert "v4l2src" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "videoconvert" in DEFAULT_GSTREAMER_ELEMENTS
+    assert "autovideosink" in DEFAULT_GSTREAMER_ELEMENTS
 
 
 def test_subprocess_failure_does_not_raise(monkeypatch) -> None:
