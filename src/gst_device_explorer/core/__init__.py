@@ -18,6 +18,20 @@ def discover_devices() -> list[Device]:
     return _discover_devices()
 
 
+def build_video_preview_candidates(
+    device: Device,
+    capabilities: list[Capability],
+    environment: list[EnvironmentFact],
+) -> list[PipelineCandidate]:
+    """Build video preview pipeline candidates."""
+
+    from gst_device_explorer.core.pipelines import (
+        build_video_preview_candidates as _build_video_preview_candidates,
+    )
+
+    return _build_video_preview_candidates(device, capabilities, environment)
+
+
 __all__ = [
     "Capability",
     "Device",
@@ -25,5 +39,6 @@ __all__ = [
     "PipelineCandidate",
     "Profile",
     "RendererOutput",
+    "build_video_preview_candidates",
     "discover_devices",
 ]

@@ -28,4 +28,4 @@ See `docs/SETUP.md` for Python setup, required Linux tools, useful GStreamer
 packages, verification commands, and prerequisites for useful CLI output.
 
 See the `docs/` directory for the specification, architecture notes, development
-principles, and Milestone 1 scope.
+principles, pipeline candidate design, and Milestone 1 scope.
