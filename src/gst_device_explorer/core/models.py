@@ -81,6 +81,45 @@ class ExecutionPlan:
 
 
 @dataclass(frozen=True)
+class DeviceRef:
+    """A reference to a discovered device inside a composite device."""
+
+    role: str
+    device_id: str
+    path: str | None
+    subsystem: str
+
+
+@dataclass(frozen=True)
+class GroupingEvidence:
+    """Evidence used to group devices into a composite device."""
+
+    source: str
+    description: str
+    strength: float
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.strength <= 1.0:
+            raise ValueError("strength must be between 0.0 and 1.0")
+
+
+@dataclass(frozen=True)
+class CompositeDevice:
+    """A grouped physical or logical device with evidence-backed members."""
+
+    id: str
+    name: str
+    kind: str
+    confidence: float
+    members: list[DeviceRef] = field(default_factory=list)
+    evidence: list[GroupingEvidence] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError("confidence must be between 0.0 and 1.0")
+
+
+@dataclass(frozen=True)
 class RendererOutput:
     """A presentation of model data for a user or tool."""
 

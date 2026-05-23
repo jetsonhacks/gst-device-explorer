@@ -81,6 +81,7 @@ uv run gst-device-explorer env
 uv run gst-device-explorer devices
 uv run gst-device-explorer audio-inputs
 uv run gst-device-explorer audio-outputs
+uv run gst-device-explorer groups
 uv run gst-device-explorer video /dev/video0
 uv run gst-device-explorer pipeline video /dev/video0
 ```
@@ -116,11 +117,74 @@ uv run gst-device-explorer run video /dev/video0
 The real run command may open a GStreamer preview window depending on the
 selected sink. Press Ctrl+C in the terminal to stop a running pipeline.
 
-## 7. Current Limitations
+## 7. Verify Milestone 3 Composite Groups
+
+Inspect computed composite device groups:
+
+```sh
+uv run gst-device-explorer groups
+uv run gst-device-explorer groups --json
+uv run gst-device-explorer groups --metadata
+uv run gst-device-explorer groups --metadata --json
+```
+
+On systems where `uv` is installed outside `PATH`, use the absolute command:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer groups
+/home/jim/.local/bin/uv run gst-device-explorer groups --json
+```
+
+If a group is found, inspect it by ID:
+
+```sh
+uv run gst-device-explorer group <group-id>
+```
+
+Milestone 3 group output can include exact USB-device groups and parent
+USB-family groups. Exact USB-device groups contain devices sharing the same USB
+parent path. Parent USB-family groups sit above those child groups when they
+share a meaningful USB ancestor, USB vendor ID, and non-generic product-family
+token.
+
+Expected Reachy Mini-style output:
+
+```text
+Composite devices:
+- Reachy Mini Audio
+  id: usb-device-1-4-1-1
+  ...
+
+- Reachy Mini Camera
+  id: usb-device-1-4-1-4
+  ...
+
+- Reachy Mini
+  id: usb-family-1-4-1
+  confidence: 0.80
+  members:
+    - audio-input: hw:0,0
+    - audio-output: hw:0,0
+    - camera: /dev/video0
+    - camera: /dev/video1
+```
+
+Groups are computed from discovered device metadata. Systems without shared ALSA
+card metadata or USB topology metadata may report no composite groups. Devices
+that do not share the required evidence, such as a separate Orbbec Femto Bolt,
+remain independent. Use `groups --metadata` as the diagnostic view for the
+normalized records feeding the grouping engine.
+
+Milestone 3 does not add group-based pipeline generation or group-based
+execution. Pipeline generation and execution still target individual devices.
+
+## 8. Current Limitations
 
 - GUI is not implemented.
 - Audio pipeline generation is not implemented.
 - Audio pipeline execution is not implemented.
+- Group-based pipeline generation is not implemented.
+- Group-based pipeline execution is not implemented.
 - Preview-window lifecycle management is not implemented.
 - PulseAudio and PipeWire probing are not implemented yet.
 - Empty output may mean tools are missing, no matching hardware is present,

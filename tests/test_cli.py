@@ -9,10 +9,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gst_device_explorer.cli.main import main
+from gst_device_explorer.core.grouping import GroupableDevice
 from gst_device_explorer.core.models import (
     Capability,
+    CompositeDevice,
     Device,
+    DeviceRef,
     EnvironmentFact,
+    GroupingEvidence,
     PipelineCandidate,
 )
 import gst_device_explorer.cli.main as cli_main
@@ -77,6 +81,175 @@ def test_devices_json_output(monkeypatch, capsys) -> None:
             "name": "HDA Intel PCH: HDMI 0",
         }
     ]
+
+
+def test_groups_text_output_with_no_groups(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [],
+    )
+
+    exit_code = main(["groups"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == "No composite device groups found.\n"
+
+
+def test_groups_metadata_text_output_with_no_records(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_groupable_devices",
+        lambda: [],
+    )
+
+    exit_code = main(["groups", "--metadata"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == "No grouping metadata records found.\n"
+
+
+def test_groups_metadata_text_output(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_groupable_devices",
+        lambda: [_groupable_camera()],
+    )
+
+    exit_code = main(["groups", "--metadata"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Grouping metadata:\n"
+        "- Reachy Mini Camera\n"
+        "  role: camera\n"
+        "  device id: /dev/video0\n"
+        "  path: /dev/video0\n"
+        "  subsystem: v4l2\n"
+        "  metadata:\n"
+        "    usb_parent_path: 1-2.3\n"
+        "    usb_product: Reachy Mini\n"
+        "    v4l2_name: Reachy Mini Camera\n"
+    )
+
+
+def test_groups_metadata_json_output(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_groupable_devices",
+        lambda: [_groupable_camera()],
+    )
+
+    exit_code = main(["groups", "--metadata", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert data == [
+        {
+            "device_ref": {
+                "device_id": "/dev/video0",
+                "path": "/dev/video0",
+                "role": "camera",
+                "subsystem": "v4l2",
+            },
+            "metadata": {
+                "usb_parent_path": "1-2.3",
+                "usb_product": "Reachy Mini",
+                "v4l2_name": "Reachy Mini Camera",
+            },
+            "name": "Reachy Mini Camera",
+        }
+    ]
+
+
+def test_groups_text_output_with_one_group(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [_composite_group()],
+    )
+
+    exit_code = main(["groups"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Composite devices:\n"
+        "- Reachy Mini Audio\n"
+        "  id: audio-device-alsa-card-0\n"
+        "  kind: audio-device\n"
+        "  confidence: 0.90\n"
+        "  members:\n"
+        "    - audio-input: hw:0,0\n"
+        "    - audio-output: hw:0,0\n"
+        "  evidence:\n"
+        "    - alsa-card: audio devices share ALSA card 0\n"
+    )
+
+
+def test_groups_json_output(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [_composite_group()],
+    )
+
+    exit_code = main(["groups", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert data == [_composite_group_json()]
+
+
+def test_group_text_output_selects_one_group(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [_other_composite_group(), _composite_group()],
+    )
+
+    exit_code = main(["group", "audio-device-alsa-card-0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "- Reachy Mini Audio\n"
+        "  id: audio-device-alsa-card-0\n"
+        "  kind: audio-device\n"
+        "  confidence: 0.90\n"
+        "  members:\n"
+        "    - audio-input: hw:0,0\n"
+        "    - audio-output: hw:0,0\n"
+        "  evidence:\n"
+        "    - alsa-card: audio devices share ALSA card 0\n"
+    )
+
+
+def test_group_json_output_selects_one_group(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [_other_composite_group(), _composite_group()],
+    )
+
+    exit_code = main(["group", "audio-device-alsa-card-0", "--json"])
+    data = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert data == _composite_group_json()
+
+
+def test_group_unknown_id_returns_error(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [_composite_group()],
+    )
+
+    exit_code = main(["group", "missing-group"])
+
+    assert exit_code == 1
+    assert capsys.readouterr().out == (
+        "Composite device group not found: missing-group\n"
+    )
 
 
 def test_env_text_output(monkeypatch, capsys) -> None:
@@ -876,4 +1049,105 @@ def _pipeline_candidate(index: int) -> PipelineCandidate:
         warnings=[],
         required_elements=["v4l2src"],
         selected_profile="generic-linux-video-preview",
+    )
+
+
+def _composite_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="audio-device-alsa-card-0",
+        name="Reachy Mini Audio",
+        kind="audio-device",
+        confidence=0.9,
+        members=[
+            DeviceRef(
+                role="audio-input",
+                device_id="hw:0,0",
+                path="hw:0,0",
+                subsystem="alsa",
+            ),
+            DeviceRef(
+                role="audio-output",
+                device_id="hw:0,0",
+                path="hw:0,0",
+                subsystem="alsa",
+            ),
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="alsa-card",
+                description="audio devices share ALSA card 0",
+                strength=0.9,
+            )
+        ],
+    )
+
+
+def _other_composite_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="usb-device-1-2-3",
+        name="USB Device 1-2.3",
+        kind="unknown",
+        confidence=0.9,
+        members=[
+            DeviceRef(
+                role="camera",
+                device_id="/dev/video0",
+                path="/dev/video0",
+                subsystem="v4l2",
+            )
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="usb-topology",
+                description="devices share USB parent path 1-2.3",
+                strength=0.9,
+            )
+        ],
+    )
+
+
+def _composite_group_json() -> dict:
+    return {
+        "confidence": 0.9,
+        "evidence": [
+            {
+                "description": "audio devices share ALSA card 0",
+                "source": "alsa-card",
+                "strength": 0.9,
+            }
+        ],
+        "id": "audio-device-alsa-card-0",
+        "kind": "audio-device",
+        "members": [
+            {
+                "device_id": "hw:0,0",
+                "path": "hw:0,0",
+                "role": "audio-input",
+                "subsystem": "alsa",
+            },
+            {
+                "device_id": "hw:0,0",
+                "path": "hw:0,0",
+                "role": "audio-output",
+                "subsystem": "alsa",
+            },
+        ],
+        "name": "Reachy Mini Audio",
+    }
+
+
+def _groupable_camera() -> GroupableDevice:
+    return GroupableDevice(
+        device_ref=DeviceRef(
+            role="camera",
+            device_id="/dev/video0",
+            path="/dev/video0",
+            subsystem="v4l2",
+        ),
+        name="Reachy Mini Camera",
+        metadata={
+            "v4l2_name": "Reachy Mini Camera",
+            "usb_parent_path": "1-2.3",
+            "usb_product": "Reachy Mini",
+        },
     )

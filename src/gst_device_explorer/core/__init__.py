@@ -2,13 +2,21 @@
 
 from gst_device_explorer.core.models import (
     Capability,
+    CompositeDevice,
     Device,
+    DeviceRef,
     EnvironmentFact,
     ExecutionPlan,
+    GroupingEvidence,
     PipelineCandidate,
     Profile,
     RendererOutput,
 )
+from gst_device_explorer.core.grouping import (
+    GroupableDevice,
+    build_composite_devices,
+)
+from gst_device_explorer.core.grouping_metadata import build_groupable_devices
 
 
 def discover_devices() -> list[Device]:
@@ -17,6 +25,26 @@ def discover_devices() -> list[Device]:
     from gst_device_explorer.core.discovery import discover_devices as _discover_devices
 
     return _discover_devices()
+
+
+def discover_composite_devices() -> list[CompositeDevice]:
+    """Discover composite devices using the current probe and grouping layers."""
+
+    from gst_device_explorer.core.discovery import (
+        discover_composite_devices as _discover_composite_devices,
+    )
+
+    return _discover_composite_devices()
+
+
+def discover_groupable_devices() -> list[GroupableDevice]:
+    """Discover groupable device records using current probes and metadata."""
+
+    from gst_device_explorer.core.discovery import (
+        discover_groupable_devices as _discover_groupable_devices,
+    )
+
+    return _discover_groupable_devices()
 
 
 def build_video_preview_candidates(
@@ -35,12 +63,20 @@ def build_video_preview_candidates(
 
 __all__ = [
     "Capability",
+    "CompositeDevice",
     "Device",
+    "DeviceRef",
     "EnvironmentFact",
     "ExecutionPlan",
+    "GroupingEvidence",
+    "GroupableDevice",
     "PipelineCandidate",
     "Profile",
     "RendererOutput",
+    "build_composite_devices",
+    "build_groupable_devices",
     "build_video_preview_candidates",
+    "discover_composite_devices",
     "discover_devices",
+    "discover_groupable_devices",
 ]

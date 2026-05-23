@@ -9,11 +9,13 @@ from typing import Sequence
 
 from gst_device_explorer.core.models import (
     Capability,
+    CompositeDevice,
     Device,
     EnvironmentFact,
     ExecutionPlan,
     PipelineCandidate,
 )
+from gst_device_explorer.core.grouping import GroupableDevice
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.execution as execution
 import gst_device_explorer.core.pipelines as pipelines
@@ -31,6 +33,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "devices":
         devices = discovery.discover_devices()
         _print_devices(devices, as_json=args.json)
+        return 0
+
+    if args.command == "groups":
+        if args.metadata:
+            groupable_devices = discovery.discover_groupable_devices()
+            _print_grouping_metadata(groupable_devices, as_json=args.json)
+            return 0
+        groups = discovery.discover_composite_devices()
+        _print_composite_groups(groups, as_json=args.json)
+        return 0
+
+    if args.command == "group":
+        groups = discovery.discover_composite_devices()
+        group = _find_composite_group(groups, args.group_id)
+        if group is None:
+            print(f"Composite device group not found: {args.group_id}")
+            return 1
+        _print_composite_group(group, as_json=args.json)
         return 0
 
     if args.command == "env":
@@ -130,6 +150,32 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Render devices as JSON.",
+    )
+
+    groups_parser = subparsers.add_parser(
+        "groups",
+        help="Discover composite device groups.",
+    )
+    groups_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render composite device groups as JSON.",
+    )
+    groups_parser.add_argument(
+        "--metadata",
+        action="store_true",
+        help="Render metadata records consumed by the grouping engine.",
+    )
+
+    group_parser = subparsers.add_parser(
+        "group",
+        help="Inspect one composite device group.",
+    )
+    group_parser.add_argument("group_id", help="Composite device group ID.")
+    group_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render one composite device group as JSON.",
     )
 
     env_parser = subparsers.add_parser(
@@ -289,6 +335,85 @@ def _print_environment(facts: list[EnvironmentFact], as_json: bool) -> None:
             print(f"  source: {fact.source}")
 
 
+def _print_composite_groups(
+    groups: list[CompositeDevice],
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(_to_json(groups))
+        return
+
+    if not groups:
+        print("No composite device groups found.")
+        return
+
+    print("Composite devices:")
+    for group in groups:
+        _print_composite_group_text(group)
+
+
+def _print_grouping_metadata(
+    devices: list[GroupableDevice],
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(_to_json(devices))
+        return
+
+    if not devices:
+        print("No grouping metadata records found.")
+        return
+
+    print("Grouping metadata:")
+    for device in devices:
+        print(f"- {device.name}")
+        print(f"  role: {device.device_ref.role}")
+        print(f"  device id: {device.device_ref.device_id}")
+        if device.device_ref.path is not None:
+            print(f"  path: {device.device_ref.path}")
+        print(f"  subsystem: {device.device_ref.subsystem}")
+        if device.metadata:
+            print("  metadata:")
+            for key in sorted(device.metadata):
+                print(f"    {key}: {device.metadata[key]}")
+        else:
+            print("  metadata: none")
+
+
+def _print_composite_group(
+    group: CompositeDevice,
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(json.dumps(asdict(group), indent=2, sort_keys=True))
+        return
+
+    _print_composite_group_text(group)
+
+
+def _print_composite_group_text(group: CompositeDevice) -> None:
+    print(f"- {group.name}")
+    print(f"  id: {group.id}")
+    print(f"  kind: {group.kind}")
+    print(f"  confidence: {group.confidence:.2f}")
+    if group.members:
+        print("  members:")
+        for member in group.members:
+            label = member.path or member.device_id
+            print(f"    - {member.role}: {label}")
+    if group.evidence:
+        print("  evidence:")
+        for evidence in group.evidence:
+            print(f"    - {evidence.source}: {evidence.description}")
+
+
+def _find_composite_group(
+    groups: list[CompositeDevice],
+    group_id: str,
+) -> CompositeDevice | None:
+    return next((group for group in groups if group.id == group_id), None)
+
+
 def _print_video_capabilities(
     capabilities: list[Capability],
     device_path: str,
@@ -399,7 +524,9 @@ def _to_json(
     items: list[Device]
     | list[EnvironmentFact]
     | list[Capability]
-    | list[PipelineCandidate],
+    | list[PipelineCandidate]
+    | list[CompositeDevice]
+    | list[GroupableDevice],
 ) -> str:
     if items and isinstance(items[0], PipelineCandidate):
         return json.dumps(

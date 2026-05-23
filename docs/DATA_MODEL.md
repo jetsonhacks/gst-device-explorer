@@ -27,6 +27,83 @@ Future extension examples may include:
 Devices should describe what was found without deciding which pipeline or user
 action is best.
 
+## DeviceRef
+
+A device reference points from a higher-level grouped object back to an existing
+discovered device.
+
+It should include:
+
+- Role
+- Device ID
+- Device path, when one exists
+- Subsystem
+
+Example roles include `camera`, `audio-input`, `audio-output`, `control`,
+`sensor`, `actuator-bus`, `hid`, `serial`, and `unknown`.
+
+Example subsystems include `v4l2`, `alsa`, `gstreamer`, `usb`, `udev`,
+`serial`, `hid`, and `unknown`.
+
+Device references do not replace raw device discovery. They preserve a link from
+a composite device back to the individual device views.
+
+## GroupingEvidence
+
+Grouping evidence describes why multiple devices may belong to the same
+physical or logical unit.
+
+It should include:
+
+- Source
+- Description
+- Strength
+
+The strength value represents confidence in one piece of evidence from 0.0 to
+1.0. Grouping should be inspectable and evidence-based rather than hidden inside
+hard-coded product assumptions.
+
+## CompositeDevice
+
+A composite device is a grouped physical or logical device.
+
+It should include:
+
+- ID
+- Name
+- Kind
+- Confidence
+- Member device references
+- Grouping evidence
+
+Example kinds include `robot`, `camera-system`, `audio-device`, and `unknown`.
+
+Composite devices are Milestone 3 scaffolding. They model a future grouping
+layer where related Linux devices can be presented together while the raw V4L2,
+ALSA, serial, HID, or other individual device entries remain available.
+
+## GroupableDevice
+
+A groupable device is an internal input record for the grouping engine. It
+combines a `DeviceRef`, a display name, and normalized metadata that has already
+been collected elsewhere.
+
+It should include:
+
+- Device reference
+- Name
+- Metadata
+
+The grouping engine consumes groupable devices and emits zero or more
+`CompositeDevice` objects. It does not call Linux tools, inspect live hardware,
+or parse raw command output directly.
+
+The metadata map may include normalized fields such as `alsa_card`,
+`alsa_device`, `alsa_card_name`, `v4l2_name`, `usb_parent_path`,
+`usb_vendor_id`, `usb_product_id`, `usb_product`, `usb_manufacturer`, and
+`usb_serial` when those facts are available. USB metadata may come from V4L2
+sysfs paths or ALSA sound sysfs paths.
+
 ## Capability
 
 A capability is something a device can do, produce, or report.

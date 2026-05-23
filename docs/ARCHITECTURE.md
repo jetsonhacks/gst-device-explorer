@@ -50,6 +50,42 @@ Pipeline builders are part of the initial media exploration domain. Other future
 exploration plugins may have their own candidate builders or recommendation
 objects.
 
+## Grouping Engine
+
+The grouping pipeline has two core-layer steps:
+
+```text
+discovery -> grouping metadata -> grouping engine -> composite devices
+```
+
+The grouping metadata step converts discovered `Device` objects into
+`GroupableDevice` records. It may read directly available normalized metadata or
+safe sysfs files, including V4L2 video device paths and ALSA sound device
+paths, but it should not call shell commands or depend on optional external
+tools.
+
+The grouping engine consumes normalized grouping metadata and emits
+`CompositeDevice` objects. It should not call shell commands, parse raw probe
+output, or depend on live hardware directly.
+
+Grouping is evidence-based. A group records member `DeviceRef` objects,
+confidence, and `GroupingEvidence` so renderers can show uncertainty instead of
+hiding it. The grouping layer enriches discovery; it does not replace raw
+individual device views.
+
+Milestone 3 emits exact USB-device groups for devices sharing the same USB
+parent path. It can also emit a parent USB-family group above multiple exact
+USB-device groups when they share a meaningful USB ancestor, USB vendor ID, and
+non-generic product-family token. Devices without that evidence remain
+independent; for example, a separate Orbbec Femto Bolt attached alongside a
+robot is not folded into the robot's USB-family group.
+
+The CLI renders computed groups through `groups`, `groups --json`, `group
+<group-id>`, and `group <group-id> --json`. It can also render the normalized
+metadata feeding the grouping engine through `groups --metadata` and
+`groups --metadata --json`. Group rendering is presentation only; group-based
+pipeline generation and execution are outside the current scope.
+
 ## Renderers
 
 Renderers turn normalized models and pipeline candidates into user-facing

@@ -17,6 +17,47 @@ For a robot or embedded peripheral, those pieces often belong together.
 
 Milestone 3 adds a grouping layer so `gst-device-explorer` can present related devices as one composite device while still preserving access to the raw individual devices.
 
+## Final Status
+
+Milestone 3 is complete. It adds evidence-backed composite device grouping and
+CLI presentation while preserving the existing raw device views and Milestone 2
+individual-device pipeline execution behavior.
+
+Implemented:
+
+- `DeviceRef`
+- `GroupingEvidence`
+- `CompositeDevice`
+- `GroupableDevice`
+- Synthetic grouping engine
+- ALSA capture/playback same-card grouping
+- Synthetic USB parent path grouping
+- Grouping metadata collection from discovered V4L2 and ALSA devices
+- ALSA card/device metadata extraction
+- V4L2 sysfs name and USB metadata extraction when available
+- ALSA sysfs USB metadata extraction when available
+- Parent USB-family grouping from shared USB ancestor, shared vendor ID, and
+  shared non-generic product-family metadata
+- Parent USB-family names derived from shared non-generic product-family tokens
+- `groups`
+- `groups --json`
+- `groups --metadata`
+- `groups --metadata --json`
+- `group <group-id>`
+- `group <group-id> --json`
+- Synthetic model tests
+- Synthetic grouping tests
+- Synthetic metadata collection tests
+- CLI group rendering tests
+- CLI grouping metadata rendering tests
+
+Remaining Out Of Scope:
+
+- Group-based pipeline generation or execution
+- Reachy-specific grouping logic
+
+These are intentional non-goals for Milestone 3.
+
 ## Why This Milestone
 
 Milestone 1 establishes device discovery, capability probing, and pipeline candidate generation.
@@ -237,11 +278,15 @@ Useful metadata may include:
 
 Create possible groups using strong evidence first.
 
-Start with:
+Implemented grouping rules:
 
 - devices sharing the same USB parent path
-- devices sharing vendor/product/serial information
 - ALSA capture and playback devices from the same card
+- parent USB-family groups when child exact USB-device groups share a meaningful
+  USB ancestor, USB vendor ID, and non-generic product-family token
+
+Name matching alone is not grouping evidence. Generic USB product names such as
+`USB Audio Device` or `USB Camera` do not create parent groups by themselves.
 
 ### Stage 3 — Score Groups
 
@@ -266,11 +311,13 @@ The CLI should make uncertainty visible rather than pretending every grouping is
 
 ## User-Facing Commands
 
-Add group-oriented commands.
+Milestone 3 group-oriented commands:
 
 ```sh
 gst-device-explorer groups
 gst-device-explorer groups --json
+gst-device-explorer groups --metadata
+gst-device-explorer groups --metadata --json
 gst-device-explorer group <group-id>
 gst-device-explorer group <group-id> --json
 ```
@@ -286,52 +333,55 @@ Those should wait until the group model is proven.
 
 ## CLI Output
 
-Example:
+Example with exact USB-device groups and a parent USB-family group:
 
 ```text
-Composite devices
-
-Reachy Mini
-  id: reachy-mini
-  kind: robot
-  confidence: high
-
-  camera:
-    /dev/video0
-
-  audio input:
-    hw:2,0
-
-  audio output:
-    hw:2,0
-
+Composite devices:
+- Reachy Mini Audio
+  id: usb-device-1-4-1-1
+  kind: unknown
+  confidence: 0.90
+  members:
+    - audio-input: hw:0,0
+    - audio-output: hw:0,0
   evidence:
-    - shared USB parent path
-    - matching product name
+    - usb-topology: devices share USB parent path 1-4.1.1
+
+- Reachy Mini Camera
+  id: usb-device-1-4-1-4
+  kind: unknown
+  confidence: 0.90
+  members:
+    - camera: /dev/video0
+    - camera: /dev/video1
+  evidence:
+    - usb-topology: devices share USB parent path 1-4.1.4
+
+- Reachy Mini
+  id: usb-family-1-4-1
+  kind: unknown
+  confidence: 0.80
+  members:
+    - audio-input: hw:0,0
+    - audio-output: hw:0,0
+    - camera: /dev/video0
+    - camera: /dev/video1
+  evidence:
+    - usb-topology: composite groups share USB ancestor 1-4.1
+    - usb-metadata: composite group metadata suggests the same attached product family
 ```
 
-Example with uncertainty:
+Separate attached devices that do not share the grouping evidence, such as an
+Orbbec Femto Bolt on another USB branch or vendor/product family, remain
+independent rather than being folded into the parent USB-family group.
+
+Use `groups --metadata` and `groups --metadata --json` as the diagnostic views
+for the normalized records feeding the grouping engine.
+
+Example with no or insufficient group evidence:
 
 ```text
-Composite devices
-
-USB Camera + Audio Device
-  id: usb-camera-audio-device-1
-  kind: camera-system
-  confidence: medium
-
-  camera:
-    /dev/video0
-
-  audio input:
-    hw:3,0
-
-  evidence:
-    - shared vendor/product ID
-    - similar device names
-
-  note:
-    grouping is probable, but no shared serial number was found
+No composite device groups found.
 ```
 
 ## JSON Output
@@ -426,21 +476,29 @@ Milestone 3 adds additional group views:
 
 ```sh
 gst-device-explorer groups
+gst-device-explorer groups --json
+gst-device-explorer groups --metadata
+gst-device-explorer groups --metadata --json
 gst-device-explorer group <group-id>
+gst-device-explorer group <group-id> --json
 ```
 
 The same device may appear both individually and as a member of a group.
+Group-based pipeline generation and execution are not part of Milestone 3.
 
-## Testing Plan
+## Testing Status
 
-Add tests for:
+Implemented tests cover:
 
 - no groups found
-- one camera and one audio input grouped
 - one camera, one audio input, and one audio output grouped
 - ALSA capture and playback from the same card grouped
 - devices with weak name-only evidence not grouped too aggressively
-- ambiguous grouping represented with lower confidence
+- exact USB-device groups
+- parent USB-family groups
+- parent USB-family naming from shared non-generic product-family tokens
+- vendor mismatch not producing a parent USB-family group
+- generic USB product names not producing parent groups
 - stable group IDs
 - JSON output structure
 - existing device commands remain unchanged
@@ -449,7 +507,7 @@ Use fixtures with synthetic device metadata rather than depending on a specific 
 
 ## Acceptance Criteria
 
-Milestone 3 is complete when:
+Milestone 3 is complete:
 
 - The tool can report zero or more composite device groups.
 - Individual devices still appear in existing commands.
@@ -462,20 +520,22 @@ Milestone 3 is complete when:
 - Tests cover grouped, ungrouped, and ambiguous cases.
 - All existing tests pass.
 
-## Implementation Order
+## Implementation Record
 
-1. Add grouping metadata fields where needed.
-2. Add `DeviceRef` model.
-3. Add `GroupingEvidence` model.
-4. Add `CompositeDevice` model.
-5. Add grouping engine using synthetic metadata fixtures.
-6. Add ALSA capture/playback same-card grouping.
-7. Add USB-topology grouping where metadata is available.
-8. Add CLI command: `groups`.
-9. Add CLI command: `group <group-id>`.
-10. Add JSON output.
-11. Add tests.
-12. Update README and architecture documentation.
+1. Added grouping metadata fields where needed.
+2. Added `DeviceRef` model.
+3. Added `GroupingEvidence` model.
+4. Added `CompositeDevice` model.
+5. Added grouping engine using synthetic metadata fixtures.
+6. Added ALSA capture/playback same-card grouping.
+7. Added USB-topology grouping where metadata is available.
+8. Added parent USB-family grouping.
+9. Added CLI command: `groups`.
+10. Added CLI command: `group <group-id>`.
+11. Added JSON output.
+12. Added metadata diagnostic views.
+13. Added tests.
+14. Updated README, setup, architecture, and milestone documentation.
 
 ## Future Work
 
