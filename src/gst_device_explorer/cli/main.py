@@ -192,6 +192,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         return tui.run_tui()
 
+    if args.command == "gui":
+        try:
+            from gst_device_explorer.gui.qt_app import launch_gui
+            return launch_gui(demo=args.demo)
+        except ImportError as error:
+            print(
+                "PySide6 is required for the GUI. "
+                "Install the gui extra, for example: uv sync --extra gui"
+            )
+            print(f"Import error: {error}")
+            return 1
+
     if args.command == "recommend" and args.recommend_command == "video":
         result = commands.build_video_recommendation(args.device_path)
         renderer.print_candidate_ranking(result, as_json=args.json)

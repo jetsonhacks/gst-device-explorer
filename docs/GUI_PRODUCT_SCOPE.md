@@ -313,9 +313,21 @@ web server, subprocess controller, capture workflow, or toolkit dependency.
 
 ## Toolkit Direction
 
-The likely GUI toolkit is PySide6 / Qt because it provides a straightforward desktop application model, tree widgets, detail panes, process integration, and a traditional local utility feel.
+PySide6 / Qt is the initial concrete GUI toolkit. It provides a straightforward
+desktop application model, tree widgets, detail panes, process integration, and
+a traditional local utility feel.
 
-However, the first GUI milestone should avoid overcommitting to toolkit details. The first step is to define the product shape and application model.
+Milestone 20 adds a minimal PySide6 shell that renders the toolkit-neutral GUI
+model from Milestone 19. The shell has a sidebar, expandable group nodes, a
+detail pane, and non-executing action controls. It also includes a deterministic
+demo snapshot for early screenshots and HIL manual validation:
+
+```sh
+gst-device-explorer gui --demo
+```
+
+PySide6 is kept out of core probe/discovery modules. CLI-only behavior should
+continue to work without importing Qt unless the GUI command is launched.
 
 ## Explicitly Deferred
 

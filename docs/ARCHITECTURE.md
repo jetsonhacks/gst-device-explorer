@@ -241,6 +241,25 @@ GUI actions are advisory metadata only. Where possible they reference existing
 `SuggestedCommand` objects so a future GUI can show or copy generated commands
 without opening an arbitrary execution surface.
 
+## PySide6 GUI Shell
+
+Milestone 20 selects PySide6 / Qt as the initial concrete GUI toolkit and adds
+a minimal desktop shell under `gst_device_explorer.gui.qt_*`. Toolkit-specific
+imports are isolated to those Qt modules and the `gst-device-explorer gui`
+entrypoint imports them lazily, so ordinary CLI commands do not require Qt.
+
+The shell renders `MediaExplorerSnapshot` data into a tree sidebar and detail
+pane. `gst_device_explorer.gui.demo` provides deterministic synthetic data for
+screenshots, tests, and HIL manual validation:
+
+```sh
+gst-device-explorer gui --demo
+```
+
+The GUI does not probe devices, execute suggested commands, run GStreamer,
+capture media, or spawn subprocesses in this milestone. Action buttons are
+visible controls over metadata only.
+
 ## TUI Review Mode
 
 The TUI is a read-only renderer over existing report, preset, configuration, and

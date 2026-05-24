@@ -213,7 +213,7 @@ def test_manifest_tool_version_is_bumped(tmp_path, monkeypatch) -> None:
     main(["support", "bundle", "--output", str(output)])
 
     data = json.loads((output / "manifest.json").read_text())
-    assert data["tool_version"] == "0.19.0"
+    assert data["tool_version"] == "0.20.0"
 
 
 def test_manifest_lists_written_files_only(tmp_path, monkeypatch) -> None:
@@ -413,8 +413,8 @@ def test_command_does_not_call_capture(tmp_path, monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_version_is_bumped_to_019() -> None:
-    assert __version__ == "0.19.0"
+def test_version_is_bumped_to_020() -> None:
+    assert __version__ == "0.20.0"
 
 
 def test_manifest_bundle_format_is_directory(tmp_path, monkeypatch) -> None:
@@ -456,7 +456,7 @@ def test_support_bundle_file_is_frozen() -> None:
 def test_support_bundle_manifest_is_frozen() -> None:
     m = SupportBundleManifest(
         schema_version="1.0",
-        tool_version="0.19.0",
+        tool_version="0.20.0",
         kind="support_bundle_manifest",
         created_at="2026-05-24T00:00:00+00:00",
         bundle_format="directory",

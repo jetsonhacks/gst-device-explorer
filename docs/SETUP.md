@@ -47,6 +47,12 @@ uv sync
 uv run python -m pytest
 ```
 
+To install the minimal PySide6 GUI shell as well:
+
+```sh
+uv sync --extra gui
+```
+
 ## 4. Verify System Tools
 
 Check that expected tools are available:
@@ -85,6 +91,16 @@ uv run gst-device-explorer groups
 uv run gst-device-explorer video /dev/video0
 uv run gst-device-explorer pipeline video /dev/video0
 ```
+
+Launch the minimal GUI shell with deterministic demo data:
+
+```sh
+uv run gst-device-explorer gui --demo
+```
+
+The GUI shell renders sidebar and detail-pane model data. Action controls are
+metadata only in Milestone 20; they do not run pipelines, capture media, spawn
+subprocesses, or execute suggested commands.
 
 Useful pipeline candidate variants:
 
@@ -518,9 +534,28 @@ The bundle output path must not already exist. The parent directory must exist.
 The support bundle does not run GStreamer pipelines, does not capture media,
 and does not execute suggested commands.
 
-## 19. Current Limitations
+## 19. Manual GUI Validation
 
-- GUI is not implemented.
+Hardware-in-the-loop validation is available for the GUI, but automated tests
+remain synthetic and hardware-independent. On a GUI-capable Jetson desktop,
+install the GUI extra and launch:
+
+```sh
+/home/jim/.local/bin/uv sync --extra gui
+/home/jim/.local/bin/uv run gst-device-explorer gui --demo
+```
+
+Confirm that the window opens, the sidebar renders grouped and standalone demo
+endpoints, group nodes expand/collapse, and selecting nodes updates the detail
+pane. Do not use this milestone to validate preview, capture, or execution
+behavior; those controls are intentionally display-only.
+
+## 20. Current Limitations
+
+- The GUI is a minimal shell over deterministic/demo model data.
+- GUI action controls do not execute commands yet.
+- Live device refresh in the GUI is not implemented.
+- Camera preview in the GUI is not implemented.
 - Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.
 - Group-based pipeline execution is not implemented.

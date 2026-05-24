@@ -33,10 +33,27 @@ probing models, CLI renderers, video and audio pipeline candidate generation,
 and safe execution for selected video preview and ALSA audio test candidates. It
 can also create short, explicit, bounded capture files from generated video and
 audio-input candidates. Composite device groups are computed from discovered
-device metadata. Milestone 19 adds toolkit-neutral GUI application models for a
-future sidebar/main-pane application, but no actual GUI window or toolkit
-dependency is implemented yet. Editing, audio loopback, group-based execution,
-and preview-window lifecycle management are not implemented yet.
+device metadata. Milestone 20 adds a minimal PySide6 GUI shell that renders the
+toolkit-neutral GUI application model with a sidebar, expandable groups, a
+detail pane, and non-executing action controls. Editing, audio loopback,
+group-based execution, and preview-window lifecycle management are not
+implemented yet.
+
+## Minimal GUI Shell
+
+PySide6 / Qt is the first GUI toolkit for the project. It is packaged as an
+optional extra so CLI-only use does not need to import or install Qt:
+
+```sh
+uv sync --extra gui
+uv run gst-device-explorer gui --demo
+```
+
+The demo mode renders deterministic synthetic devices for screenshots and HIL
+manual validation. The GUI currently displays model data only. Action buttons
+show labels, safety metadata, suggested commands, and disabled reasons, but
+they do not run pipelines, capture media, spawn subprocesses, or execute
+suggested commands.
 
 ## System Report
 
@@ -282,7 +299,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.19.0",
+  "tool_version": "0.20.0",
   "kind": "preset_list",
   "data": []
 }
@@ -299,7 +316,7 @@ Selected known error paths return a companion error envelope:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.19.0",
+  "tool_version": "0.20.0",
   "kind": "error",
   "error": {
     "code": "unknown_schema",

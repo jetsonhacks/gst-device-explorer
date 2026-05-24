@@ -230,6 +230,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render the initial TUI overview without entering interactive mode.",
     )
 
+    gui_parser = subparsers.add_parser(
+        "gui",
+        help="Open the graphical media device explorer shell.",
+    )
+    gui_parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Render a deterministic demo snapshot instead of live device data.",
+    )
+
     recommend_parser = subparsers.add_parser(
         "recommend",
         help="Rank and recommend pipeline candidates for an endpoint.",
