@@ -92,15 +92,23 @@ uv run gst-device-explorer video /dev/video0
 uv run gst-device-explorer pipeline video /dev/video0
 ```
 
-Launch the minimal GUI shell with deterministic demo data:
+Launch the GUI shell with live read-only discovery:
+
+```sh
+uv run gst-device-explorer gui
+```
+
+Launch the same shell with deterministic demo data:
 
 ```sh
 uv run gst-device-explorer gui --demo
 ```
 
-The GUI shell renders sidebar and detail-pane model data. Action controls are
-metadata only in Milestone 20; they do not run pipelines, capture media, spawn
-subprocesses, or execute suggested commands.
+The live GUI renders discovered cameras, audio inputs, audio outputs, and
+composite groups. The Refresh control rebuilds the read-only discovery snapshot.
+Demo mode does not probe real hardware. Action controls are metadata only in
+Milestone 21; they do not run pipelines, capture media, spawn subprocesses, or
+execute suggested commands.
 
 Useful pipeline candidate variants:
 
@@ -543,18 +551,19 @@ install the GUI extra and launch:
 ```sh
 /home/jim/.local/bin/uv sync --extra gui
 /home/jim/.local/bin/uv run gst-device-explorer gui --demo
+/home/jim/.local/bin/uv run gst-device-explorer gui
 ```
 
 Confirm that the window opens, the sidebar renders grouped and standalone demo
-endpoints, group nodes expand/collapse, and selecting nodes updates the detail
-pane. Do not use this milestone to validate preview, capture, or execution
-behavior; those controls are intentionally display-only.
+endpoints, live mode renders discovered devices/groups when present, group nodes
+expand/collapse, selecting nodes updates the detail pane, and Refresh updates
+the tree without crashing. Do not use this milestone to validate preview,
+capture, or execution behavior; those controls are intentionally display-only.
 
 ## 20. Current Limitations
 
-- The GUI is a minimal shell over deterministic/demo model data.
+- The GUI is a minimal shell over live read-only discovery and deterministic demo data.
 - GUI action controls do not execute commands yet.
-- Live device refresh in the GUI is not implemented.
 - Camera preview in the GUI is not implemented.
 - Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.

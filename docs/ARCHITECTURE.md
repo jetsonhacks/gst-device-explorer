@@ -260,6 +260,18 @@ The GUI does not probe devices, execute suggested commands, run GStreamer,
 capture media, or spawn subprocesses in this milestone. Action buttons are
 visible controls over metadata only.
 
+Milestone 21 adds `gst_device_explorer.gui.live`, a narrow adapter from existing
+safe probe/discovery/profile/grouping paths to `MediaExplorerSnapshot` and
+detail-pane models. `gst-device-explorer gui` now builds a live read-only
+snapshot, while `gst-device-explorer gui --demo` keeps deterministic synthetic
+data. The Qt shell owns rendering and refresh wiring only; it does not duplicate
+discovery policy.
+
+Refresh is synchronous and read-only in this milestone. It rebuilds the live
+snapshot, repopulates the sidebar, preserves the selected node when possible,
+and renders empty/error states cleanly. GUI actions remain metadata only and do
+not execute suggested commands or pipelines.
+
 ## TUI Review Mode
 
 The TUI is a read-only renderer over existing report, preset, configuration, and

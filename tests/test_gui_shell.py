@@ -32,6 +32,17 @@ def test_gui_command_dispatches_to_lazy_launcher(monkeypatch) -> None:
     assert calls == [True]
 
 
+def test_initial_gui_state_demo_does_not_call_live_refresh(monkeypatch) -> None:
+    def fail_live_refresh(*args: object, **kwargs: object) -> None:
+        raise AssertionError("demo mode must not build a live snapshot")
+
+    monkeypatch.setattr(qt_app, "refresh_gui_snapshot", fail_live_refresh)
+
+    state = qt_app.build_initial_gui_state(demo=True)
+
+    assert state.snapshot.generated_at == DEMO_GENERATED_AT
+
+
 def test_demo_snapshot_is_deterministic() -> None:
     first = build_demo_gui_snapshot()
     second = build_demo_gui_snapshot()

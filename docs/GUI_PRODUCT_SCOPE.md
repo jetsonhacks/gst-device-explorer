@@ -320,11 +320,25 @@ a traditional local utility feel.
 Milestone 20 adds a minimal PySide6 shell that renders the toolkit-neutral GUI
 model from Milestone 19. The shell has a sidebar, expandable group nodes, a
 detail pane, and non-executing action controls. It also includes a deterministic
-demo snapshot for early screenshots and HIL manual validation:
+demo snapshot for early screenshots and HIL manual validation.
+
+Milestone 21 connects the shell to live read-only discovery when launched
+without `--demo`:
+
+```sh
+gst-device-explorer gui
+```
+
+Demo mode remains deterministic and hardware-free:
 
 ```sh
 gst-device-explorer gui --demo
 ```
+
+The GUI Refresh control rebuilds the read-only live snapshot and updates the
+sidebar/detail panes. It does not run GUI actions, execute suggested commands,
+start media pipelines, capture media, install packages, or change system
+configuration.
 
 PySide6 is kept out of core probe/discovery modules. CLI-only behavior should
 continue to work without importing Qt unless the GUI command is launched.

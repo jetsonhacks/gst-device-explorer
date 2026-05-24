@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Callable
 
 from gst_device_explorer.gui.model import DetailPaneModel, MediaExplorerSnapshot
 
@@ -10,13 +11,16 @@ from gst_device_explorer.gui.model import DetailPaneModel, MediaExplorerSnapshot
 def create_main_window(
     snapshot: MediaExplorerSnapshot,
     detail_panes: Mapping[str, DetailPaneModel] | None = None,
+    refresh_builder: Callable[..., object] | None = None,
 ) -> object:
     """Create the main Qt window for a GUI snapshot."""
 
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QMainWindow, QSplitter, QTreeWidget
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import QApplication, QMainWindow, QSplitter, QToolBar, QTreeWidget
 
     from gst_device_explorer.gui.builders import build_unknown_detail_pane
+    from gst_device_explorer.gui.live import build_loading_detail_pane
     from gst_device_explorer.gui.qt_detail import create_detail_pane_widget
     from gst_device_explorer.gui.qt_sidebar import populate_sidebar
 
@@ -25,7 +29,9 @@ def create_main_window(
             super().__init__()
             self.setWindowTitle("gst-device-explorer")
             self.resize(980, 680)
+            self._snapshot = snapshot
             self._detail_panes = dict(detail_panes or {})
+            self._refresh_builder = refresh_builder
 
             splitter = QSplitter(Qt.Horizontal)
             self._tree = QTreeWidget()
@@ -39,14 +45,23 @@ def create_main_window(
             splitter.setStretchFactor(1, 1)
             self.setCentralWidget(splitter)
 
-            populate_sidebar(self._tree, snapshot.sidebar_roots)
+            toolbar = QToolBar("Main")
+            toolbar.setObjectName("mainToolbar")
+            self.addToolBar(toolbar)
+            self._refresh_action = QAction("Refresh", self)
+            self._refresh_action.setObjectName("refreshAction")
+            self._refresh_action.setToolTip("Refresh discovered media devices")
+            self._refresh_action.triggered.connect(lambda: self.refresh_snapshot())
+            toolbar.addAction(self._refresh_action)
+
+            populate_sidebar(self._tree, self._snapshot.sidebar_roots)
             self._tree.itemSelectionChanged.connect(self._selection_changed)
-            self._select_initial(snapshot)
+            self._select_initial(self._snapshot)
 
         def _selection_changed(self) -> None:
             items = self._tree.selectedItems()
             if not items:
-                self._detail.render_detail(snapshot.detail_pane)
+                self._detail.render_detail(self._snapshot.detail_pane)
                 return
             node_id = items[0].data(0, Qt.UserRole)
             detail = self._detail_panes.get(str(node_id), build_unknown_detail_pane(str(node_id)))
@@ -60,6 +75,26 @@ def create_main_window(
                     self._tree.setCurrentItem(item)
                     return
             self._detail.render_detail(initial_snapshot.detail_pane)
+
+        def refresh_snapshot(self) -> None:
+            if self._refresh_builder is None:
+                return
+            previous_selection = self._current_node_id()
+            self._detail.render_detail(build_loading_detail_pane())
+            QApplication.processEvents()
+            bundle = self._refresh_builder(previous_selected_id=previous_selection)
+            self._snapshot = bundle.snapshot
+            self._detail_panes = dict(bundle.detail_panes)
+            self._tree.blockSignals(True)
+            populate_sidebar(self._tree, self._snapshot.sidebar_roots)
+            self._tree.blockSignals(False)
+            self._select_initial(self._snapshot)
+
+        def _current_node_id(self) -> str | None:
+            items = self._tree.selectedItems()
+            if not items:
+                return self._snapshot.selected_node_id
+            return str(items[0].data(0, Qt.UserRole))
 
     return MediaExplorerMainWindow()
 
