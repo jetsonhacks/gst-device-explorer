@@ -15,6 +15,7 @@ from gst_device_explorer.core.models import (
     PipelineCandidate,
     PipelineDiagnostic,
     ProfileGroupSummary,
+    SystemReport,
 )
 
 
@@ -99,4 +100,33 @@ def profile_group_summary_to_json_dict(group: ProfileGroupSummary) -> dict:
         "kind": group.kind,
         "label": group.label,
         "member_count": group.member_count,
+    }
+
+
+def system_report_to_json_dict(report: SystemReport) -> dict:
+    return {
+        "kind": report.kind,
+        "tool_version": report.tool_version,
+        "environment": [asdict(f) for f in report.environment],
+        "devices": {
+            "audio_inputs": [asdict(d) for d in report.devices.audio_inputs],
+            "audio_outputs": [asdict(d) for d in report.devices.audio_outputs],
+            "video": [asdict(d) for d in report.devices.video],
+        },
+        "groups": [asdict(g) for g in report.groups],
+        "profiles": {
+            "audio_inputs": [
+                device_profile_to_json_dict(p) for p in report.profiles.audio_inputs
+            ],
+            "audio_outputs": [
+                device_profile_to_json_dict(p) for p in report.profiles.audio_outputs
+            ],
+            "video": [
+                device_profile_to_json_dict(p) for p in report.profiles.video
+            ],
+        },
+        "diagnostics": {
+            "missing_elements": list(report.diagnostics.missing_elements),
+        },
+        "suggested_next_commands": list(report.suggested_next_commands),
     }

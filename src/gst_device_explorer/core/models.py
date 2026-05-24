@@ -112,6 +112,45 @@ class DeviceProfile:
 
 
 @dataclass(frozen=True)
+class ReportDevices:
+    """Device lists for a system report, grouped by kind."""
+
+    video: list[Device] = field(default_factory=list)
+    audio_inputs: list[Device] = field(default_factory=list)
+    audio_outputs: list[Device] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ReportProfiles:
+    """Endpoint profile lists for a system report, grouped by kind."""
+
+    video: list[DeviceProfile] = field(default_factory=list)
+    audio_inputs: list[DeviceProfile] = field(default_factory=list)
+    audio_outputs: list[DeviceProfile] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ReportDiagnostics:
+    """Aggregated diagnostic summary for a system report."""
+
+    missing_elements: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class SystemReport:
+    """A structured snapshot of the full media system state."""
+
+    kind: str
+    tool_version: str
+    environment: list[EnvironmentFact] = field(default_factory=list)
+    devices: ReportDevices = field(default_factory=ReportDevices)
+    groups: list[CompositeDevice] = field(default_factory=list)
+    profiles: ReportProfiles = field(default_factory=ReportProfiles)
+    diagnostics: ReportDiagnostics = field(default_factory=ReportDiagnostics)
+    suggested_next_commands: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ExecutionPlan:
     """A selected pipeline candidate prepared for safe execution."""
 

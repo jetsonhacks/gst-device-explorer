@@ -30,20 +30,30 @@ directly.
 
 ## Profiles
 
-Profiles express preferences for particular platforms, operating systems, and
-workflows. Example profiles include generic Linux, NVIDIA Jetson running
-different JetPack / Linux for Tegra versions, and other platform profiles added
-later.
+The project uses two distinct concepts under the "profile" umbrella.
 
-A Jetson profile, for example, may prefer hardware-accelerated or
-Jetson-specific GStreamer elements when the local system reports that they are
-available. Profiles should capture preferences and known-good patterns, not
-random patches.
+**Candidate profile labels** are string metadata attached to `PipelineCandidate`
+objects. They identify the generation strategy or family used to construct the
+candidate, for example `"generic-linux-video-preview"` or
+`"jetson-video-preview"`. These labels are candidate metadata; they are not
+policy objects consumed by builders.
+
+**`DeviceProfile`** is an endpoint summary built after discovery and candidate
+generation. It combines discovered device facts, a capability summary, pipeline
+candidate summaries, group membership, and suggested next commands into a
+structured view for CLI/JSON inspection and system reports. It does not control
+pipeline generation.
+
+A richer platform-policy Profile layer — where a named object expresses
+preferences and known-good patterns consumed by pipeline builders — may be added
+in a later milestone but is not part of the current implementation.
 
 ## Pipeline Builders
 
-Pipeline builders consume normalized models and profiles to produce structured
-pipeline candidates. Builders should record assumptions, requirements, ranking
+Pipeline builders consume normalized device models, capabilities, and
+environment facts to produce structured pipeline candidates. They do not consume
+Profile policy objects. Candidates carry a profile label identifying the
+generation strategy. Builders should record assumptions, requirements, ranking
 signals, and warnings alongside the rendered GStreamer pipeline string.
 
 Pipeline builders are part of the initial media exploration domain. Other future
@@ -129,7 +139,7 @@ extension points for hardware exploration later.
 ## Separation of Concerns
 
 Each layer should communicate through explicit data structures. Probes should not
-format CLI output. Renderers should not inspect hardware directly. Profiles
-should guide selection without hiding probe failures or capability gaps. This
-separation keeps Milestone 1 small while leaving room for richer interfaces and
-future exploration plugins later.
+format CLI output. Renderers should not inspect hardware directly. Pipeline
+builders should accept normalized models and produce structured candidates.
+This separation keeps Milestone 1 small while leaving room for richer interfaces
+and future exploration plugins later.

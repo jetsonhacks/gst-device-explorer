@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from gst_device_explorer import __version__
 from gst_device_explorer.core.models import (
     CompositeDevice,
     Device,
     DeviceProfile,
     PipelineCandidate,
     PipelineDiagnostic,
+    SystemReport,
 )
 import gst_device_explorer.core.audio_diagnostics as audio_diagnostics
 import gst_device_explorer.core.audio_pipelines as audio_pipelines
@@ -15,6 +17,7 @@ import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.execution as execution
 import gst_device_explorer.core.pipelines as pipelines
 import gst_device_explorer.core.profiles as profiles
+import gst_device_explorer.core.report as core_report
 import gst_device_explorer.core.video_diagnostics as video_diagnostics
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
@@ -176,6 +179,31 @@ def _find_alsa_device(
             )
         ),
         None,
+    )
+
+
+def build_system_report() -> SystemReport:
+    """Build a system report from all probes and builders."""
+
+    video_devices = v4l2_probe.discover_v4l2_video_devices()
+    audio_input_devices = alsa_probe.discover_alsa_audio_inputs()
+    audio_output_devices = alsa_probe.discover_alsa_audio_outputs()
+    environment = gst_probe.inspect_gstreamer_environment()
+    groups = discovery.discover_composite_devices()
+
+    video_capabilities = {
+        device.id: v4l2_probe.discover_v4l2_capabilities(device.id)
+        for device in video_devices
+    }
+
+    return core_report.build_system_report(
+        video_devices=video_devices,
+        audio_input_devices=audio_input_devices,
+        audio_output_devices=audio_output_devices,
+        groups=groups,
+        environment=environment,
+        video_capabilities=video_capabilities,
+        tool_version=__version__,
     )
 
 

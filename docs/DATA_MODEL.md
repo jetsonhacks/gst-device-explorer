@@ -138,21 +138,26 @@ Examples include:
 Environment facts should help profiles and pipeline builders understand the
 system without forcing them to parse raw command output.
 
-## Profile
+## Profile Label
 
-A profile is a named set of preferences or known-good patterns.
+A pipeline candidate profile label is a string attached to `PipelineCandidate`
+objects. It identifies the generation strategy or family used to construct the
+candidate, for example `"generic-linux-video-preview"` or
+`"jetson-video-preview"`. Labels are candidate metadata; they are not policy
+objects consumed by builders.
 
-Profiles may represent:
+## DeviceProfile
 
-- Generic Linux
-- Jetson
-- JetPack-specific behavior
-- Linux for Tegra behavior
-- Future hardware families
+`DeviceProfile` is an endpoint summary built after discovery and candidate
+generation. It combines discovered device facts, a capability summary, pipeline
+candidate summaries, group membership, and suggested next commands into a
+structured view for CLI/JSON inspection and system reports. It does not control
+pipeline generation.
 
-Profiles should express preferences, not patches. They may use normalized
-devices, capabilities, and environment facts, but implementation should prefer
-capability detection over hard-coded version checks.
+A richer platform-policy Profile layer — where a named object expresses
+preferences for particular platforms, operating systems, or workflows and is
+consumed by pipeline builders — may be added in a later milestone but is not
+part of the current implementation.
 
 ## PipelineCandidate
 
@@ -168,7 +173,7 @@ It should include:
 - Reasons
 - Warnings
 - Required elements
-- Selected profile, if any
+- Profile label, if any (a string identifying the generation strategy)
 
 The candidate ID identifies the pipeline strategy or family. It should be stable
 enough for CLI selection, documentation, tests, and future GUI use, but it does
@@ -214,10 +219,12 @@ logic or pipeline-selection logic.
 
 Probes produce devices, capabilities, and environment facts.
 
-Profiles consume normalized facts and express preferences.
+Pipeline builders consume normalized devices, capabilities, and environment
+facts, then produce pipeline candidates. Candidates carry a profile label
+identifying the generation strategy.
 
-Pipeline builders produce pipeline candidates.
+`DeviceProfile` summaries are built after candidate generation. They are
+structured views for CLI/JSON inspection and system reports.
 
-Renderers display structured data.
-
-Renderers should not contain probing or pipeline-selection logic.
+Renderers display structured data. They should not contain probing or
+pipeline-selection logic.

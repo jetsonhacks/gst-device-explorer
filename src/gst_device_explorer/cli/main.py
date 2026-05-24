@@ -154,6 +154,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "report":
+        report = commands.build_system_report()
+        renderer.print_system_report(report, as_json=args.json)
+        return 0
+
     if args.command == "run" and args.run_command == "video":
         candidates = commands.build_video_preview_candidates(args.device_path)
         return commands.run_selected_candidate(

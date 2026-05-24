@@ -15,10 +15,12 @@ from gst_device_explorer.core.models import (
     ExecutionPlan,
     PipelineCandidate,
     PipelineDiagnostic,
+    SystemReport,
 )
 from gst_device_explorer.cli.serializers import (
     device_profile_to_json_dict,
     pipeline_diagnostic_to_json_dict,
+    system_report_to_json_dict,
     to_json,
 )
 
@@ -286,6 +288,36 @@ def print_pipeline_diagnostics(
             print()
             print("Suggested next step:")
             print(f"  gst-device-explorer run {device_kind} {device_path} --dry-run")
+
+
+def print_system_report(report: SystemReport, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(system_report_to_json_dict(report), indent=2, sort_keys=True))
+        return
+
+    video_count = len(report.devices.video)
+    audio_in_count = len(report.devices.audio_inputs)
+    audio_out_count = len(report.devices.audio_outputs)
+    group_count = len(report.groups)
+
+    print(f"System report  tool version {report.tool_version}")
+    print()
+    print(f"Video devices:    {video_count}")
+    print(f"Audio inputs:     {audio_in_count}")
+    print(f"Audio outputs:    {audio_out_count}")
+    print(f"Composite groups: {group_count}")
+
+    if report.diagnostics.missing_elements:
+        print()
+        print("Missing GStreamer elements:")
+        for element in report.diagnostics.missing_elements:
+            print(f"  {element}")
+
+    if report.suggested_next_commands:
+        print()
+        print("Suggested next commands:")
+        for command in report.suggested_next_commands:
+            print(f"  {command}")
 
 
 def print_execution_plan(plan: ExecutionPlan, dry_run: bool) -> None:

@@ -1,6 +1,8 @@
 # Milestone 7 — Exportable System Reports
 
-Status: Proposed
+Status: Complete
+
+Target version: `v0.7.0`
 
 ## Theme
 

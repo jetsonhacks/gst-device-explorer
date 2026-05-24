@@ -8,10 +8,11 @@ hardware exploration plugins over time.
 Its first real domain is media exploration: video inputs, audio inputs, audio
 outputs, the local GStreamer environment, and useful pipeline candidates.
 
-The project is profile-aware. Profiles describe platform and
-operating-system-specific behavior, such as generic Linux or NVIDIA Jetson
-systems running different JetPack / Linux for Tegra versions. Profiles should
-capture preferences and known-good patterns, not random patches.
+Pipeline candidates carry a profile label identifying the generation strategy,
+such as a generic Linux preview or a Jetson/NVIDIA accelerated preview. The
+project also provides `DeviceProfile` endpoint summaries that combine discovery,
+candidate, diagnostic, and grouping information for CLI inspection and system
+reports.
 
 The architecture should support GStreamer-oriented device exploration first and
 extensible hardware exploration later. Future exploration plugins may inspect
@@ -24,6 +25,32 @@ and safe execution for selected video preview and ALSA audio test candidates. It
 can also render composite device groups computed from discovered device
 metadata. GUI, recording, editing, audio loopback, group-based execution, and
 preview-window lifecycle management are not implemented yet.
+
+## System Report
+
+Use `report` to capture the full media system state as a single structured
+document:
+
+```sh
+gst-device-explorer report --json
+gst-device-explorer report
+```
+
+The report gathers existing discovery, grouping, profile, candidate, and
+diagnostic information in one place. It is read-only and does not run
+pipelines. JSON output is the primary format and is suitable for GitHub
+issues, hardware validation, comparing Jetson systems, and remote debugging.
+
+The report includes:
+
+- tool version and GStreamer environment facts
+- discovered video, audio-input, and audio-output devices
+- composite device groups
+- endpoint profiles for each discovered device
+- aggregated missing GStreamer elements
+- suggested next commands per endpoint
+
+Text output is a compact summary. File output (`--output`) is deferred.
 
 ## Composite Device Groups
 

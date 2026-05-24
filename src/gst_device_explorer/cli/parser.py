@@ -210,6 +210,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render structured diagnostics instead of pipeline candidates.",
     )
 
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate a structured system report.",
+    )
+    report_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the report as JSON.",
+    )
+
     run_parser = subparsers.add_parser(
         "run",
         help="Select and run one pipeline candidate.",

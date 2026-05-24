@@ -12,14 +12,17 @@ Raw output from GStreamer, ALSA, PulseAudio, PipeWire, v4l2, and platform tools
 should be converted into normalized models before ranking, filtering, or
 presenting options.
 
-## Profiles express preferences, not hacks
+## Profile labels identify strategies; future policy profiles should express preferences, not hacks
 
-Profiles should encode platform, operating-system, and workflow preferences,
-such as generic Linux behavior or Jetson-aware pipeline element choices, without
-becoming scattered conditional workarounds.
+Candidate profile labels are string metadata that identify the generation
+strategy used to build a pipeline candidate. The current labels are
+`"generic-linux-video-preview"` and `"jetson-video-preview"`.
 
-Profiles may describe JetPack / Linux for Tegra differences, but they should
-express preferences and known-good patterns rather than random patches.
+If a richer platform-policy Profile layer is added later, it should encode
+platform, operating-system, and workflow preferences without becoming scattered
+conditional workarounds. Any such profiles may describe JetPack / Linux for
+Tegra differences, but they should prefer capability detection over hard-coded
+version checks.
 
 ## Pipeline candidates are structured objects, not just strings
 

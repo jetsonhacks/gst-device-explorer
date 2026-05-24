@@ -7,7 +7,7 @@ GStreamer pipelines that a user or renderer can inspect before selecting one for
 execution.
 
 A candidate should explain why it was suggested, what it requires, what profile
-influenced it, and what warnings apply. The rendered GStreamer command is one
+label identifies its generation strategy, and what warnings apply. The rendered GStreamer command is one
 part of the candidate, not the whole design.
 
 ## Inputs
@@ -17,11 +17,10 @@ Candidate builders consume normalized project models:
 - `Device`
 - `Capability`
 - `EnvironmentFact`
-- `Profile`
 
 Builders should not parse raw probe output directly. Probes normalize system
-facts first, profiles express preferences, and builders combine that information
-into structured recommendations.
+facts first, and builders combine that information into structured
+recommendations.
 
 ## Outputs
 
@@ -74,22 +73,24 @@ The initial builder should take a discovered V4L2 video device, its video
 capabilities, relevant GStreamer environment facts, and an applicable profile,
 then produce one or more preview-oriented `PipelineCandidate` objects.
 
-## Initial Profiles
+## Candidate Profile Labels
 
-The first profile concepts are:
+The first generation strategies are identified by these profile label strings:
 
 - `generic-linux-video-preview`
 - `jetson-video-preview`
 
-`generic-linux-video-preview` should prefer broadly available GStreamer elements
-for V4L2 preview on Linux.
+`generic-linux-video-preview` identifies candidates using broadly available
+GStreamer elements for V4L2 preview on Linux.
 
-`jetson-video-preview` may prefer NVIDIA elements when they are available and
-the selected device capability is compatible. Jetson-specific behavior should be
-chosen by capability and element availability, not only by JetPack version.
+`jetson-video-preview` identifies candidates that use NVIDIA elements when they
+are available and the selected device capability is compatible. Jetson-specific
+behavior is selected by capability and element availability, not by JetPack
+version.
 
-Profiles express preferences and known-good patterns. They are not buckets for
-random patches.
+These labels are string metadata stamped onto finished `PipelineCandidate`
+objects. They identify the candidate's generation strategy and are not policy
+objects consumed by builders.
 
 ## Known Jetson Lesson
 
