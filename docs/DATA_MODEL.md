@@ -237,5 +237,11 @@ commands. `PresetCommandSuggestion` records carry structured argv for suggested
 commands. Presets are not pipeline candidates, device profiles, or platform
 policy objects; they do not execute commands or accept arbitrary pipeline text.
 
+`ExplorerConfig` records describe bounded preferences for future behavior.
+`ConfigValidationResult` records describe the source, validity, parsed config,
+warnings, and errors for defaults or TOML files. Configuration is display and
+validation only in Milestone 12; it does not change command behavior or allow
+raw pipelines, scripts, hooks, plugins, or arbitrary argv.
+
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

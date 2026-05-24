@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from typing import Sequence
+from pathlib import Path
 
 from gst_device_explorer.core.models import CompositeDevice
 import gst_device_explorer.core.capture as capture
+import gst_device_explorer.core.config as config
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.presets as presets
 import gst_device_explorer.probes.alsa as alsa_probe
@@ -298,6 +300,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         renderer.print_preset_command_suggestions(result, as_json=args.json)
         return 0
+
+    if args.command == "config" and args.config_command == "path":
+        renderer.print_config_paths(config.config_search_paths(), as_json=args.json)
+        return 0
+
+    if args.command == "config" and args.config_command == "show":
+        result = config.effective_config(
+            Path(args.config) if args.config is not None else None
+        )
+        renderer.print_config_show(result, as_json=args.json)
+        return 0 if result.valid else 1
+
+    if args.command == "config" and args.config_command == "validate":
+        result = config.effective_config(
+            Path(args.config) if args.config is not None else None
+        )
+        renderer.print_config_validate(result, as_json=args.json)
+        return 0 if result.valid else 1
 
     parser.error("unknown command")
     return 2

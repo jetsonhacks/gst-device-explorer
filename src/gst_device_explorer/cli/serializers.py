@@ -6,6 +6,11 @@ import json
 from dataclasses import asdict
 
 from gst_device_explorer.core.grouping import GroupableDevice
+from gst_device_explorer.core.config import (
+    ConfigIssue,
+    ConfigValidationResult,
+    ExplorerConfig,
+)
 from gst_device_explorer.core.models import (
     CandidateRanking,
     CandidateRecommendation,
@@ -248,4 +253,45 @@ def preset_command_suggestion_to_json_dict(
         "argv": list(suggestion.argv),
         "description": suggestion.description,
         "dry_run": suggestion.dry_run,
+    }
+
+
+def explorer_config_to_json_dict(config: ExplorerConfig) -> dict:
+    return {
+        "audio": {
+            "output_test_frequency": config.audio.output_test_frequency,
+            "prefer_silent_input_tests": config.audio.prefer_silent_input_tests,
+        },
+        "report": {
+            "include_diagnostics": config.report.include_diagnostics,
+            "include_metadata": config.report.include_metadata,
+        },
+        "video": {
+            "max_preview_height": config.video.max_preview_height,
+            "max_preview_width": config.video.max_preview_width,
+            "prefer_jetson_acceleration": config.video.prefer_jetson_acceleration,
+            "preferred_sink": config.video.preferred_sink,
+        },
+    }
+
+
+def config_issue_to_json_dict(issue: ConfigIssue) -> dict:
+    return {
+        "message": issue.message,
+        "path": issue.path,
+    }
+
+
+def config_validation_result_to_json_dict(result: ConfigValidationResult) -> dict:
+    return {
+        "applied": result.applied,
+        "config": (
+            explorer_config_to_json_dict(result.config)
+            if result.config is not None
+            else None
+        ),
+        "errors": [config_issue_to_json_dict(issue) for issue in result.errors],
+        "source": result.path,
+        "valid": result.valid,
+        "warnings": [config_issue_to_json_dict(issue) for issue in result.warnings],
     }

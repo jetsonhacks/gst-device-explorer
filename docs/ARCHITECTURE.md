@@ -119,6 +119,17 @@ GStreamer strings, or replace endpoint commands. They are an explainability and
 repeatability layer that points users back to the existing `run`, `capture`,
 `pipeline --diagnostics`, and `validate group` flows.
 
+## Configuration
+
+Configuration is a bounded preference model with pure parsing and validation in
+the core layer. The CLI can show search paths, display the effective/default
+configuration, and validate TOML files.
+
+Milestone 12 configuration is display and validation only. It does not alter
+candidate generation, ranking, presets, reports, capture, validation, or
+execution. Configuration files cannot define raw pipelines, shell commands,
+scripts, hooks, plugins, or remote behavior.
+
 ## Renderers
 
 Renderers turn normalized models and pipeline candidates into user-facing

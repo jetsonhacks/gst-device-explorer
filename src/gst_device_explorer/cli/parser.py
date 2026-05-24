@@ -473,4 +473,48 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render command suggestions as JSON.",
     )
 
+    config_parser = subparsers.add_parser(
+        "config",
+        help="Inspect and validate bounded configuration preferences.",
+    )
+    config_subparsers = config_parser.add_subparsers(
+        dest="config_command",
+        required=True,
+    )
+    config_path_parser = config_subparsers.add_parser(
+        "path",
+        help="Show configuration search paths.",
+    )
+    config_path_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render configuration paths as JSON.",
+    )
+    config_show_parser = config_subparsers.add_parser(
+        "show",
+        help="Show the effective/default configuration.",
+    )
+    config_show_parser.add_argument(
+        "--config",
+        help="Explicit TOML configuration file to load.",
+    )
+    config_show_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the configuration as JSON.",
+    )
+    config_validate_parser = config_subparsers.add_parser(
+        "validate",
+        help="Validate configuration without applying it to behavior.",
+    )
+    config_validate_parser.add_argument(
+        "--config",
+        help="Explicit TOML configuration file to validate.",
+    )
+    config_validate_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render validation results as JSON.",
+    )
+
     return parser

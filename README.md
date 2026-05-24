@@ -185,6 +185,24 @@ They do not execute commands, do not accept arbitrary GStreamer pipelines, and
 do not introduce group execution. Use the suggested endpoint commands when you
 are ready to inspect, run, capture, recommend, or validate.
 
+## Configuration
+
+Use `config` to inspect and validate bounded preferences:
+
+```sh
+gst-device-explorer config path
+gst-device-explorer config show
+gst-device-explorer config show --json
+gst-device-explorer config validate
+gst-device-explorer config validate --config ./gst-device-explorer.toml
+```
+
+Configuration is optional. Milestone 12 validates and displays configuration
+only; preferences do not change candidate generation, ranking, presets, reports,
+capture, validation, or execution yet. Config files cannot introduce arbitrary
+pipelines, shell commands, scripts, package installation, or system
+configuration changes.
+
 ## Device Profiles
 
 Use `profile` to get a structured summary of a device endpoint:

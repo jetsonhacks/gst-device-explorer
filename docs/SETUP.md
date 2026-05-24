@@ -386,7 +386,33 @@ Presets suggest existing `gst-device-explorer` commands. They do not run those
 commands, do not accept raw GStreamer pipelines, do not add user-authored preset
 files, and do not introduce group execution.
 
-## 14. Current Limitations
+## 14. Verify Milestone 12 Configuration
+
+Inspect configuration search paths, show defaults, and validate the effective
+configuration:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer config path
+/home/jim/.local/bin/uv run gst-device-explorer config show
+/home/jim/.local/bin/uv run gst-device-explorer config show --json
+/home/jim/.local/bin/uv run gst-device-explorer config validate
+/home/jim/.local/bin/uv run gst-device-explorer config validate --json
+```
+
+Validate an explicit TOML file:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer config validate --config ./gst-device-explorer.toml
+/home/jim/.local/bin/uv run gst-device-explorer config validate --config ./gst-device-explorer.toml --json
+```
+
+Configuration is optional. Milestone 12 validates and displays preferences only;
+preferences do not alter candidate generation, ranking, presets, reports,
+capture, validation, or execution yet. Config files cannot introduce arbitrary
+pipelines, shell commands, scripts, package installation, or system
+configuration changes.
+
+## 15. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
@@ -394,6 +420,7 @@ files, and do not introduce group execution.
 - Group-based pipeline execution is not implemented.
 - Group-based capture is not implemented.
 - Direct preset execution is not implemented.
+- Config-driven behavior changes are not implemented.
 - Synchronized audio/video capture is not implemented.
 - Preview-window lifecycle management is not implemented.
 - PulseAudio and PipeWire probing are not implemented.
