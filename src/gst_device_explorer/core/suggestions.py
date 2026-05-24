@@ -193,6 +193,20 @@ def suggest_preset_list() -> SuggestedCommand:
     )
 
 
+def suggest_preset_show(preset_id: str) -> SuggestedCommand:
+    argv = ("gst-device-explorer", "preset", "show", preset_id)
+    return SuggestedCommand(
+        id=_make_id(argv),
+        title=f"Show preset {preset_id}",
+        argv=argv,
+        purpose=f"Display details and required arguments for preset {preset_id}.",
+        source="presets",
+        safety=SAFETY_INSPECTION,
+        target_kind="preset",
+        target=preset_id,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Profile and pipeline builders
 # ---------------------------------------------------------------------------

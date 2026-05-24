@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
+from gst_device_explorer.core.errors import ErrorResponse
 from gst_device_explorer.core.grouping import GroupableDevice
 from gst_device_explorer.core.config import (
     ConfigIssue,
@@ -356,4 +357,27 @@ def schema_document_summary_to_json_dict(document: SchemaDocument) -> dict:
         "purpose": document.purpose,
         "schema_id": document.schema_id,
         "title": document.title,
+    }
+
+
+def error_response_to_json_dict(error: ErrorResponse) -> dict:
+    return {
+        "code": error.code,
+        "details": dict(error.details),
+        "message": error.message,
+        "suggested_commands": [
+            suggested_command_to_json_dict(cmd) for cmd in error.suggested_commands
+        ],
+    }
+
+
+def make_error_envelope(error: ErrorResponse) -> dict:
+    from gst_device_explorer import __version__
+    from gst_device_explorer.core.schema import JSON_SCHEMA_VERSION
+
+    return {
+        "error": error_response_to_json_dict(error),
+        "kind": "error",
+        "schema_version": JSON_SCHEMA_VERSION,
+        "tool_version": __version__,
     }

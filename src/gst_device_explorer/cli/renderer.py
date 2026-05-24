@@ -23,9 +23,10 @@ from gst_device_explorer.core.models import (
     PipelineDiagnostic,
     SystemReport,
 )
+from gst_device_explorer.core.errors import ErrorResponse
 from gst_device_explorer.core.presets import PresetCommandSuggestions, PresetDefinition
 from gst_device_explorer.core.schema import SchemaDocument, wrap_json
-from gst_device_explorer.core.suggestions import SuggestedCommand
+from gst_device_explorer.core.suggestions import SuggestedCommand, suggest_group_list
 from gst_device_explorer.cli.serializers import (
     candidate_ranking_to_json_dict,
     config_validation_result_to_json_dict,
@@ -34,6 +35,7 @@ from gst_device_explorer.cli.serializers import (
     pipeline_diagnostic_to_json_dict,
     preset_command_suggestions_to_json_dict,
     preset_definition_to_json_dict,
+    make_error_envelope,
     schema_document_summary_to_json_dict,
     schema_document_to_json_dict,
     system_report_to_json_dict,
@@ -66,6 +68,10 @@ def print_devices(
 
 def _print_json(kind: str, data) -> None:
     print(json.dumps(wrap_json(kind, data), indent=2, sort_keys=True))
+
+
+def print_json_error(error: ErrorResponse) -> None:
+    print(json.dumps(make_error_envelope(error), indent=2, sort_keys=True))
 
 
 def print_environment(facts: list[EnvironmentFact], as_json: bool) -> None:
@@ -414,17 +420,12 @@ def print_group_validation(validation: GroupValidation, as_json: bool) -> None:
 
 def print_group_not_found(group_id: str, as_json: bool) -> None:
     if as_json:
-        print(
-            json.dumps(
-                {
-                    "error": "group_not_found",
-                    "group_id": group_id,
-                    "suggested_next_commands": ["gst-device-explorer groups"],
-                },
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        print_json_error(ErrorResponse(
+            code="group_not_found",
+            message=f"Group not found: {group_id}",
+            details={"group_id": group_id},
+            suggested_commands=(suggest_group_list(),),
+        ))
         return
 
     print(f"Group not found: {group_id}")

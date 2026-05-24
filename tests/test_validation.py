@@ -376,11 +376,12 @@ def test_cli_validate_group_not_found_json(monkeypatch, capsys) -> None:
 
     assert exit_code == 1
     data = json.loads(capsys.readouterr().out)
-    assert data == {
-        "error": "group_not_found",
-        "group_id": "missing",
-        "suggested_next_commands": ["gst-device-explorer groups"],
-    }
+    assert data["kind"] == "error"
+    assert data["error"]["code"] == "group_not_found"
+    assert data["error"]["details"] == {"group_id": "missing"}
+    assert [c["command"] for c in data["error"]["suggested_commands"]] == [
+        "gst-device-explorer groups"
+    ]
 
 
 def test_cli_validate_group_does_not_invoke_execution(monkeypatch) -> None:

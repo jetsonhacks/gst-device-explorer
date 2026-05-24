@@ -301,5 +301,13 @@ Milestone 16: `DeviceProfile`, `SystemReport`, `EndpointValidationSummary`,
 and `GroupValidation`. Serializers expose the full shape; renderers extract
 `.command` for text display.
 
+`ErrorResponse` records carry structured JSON error payloads for selected known
+failure paths. They include a stable `code`, human-readable `message`, optional
+`details` map, and optional `suggested_commands` tuple. `make_error_envelope`
+wraps them with the standard `schema_version`, `tool_version`, and `kind:
+"error"` fields. Error envelopes do not use a `data` key. Suggested commands in
+errors are advisory and are never executed automatically. Non-zero exit codes
+are preserved alongside error envelopes.
+
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

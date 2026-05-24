@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Sequence
 from pathlib import Path
 
+from gst_device_explorer.core.errors import ErrorResponse
 from gst_device_explorer.core.models import CompositeDevice
 import gst_device_explorer.core.capture as capture
 import gst_device_explorer.core.config as config
@@ -12,6 +13,12 @@ import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.presets as presets
 import gst_device_explorer.core.schema as schema
 import gst_device_explorer.core.suggestions as suggestions_mod
+from gst_device_explorer.core.suggestions import (
+    suggest_group_list,
+    suggest_preset_list,
+    suggest_preset_show,
+    suggest_schema_list,
+)
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
@@ -45,7 +52,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         groups = discovery.discover_composite_devices()
         group = _find_composite_group(groups, args.group_id)
         if group is None:
-            print(f"Composite device group not found: {args.group_id}")
+            if args.json:
+                renderer.print_json_error(ErrorResponse(
+                    code="group_not_found",
+                    message=f"Group not found: {args.group_id}",
+                    details={"group_id": args.group_id},
+                    suggested_commands=(suggest_group_list(),),
+                ))
+            else:
+                print(f"Composite device group not found: {args.group_id}")
             return 1
         renderer.print_composite_group(group, as_json=args.json)
         return 0
@@ -291,7 +306,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "preset" and args.preset_command == "show":
         preset = presets.get_preset(args.preset_id)
         if preset is None:
-            renderer.print_preset_not_found(args.preset_id)
+            if args.json:
+                renderer.print_json_error(ErrorResponse(
+                    code="unknown_preset",
+                    message=f"Unknown preset: {args.preset_id}",
+                    details={"preset_id": args.preset_id},
+                    suggested_commands=(suggest_preset_list(),),
+                ))
+            else:
+                renderer.print_preset_not_found(args.preset_id)
             return 1
         renderer.print_preset(preset, as_json=args.json)
         return 0
@@ -307,10 +330,54 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             result = presets.build_preset_command_suggestions(request)
         except presets.UnknownPresetError:
-            renderer.print_preset_not_found(args.preset_id)
+            if args.json:
+                renderer.print_json_error(ErrorResponse(
+                    code="unknown_preset",
+                    message=f"Unknown preset: {args.preset_id}",
+                    details={"preset_id": args.preset_id},
+                    suggested_commands=(suggest_preset_list(),),
+                ))
+            else:
+                renderer.print_preset_not_found(args.preset_id)
+            return 1
+        except presets.PresetTargetKindError as error:
+            if args.json:
+                renderer.print_json_error(ErrorResponse(
+                    code="wrong_preset_target_kind",
+                    message=str(error),
+                    details={
+                        "preset_id": args.preset_id,
+                        "target_kind": args.target_kind,
+                    },
+                    suggested_commands=(
+                        suggest_preset_show(args.preset_id),
+                        suggest_preset_list(),
+                    ),
+                ))
+            else:
+                renderer.print_preset_error(str(error))
+            return 1
+        except presets.PresetMissingArgumentError as error:
+            if args.json:
+                renderer.print_json_error(ErrorResponse(
+                    code="missing_required_argument",
+                    message=str(error),
+                    details={"preset_id": args.preset_id},
+                    suggested_commands=(suggest_preset_show(args.preset_id),),
+                ))
+            else:
+                renderer.print_preset_error(str(error))
             return 1
         except presets.PresetError as error:
-            renderer.print_preset_error(str(error))
+            if args.json:
+                renderer.print_json_error(ErrorResponse(
+                    code="preset_error",
+                    message=str(error),
+                    details={"preset_id": args.preset_id},
+                    suggested_commands=(suggest_preset_list(),),
+                ))
+            else:
+                renderer.print_preset_error(str(error))
             return 1
         renderer.print_preset_command_suggestions(result, as_json=args.json)
         return 0
@@ -340,7 +407,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "schema" and args.schema_command == "show":
         document = schema.get_schema_document(args.schema_id)
         if document is None:
-            renderer.print_schema_not_found(args.schema_id)
+            if args.json:
+                renderer.print_json_error(ErrorResponse(
+                    code="unknown_schema",
+                    message=f"Unknown schema: {args.schema_id}",
+                    details={"schema_id": args.schema_id},
+                    suggested_commands=(suggest_schema_list(),),
+                ))
+            else:
+                renderer.print_schema_not_found(args.schema_id)
             return 1
         renderer.print_schema_document(document, as_json=args.json)
         return 0

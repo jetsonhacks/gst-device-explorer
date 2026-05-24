@@ -45,7 +45,7 @@ _SCHEMA_DOCUMENTS = (
     SchemaDocument(
         schema_id="json-envelope",
         title="JSON Envelope",
-        purpose="Stable wrapper for selected machine-readable JSON outputs.",
+        purpose="Stable wrapper for selected machine-readable JSON success outputs.",
         current_schema_version=JSON_SCHEMA_VERSION,
         fields=(
             SchemaField(
@@ -67,6 +67,49 @@ _SCHEMA_DOCUMENTS = (
                 name="data",
                 value_type="any",
                 description="Command-specific response payload.",
+            ),
+        ),
+    ),
+    SchemaDocument(
+        schema_id="error-envelope",
+        title="Error Envelope",
+        purpose="Stable wrapper for selected machine-readable JSON error responses.",
+        current_schema_version=JSON_SCHEMA_VERSION,
+        fields=(
+            SchemaField(
+                name="schema_version",
+                value_type="string",
+                description="Envelope compatibility version.",
+            ),
+            SchemaField(
+                name="tool_version",
+                value_type="string",
+                description="gst-device-explorer package version.",
+            ),
+            SchemaField(
+                name="kind",
+                value_type="string",
+                description='Always \"error\" for error responses.',
+            ),
+            SchemaField(
+                name="error.code",
+                value_type="string",
+                description="Stable snake_case machine-readable error code.",
+            ),
+            SchemaField(
+                name="error.message",
+                value_type="string",
+                description="Human-readable error message.",
+            ),
+            SchemaField(
+                name="error.details",
+                value_type="object",
+                description="Optional command-specific detail fields.",
+            ),
+            SchemaField(
+                name="error.suggested_commands",
+                value_type="array",
+                description="Advisory suggested commands for recovery. Never executed automatically.",
             ),
         ),
     ),

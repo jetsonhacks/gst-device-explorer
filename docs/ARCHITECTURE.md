@@ -168,6 +168,40 @@ added schema discovery commands for the envelope contract. Milestone 14 extends
 that same wrapper to older hardware-oriented JSON outputs at the renderer
 boundary. Command-specific payloads are preserved under `data`.
 
+## Error Envelopes
+
+Selected known JSON error paths use a companion error envelope form:
+
+```json
+{
+  "schema_version": "1.0",
+  "tool_version": "0.17.0",
+  "kind": "error",
+  "error": {
+    "code": "unknown_schema",
+    "message": "...",
+    "details": {},
+    "suggested_commands": []
+  }
+}
+```
+
+Error envelopes differ from success envelopes: they use `kind: "error"` and put
+the payload under `error` instead of `data`. The `error.code` is a stable
+snake_case identifier for programmatic handling. The `error.message` is
+human-readable. The `error.details` map carries command-specific context.
+`error.suggested_commands` is advisory — it is never executed automatically.
+
+`ErrorResponse` is a frozen dataclass in `core/errors.py`. `make_error_envelope`
+in `cli/serializers.py` wraps it with the schema/tool version fields.
+`print_json_error` in `cli/renderer.py` serializes and prints it.
+
+Milestone 17 wraps: unknown schema, unknown preset, wrong preset target kind,
+missing required preset arguments, and group-not-found error paths.
+
+Non-JSON error paths preserve existing human-readable text behavior.
+Non-zero exit codes are preserved for all error paths.
+
 The schema layer does not generate full JSON Schema files and does not change
 probing, candidate generation, ranking, execution, capture, validation, preset,
 or configuration behavior.

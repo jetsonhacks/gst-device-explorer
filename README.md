@@ -238,7 +238,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.16.0",
+  "tool_version": "0.17.0",
   "kind": "preset_list",
   "data": []
 }
@@ -250,17 +250,49 @@ diagnostic, profile, report, recommendation, and group validation JSON outputs.
 The `data` field contains the command-specific payload, preserving the older
 payload shape under the envelope.
 
-Inspect the current envelope contract with:
+Selected known error paths return a companion error envelope:
+
+```json
+{
+  "schema_version": "1.0",
+  "tool_version": "0.17.0",
+  "kind": "error",
+  "error": {
+    "code": "unknown_schema",
+    "message": "Unknown schema: not-a-schema",
+    "details": {
+      "schema_id": "not-a-schema"
+    },
+    "suggested_commands": []
+  }
+}
+```
+
+Error envelopes use `kind: "error"` with an `error` object instead of `data`.
+The `error.code` field is a stable snake_case identifier for scripts to match.
+The `error.suggested_commands` list is advisory and is never executed automatically.
+
+Error envelope coverage in Milestone 17:
+
+- `schema show <unknown> --json` → `unknown_schema`
+- `preset show <unknown> --json` → `unknown_preset`
+- `preset command <unknown> ... --json` → `unknown_preset`
+- `preset command <id> <wrong-kind> ... --json` → `wrong_preset_target_kind`
+- `preset command <capture-preset> <video> <target> --json` (missing args) → `missing_required_argument`
+- `group <unknown> --json` → `group_not_found`
+- `validate group <unknown> --json` → `group_not_found`
+
+Non-JSON invocations preserve existing human-readable text behavior.
+Config JSON outputs remain in the success envelope with `valid: false`.
+
+Inspect the envelope contracts with:
 
 ```sh
 gst-device-explorer schema list
 gst-device-explorer schema show json-envelope
-gst-device-explorer schema show json-envelope --json
+gst-device-explorer schema show error-envelope
+gst-device-explorer schema show error-envelope --json
 ```
-
-Milestone 14 does not publish complete JSON Schema documents for every payload,
-does not add stable error envelopes, and does not change probing, presets,
-configuration, capture, validation, or execution behavior.
 
 ## TUI Review Mode
 
