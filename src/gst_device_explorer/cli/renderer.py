@@ -10,6 +10,7 @@ from typing import Sequence
 
 from gst_device_explorer.core.grouping import GroupableDevice
 from gst_device_explorer.core.config import ConfigValidationResult, ExplorerConfig
+from gst_device_explorer.core.support import SupportBundleFile
 from gst_device_explorer.core.models import (
     CandidateRanking,
     Capability,
@@ -804,6 +805,18 @@ def print_suggestions_catalog(
         print(f"  {suggestion.command}")
         if suggestion.purpose:
             print(f"    {suggestion.purpose}")
+
+
+def print_support_bundle_written(
+    output_path: str,
+    files: list[SupportBundleFile],
+) -> None:
+    print(f"Support bundle written: {output_path}")
+    print()
+    print("Files:")
+    print(f"  manifest.json")
+    for f in files:
+        print(f"  {f.path}")
 
 
 def _render_argv(argv: tuple[str, ...]) -> str:

@@ -576,4 +576,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render the suggestion catalog as JSON.",
     )
 
+    support_parser = subparsers.add_parser(
+        "support",
+        help="Create support and debug artifacts.",
+    )
+    support_subparsers = support_parser.add_subparsers(
+        dest="support_command",
+        required=True,
+    )
+    support_bundle_parser = support_subparsers.add_parser(
+        "bundle",
+        help="Create a support bundle directory.",
+    )
+    support_bundle_parser.add_argument(
+        "--output",
+        required=True,
+        help="Explicit output path for the support bundle directory. Must not already exist.",
+    )
+
     return parser

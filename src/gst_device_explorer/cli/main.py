@@ -425,6 +425,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         renderer.print_suggestions_catalog(catalog, as_json=args.json)
         return 0
 
+    if args.command == "support" and args.support_command == "bundle":
+        return commands.run_support_bundle(args.output)
+
     parser.error("unknown command")
     return 2
 

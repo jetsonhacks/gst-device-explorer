@@ -7,6 +7,7 @@ from dataclasses import asdict
 
 from gst_device_explorer.core.errors import ErrorResponse
 from gst_device_explorer.core.grouping import GroupableDevice
+from gst_device_explorer.core.support import SupportBundleFile, SupportBundleManifest
 from gst_device_explorer.core.config import (
     ConfigIssue,
     ConfigValidationResult,
@@ -357,6 +358,28 @@ def schema_document_summary_to_json_dict(document: SchemaDocument) -> dict:
         "purpose": document.purpose,
         "schema_id": document.schema_id,
         "title": document.title,
+    }
+
+
+def support_bundle_file_to_json_dict(f: SupportBundleFile) -> dict:
+    return {
+        "description": f.description,
+        "kind": f.kind,
+        "path": f.path,
+        "required": f.required,
+    }
+
+
+def support_bundle_manifest_to_json_dict(manifest: SupportBundleManifest) -> dict:
+    return {
+        "bundle_format": manifest.bundle_format,
+        "created_at": manifest.created_at,
+        "files": [support_bundle_file_to_json_dict(f) for f in manifest.files],
+        "kind": manifest.kind,
+        "notes": list(manifest.notes),
+        "schema_version": manifest.schema_version,
+        "tool_version": manifest.tool_version,
+        "warnings": list(manifest.warnings),
     }
 
 

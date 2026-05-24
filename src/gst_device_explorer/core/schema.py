@@ -210,6 +210,53 @@ _SCHEMA_DOCUMENTS = (
         fields=(),
     ),
     SchemaDocument(
+        schema_id="support_bundle_manifest",
+        title="Support Bundle Manifest",
+        purpose="Envelope kind for the support bundle manifest JSON written to manifest.json.",
+        fields=(
+            SchemaField(
+                name="bundle_format",
+                value_type="string",
+                description='Bundle storage format. Currently always "directory".',
+            ),
+            SchemaField(
+                name="created_at",
+                value_type="string",
+                description="ISO 8601 UTC timestamp of bundle creation.",
+            ),
+            SchemaField(
+                name="files",
+                value_type="array",
+                description="List of files written into the bundle.",
+            ),
+            SchemaField(
+                name="kind",
+                value_type="string",
+                description='Always "support_bundle_manifest".',
+            ),
+            SchemaField(
+                name="notes",
+                value_type="array",
+                description="Informational notes about the bundle.",
+            ),
+            SchemaField(
+                name="schema_version",
+                value_type="string",
+                description="Manifest schema version.",
+            ),
+            SchemaField(
+                name="tool_version",
+                value_type="string",
+                description="gst-device-explorer version used to create the bundle.",
+            ),
+            SchemaField(
+                name="warnings",
+                value_type="array",
+                description="Non-fatal warnings encountered while writing the bundle.",
+            ),
+        ),
+    ),
+    SchemaDocument(
         schema_id="suggestion_catalog",
         title="Suggestion Catalog",
         purpose="Envelope kind for the generic suggested command catalog JSON.",

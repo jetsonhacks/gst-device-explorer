@@ -224,6 +224,33 @@ Milestone 15 TUI mode displays suggested CLI commands but does not execute them.
 It does not run pipelines, run capture, execute presets, edit configuration,
 install packages, or change system settings.
 
+## Support Bundle Export
+
+The support bundle is a safe export of existing inspection surfaces, written as
+a new directory at an explicit output path. It does not execute pipelines, does
+not capture media, does not run suggested commands, does not install packages,
+and does not change system configuration.
+
+`core/support.py` defines two frozen dataclasses:
+
+- `SupportBundleFile` — describes one written file (path, kind, description, required)
+- `SupportBundleManifest` — bundle metadata including file list, creation timestamp,
+  warnings, and notes
+
+`validate_bundle_output_path()` enforces the pre-write invariants: the output
+path must not already exist and its parent must be an existing directory. This
+function raises before any writes begin.
+
+The bundle-writing logic in `cli/commands.py` gathers data from existing shared
+functions (report builder, config, schema, suggestions, discovery), writes each
+artifact using the standard JSON envelope format, captures the system report as
+both JSON and text, renders the TUI snapshot using `core.tui.build_tui_review_model`
+and `render_overview_lines`, and writes the manifest as the final step. The
+manifest only lists files that were actually written.
+
+Milestone 18 defers: `.tar.gz` format, `--force`, bundle upload, media capture,
+running suggested commands, preset execution, and MCP/tool descriptor integration.
+
 ## Execution Flow
 
 Safe execution is a separate layer that consumes structured pipeline candidates.

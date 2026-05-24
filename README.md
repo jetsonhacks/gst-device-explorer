@@ -53,6 +53,39 @@ The report includes:
 
 Text output is a compact summary. File output (`--output`) is deferred.
 
+## Support Bundle Export
+
+Use `support bundle` to create a portable support/debug bundle from existing
+safe inspection surfaces:
+
+```sh
+gst-device-explorer support bundle --output ./my-support-bundle
+```
+
+The command creates a new directory at the explicit output path. The path must
+not already exist and its parent directory must exist.
+
+The bundle includes:
+
+- `manifest.json` — bundle metadata, file list, and creation timestamp
+- `report/system-report.json` — full system report in JSON envelope format
+- `report/system-report.txt` — compact system report text summary
+- `inventory/` — per-kind device, environment, and group listings
+- `config/` — configuration search paths, effective configuration, and validation
+- `schemas/` — known schema document list
+- `suggestions/` — generic suggested command catalog
+- `tui/snapshot.txt` — TUI overview snapshot
+
+The support bundle is an export of already-safe inspection data. It does not:
+
+- run GStreamer pipelines or capture media
+- execute suggested commands
+- install packages or change system configuration
+- require special system privileges beyond normal device probing
+
+The bundle is intended for attaching to GitHub issues, comparing Jetson systems,
+and field debugging without requiring direct access to the target hardware.
+
 ## Candidate Ranking and Recommendations
 
 Use `recommend` to rank generated pipeline candidates and identify the best one
@@ -238,7 +271,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.17.0",
+  "tool_version": "0.18.0",
   "kind": "preset_list",
   "data": []
 }
@@ -255,7 +288,7 @@ Selected known error paths return a companion error envelope:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.17.0",
+  "tool_version": "0.18.0",
   "kind": "error",
   "error": {
     "code": "unknown_schema",

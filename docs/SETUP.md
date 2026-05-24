@@ -468,7 +468,57 @@ presets, configuration, schema kinds, and suggested commands. It does not run
 pipelines, capture media, execute presets, edit configuration, install
 packages, or change system settings.
 
-## 18. Current Limitations
+## 18. Verify Milestone 18 Support Bundle Export
+
+Create a support bundle directory:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer support bundle --output ./my-support-bundle
+```
+
+Inspect the bundle contents:
+
+```sh
+ls ./my-support-bundle/
+cat ./my-support-bundle/manifest.json
+cat ./my-support-bundle/report/system-report.txt
+cat ./my-support-bundle/report/system-report.json
+cat ./my-support-bundle/inventory/devices.json
+```
+
+Expected layout:
+
+```text
+my-support-bundle/
+├── manifest.json
+├── report/
+│   ├── system-report.json
+│   └── system-report.txt
+├── inventory/
+│   ├── environment.json
+│   ├── devices.json
+│   ├── audio-inputs.json
+│   ├── audio-outputs.json
+│   ├── groups.json
+│   └── grouping-metadata.json
+├── config/
+│   ├── config-path.json
+│   ├── config-show.json
+│   └── config-validate.json
+├── schemas/
+│   └── schema-list.json
+├── suggestions/
+│   └── suggestions-list.json
+└── tui/
+    └── snapshot.txt
+```
+
+The bundle output path must not already exist. The parent directory must exist.
+
+The support bundle does not run GStreamer pipelines, does not capture media,
+and does not execute suggested commands.
+
+## 19. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
