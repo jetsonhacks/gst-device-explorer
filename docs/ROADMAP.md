@@ -243,9 +243,9 @@ Possible scope:
 Possible commands:
 
 ```sh
-gst-device-explorer capture video /dev/video0 --duration 5 --output test.mp4
+gst-device-explorer capture video /dev/video0 --duration 5 --output test.avi
 gst-device-explorer capture audio-input hw:0,0 --duration 5 --output test.wav
-gst-device-explorer capture video /dev/video0 --duration 5 --output test.mp4 --dry-run
+gst-device-explorer capture video /dev/video0 --duration 5 --output test.avi --dry-run
 ```
 
 Why this matters:

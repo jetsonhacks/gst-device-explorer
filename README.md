@@ -22,8 +22,9 @@ sensors, but that is not part of the initial implementation scope.
 The project is currently in an early implementation phase. It has initial
 probing models, CLI renderers, video and audio pipeline candidate generation,
 and safe execution for selected video preview and ALSA audio test candidates. It
-can also render composite device groups computed from discovered device
-metadata. GUI, recording, editing, audio loopback, group-based execution, and
+can also create short, explicit, bounded capture files from generated video and
+audio-input candidates. Composite device groups are computed from discovered
+device metadata. GUI, editing, audio loopback, group-based execution, and
 preview-window lifecycle management are not implemented yet.
 
 ## System Report
@@ -269,6 +270,29 @@ The audio input level test is intended to run without audible output. The audio
 output sine test should play a 440 Hz tone. Audio execution uses generated
 `PipelineCandidate.argv` values and does not accept arbitrary GStreamer pipeline
 strings. Press Ctrl+C to stop a running audio pipeline.
+
+## Bounded Capture Tests
+
+Use `capture` to create short endpoint-based validation files from generated
+candidates only:
+
+```sh
+gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi
+gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi --dry-run
+
+gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav
+gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav --dry-run
+```
+
+Capture requires an explicit positive duration and an explicit output path.
+Dry-run prints the exact argv-backed command without starting GStreamer. Existing
+output files are rejected; `--overwrite` is not implemented.
+
+Capture is a bounded validation tool, not a recording framework. It does not
+accept arbitrary pipeline strings, does not perform group-based capture, does
+not run synchronized audio/video capture, and does not create background or
+long-running recordings. The first video capture candidates write simple AVI
+files; audio input capture writes WAV files.
 
 ## Diagnostics Workflow
 

@@ -65,6 +65,11 @@ renders candidates for inspection. The `run` command selects one generated
 candidate, creates an execution plan, and executes the plan's argv form unless
 `--dry-run` is requested.
 
+The `capture` command follows the same generated-candidate boundary for short
+file validation. It selects a generated capture candidate, creates an argv-based
+execution plan, and runs it only when `--dry-run` is not requested. Capture does
+not accept arbitrary raw pipeline strings.
+
 ## First Supported Media Case
 
 The first implementation should focus on V4L2 video preview candidates.
@@ -79,6 +84,8 @@ The first generation strategies are identified by these profile label strings:
 
 - `generic-linux-video-preview`
 - `jetson-video-preview`
+- `generic-v4l2-video-capture`
+- `generic-alsa-audio-input-capture`
 
 `generic-linux-video-preview` identifies candidates using broadly available
 GStreamer elements for V4L2 preview on Linux.
@@ -91,6 +98,24 @@ version.
 These labels are string metadata stamped onto finished `PipelineCandidate`
 objects. They identify the candidate's generation strategy and are not policy
 objects consumed by builders.
+
+## Capture Candidates
+
+Bounded capture candidates are also `PipelineCandidate` objects. They include
+the selected endpoint, duration, output path, file format, required elements,
+warnings, and generated argv in the same structured fields used by preview and
+test candidates.
+
+The first capture slice supports:
+
+- V4L2 video input to a simple AVI file
+- ALSA audio input to a WAV file
+
+Capture candidates require explicit duration and output path values before they
+are built. Existing output files are rejected by the CLI before execution.
+Capture remains endpoint-based and does not add group-level capture,
+synchronized audio/video capture, background recording, long-running recording,
+or arbitrary transcoding workflows.
 
 ## Known Jetson Lesson
 
@@ -125,6 +150,5 @@ hard-coded one-off patch.
 Pipeline candidate generation should not:
 
 - Add preview windows
-- Add recording
-- Add audio pipelines yet
+- Add general-purpose recording
 - Rewrite `gst-launch` strings after construction

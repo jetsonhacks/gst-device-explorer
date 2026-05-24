@@ -69,6 +69,7 @@ def run_execution_plan(
     plan: ExecutionPlan,
     popen_factory: Callable[..., subprocess.Popen] | None = None,
     terminate_timeout_seconds: float = 2.0,
+    timeout_seconds: float | None = None,
 ) -> int:
     """Run a selected pipeline using argv form and return its exit status."""
 
@@ -81,7 +82,12 @@ def run_execution_plan(
         raise ExecutionStartError(str(error)) from error
 
     try:
-        return process.wait()
+        if timeout_seconds is None:
+            return process.wait()
+        return process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        _terminate_process(process, terminate_timeout_seconds)
+        return 124
     except KeyboardInterrupt:
         _terminate_process(process, terminate_timeout_seconds)
         return 130

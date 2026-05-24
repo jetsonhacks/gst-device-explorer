@@ -328,4 +328,67 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the selected command without starting GStreamer.",
     )
 
+    capture_parser = subparsers.add_parser(
+        "capture",
+        help="Create a short bounded media capture from one endpoint.",
+    )
+    capture_subparsers = capture_parser.add_subparsers(
+        dest="capture_command",
+        required=True,
+    )
+    capture_video_parser = capture_subparsers.add_parser(
+        "video",
+        help="Capture one generated V4L2 video candidate to a short file.",
+    )
+    capture_video_parser.add_argument(
+        "device_path",
+        help="Path to a video device.",
+    )
+    capture_video_parser.add_argument(
+        "--duration",
+        required=True,
+        help="Positive capture duration in seconds.",
+    )
+    capture_video_parser.add_argument(
+        "--output",
+        required=True,
+        help="Explicit output path for the captured file.",
+    )
+    capture_video_parser.add_argument(
+        "--candidate",
+        help="Candidate zero-based index or stable candidate ID.",
+    )
+    capture_video_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the selected capture command without starting GStreamer.",
+    )
+    capture_audio_input_parser = capture_subparsers.add_parser(
+        "audio-input",
+        help="Capture one generated ALSA audio input candidate to WAV.",
+    )
+    capture_audio_input_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    capture_audio_input_parser.add_argument(
+        "--duration",
+        required=True,
+        help="Positive capture duration in seconds.",
+    )
+    capture_audio_input_parser.add_argument(
+        "--output",
+        required=True,
+        help="Explicit output path for the captured file.",
+    )
+    capture_audio_input_parser.add_argument(
+        "--candidate",
+        help="Candidate zero-based index or stable candidate ID.",
+    )
+    capture_audio_input_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the selected capture command without starting GStreamer.",
+    )
+
     return parser

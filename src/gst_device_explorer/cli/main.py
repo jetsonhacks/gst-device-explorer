@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from gst_device_explorer.core.models import CompositeDevice
+import gst_device_explorer.core.capture as capture
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
@@ -210,6 +211,54 @@ def main(argv: Sequence[str] | None = None) -> int:
             dry_run=args.dry_run,
         )
 
+    if args.command == "capture" and args.capture_command == "video":
+        duration = _validate_capture_duration(args.duration)
+        if duration is None:
+            return 1
+        if not _validate_capture_output_path(args.output):
+            return 1
+        candidates = commands.build_video_capture_candidates(
+            args.device_path,
+            duration,
+            args.output,
+        )
+        return commands.run_capture_candidate(
+            candidates,
+            endpoint=args.device_path,
+            duration_seconds=duration,
+            output_path=args.output,
+            inspect_commands=[
+                f"gst-device-explorer video {args.device_path}",
+                f"gst-device-explorer pipeline video {args.device_path}",
+            ],
+            selection=args.candidate,
+            dry_run=args.dry_run,
+        )
+
+    if args.command == "capture" and args.capture_command == "audio-input":
+        duration = _validate_capture_duration(args.duration)
+        if duration is None:
+            return 1
+        if not _validate_capture_output_path(args.output):
+            return 1
+        candidates = commands.build_audio_input_capture_candidates(
+            args.alsa_device,
+            duration,
+            args.output,
+        )
+        return commands.run_capture_candidate(
+            candidates,
+            endpoint=args.alsa_device,
+            duration_seconds=duration,
+            output_path=args.output,
+            inspect_commands=[
+                "gst-device-explorer audio-inputs",
+                f"gst-device-explorer pipeline audio-input {args.alsa_device}",
+            ],
+            selection=args.candidate,
+            dry_run=args.dry_run,
+        )
+
     parser.error("unknown command")
     return 2
 
@@ -219,6 +268,26 @@ def _find_composite_group(
     group_id: str,
 ) -> CompositeDevice | None:
     return next((group for group in groups if group.id == group_id), None)
+
+
+def _validate_capture_duration(value: str) -> float | None:
+    try:
+        return capture.validate_capture_duration(value)
+    except ValueError as error:
+        print(f"Error: {error}")
+        return None
+
+
+def _validate_capture_output_path(value: str) -> bool:
+    try:
+        capture.validate_capture_output_path(value)
+    except FileExistsError:
+        renderer.print_capture_not_started_existing_output(value)
+        return False
+    except ValueError as error:
+        print(f"Error: {error}")
+        return False
+    return True
 
 
 if __name__ == "__main__":

@@ -1879,12 +1879,243 @@ def test_run_audio_output_invalid_candidate_id_returns_error(
     assert "candidate ID 'missing-candidate' was not found" in capsys.readouterr().out
 
 
+def test_capture_video_dry_run_uses_generated_candidate(
+    monkeypatch,
+    capsys,
+    tmp_path,
+) -> None:
+    output_path = tmp_path / "sample.avi"
+    _mock_video_capture_candidates(monkeypatch, [_capture_candidate("video", output_path)])
+    calls = []
+    monkeypatch.setattr(
+        cli_commands.execution,
+        "run_execution_plan",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    exit_code = main(
+        [
+            "capture",
+            "video",
+            "/dev/video0",
+            "--duration",
+            "5",
+            "--output",
+            str(output_path),
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls == []
+    assert capsys.readouterr().out == (
+        "Capture candidate: video-capture-test\n"
+        "Endpoint: /dev/video0\n"
+        "Duration: 5 seconds\n"
+        f"Output: {output_path}\n"
+        "\n"
+        "Dry run: command not executed.\n"
+        "\n"
+        f"gst-launch-1.0 capture-video location={output_path}\n"
+    )
+
+
+def test_capture_audio_input_invokes_safe_runner(
+    monkeypatch,
+    capsys,
+    tmp_path,
+) -> None:
+    output_path = tmp_path / "sample.wav"
+    _mock_audio_input_capture_candidates(
+        monkeypatch,
+        [_capture_candidate("audio-input", output_path)],
+    )
+    calls = []
+
+    def fake_run(plan, **kwargs):
+        calls.append((plan.argv, kwargs))
+        return 0
+
+    monkeypatch.setattr(cli_commands.execution, "run_execution_plan", fake_run)
+
+    exit_code = main(
+        [
+            "capture",
+            "audio-input",
+            "hw:0,0",
+            "--duration",
+            "2.5",
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls == [
+        (
+            ["gst-launch-1.0", "capture-audio-input", f"location={output_path}"],
+            {"timeout_seconds": 7.5},
+        )
+    ]
+    assert capsys.readouterr().out == (
+        "Running capture candidate: audio-input-capture-test\n"
+        "Endpoint: hw:0,0\n"
+        "Duration: 2.5 seconds\n"
+        f"Output: {output_path}\n"
+        "\n"
+        f"gst-launch-1.0 capture-audio-input location={output_path}\n"
+        "\n"
+        "Capture completed.\n"
+    )
+
+
+def test_capture_video_selects_candidate_by_index(monkeypatch, capsys, tmp_path) -> None:
+    output_path = tmp_path / "sample.avi"
+    _mock_video_capture_candidates(
+        monkeypatch,
+        [
+            _capture_candidate("video", output_path, candidate_id="video-capture-1"),
+            _capture_candidate("video", output_path, candidate_id="video-capture-2"),
+        ],
+    )
+
+    exit_code = main(
+        [
+            "capture",
+            "video",
+            "/dev/video0",
+            "--duration",
+            "1",
+            "--output",
+            str(output_path),
+            "--candidate",
+            "1",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    assert "Capture candidate: video-capture-2\n" in capsys.readouterr().out
+
+
+def test_capture_video_selects_candidate_by_id(monkeypatch, capsys, tmp_path) -> None:
+    output_path = tmp_path / "sample.avi"
+    _mock_video_capture_candidates(
+        monkeypatch,
+        [
+            _capture_candidate("video", output_path, candidate_id="video-capture-1"),
+            _capture_candidate("video", output_path, candidate_id="video-capture-2"),
+        ],
+    )
+
+    exit_code = main(
+        [
+            "capture",
+            "video",
+            "/dev/video0",
+            "--duration",
+            "1",
+            "--output",
+            str(output_path),
+            "--candidate",
+            "video-capture-2",
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    assert "Capture candidate: video-capture-2\n" in capsys.readouterr().out
+
+
+def test_capture_invalid_duration_returns_error(monkeypatch, capsys, tmp_path) -> None:
+    _mock_video_capture_candidates(monkeypatch, [])
+
+    exit_code = main(
+        [
+            "capture",
+            "video",
+            "/dev/video0",
+            "--duration",
+            "0",
+            "--output",
+            str(tmp_path / "sample.avi"),
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 1
+    assert "duration must be a positive number of seconds" in capsys.readouterr().out
+
+
+def test_capture_existing_output_returns_clear_error(
+    monkeypatch,
+    capsys,
+    tmp_path,
+) -> None:
+    output_path = tmp_path / "sample.wav"
+    output_path.write_text("already exists")
+    _mock_audio_input_capture_candidates(monkeypatch, [])
+
+    exit_code = main(
+        [
+            "capture",
+            "audio-input",
+            "hw:0,0",
+            "--duration",
+            "1",
+            "--output",
+            str(output_path),
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 1
+    assert capsys.readouterr().out == (
+        "Capture not started.\n"
+        "\n"
+        "Output file already exists:\n"
+        f"{output_path}\n"
+        "\n"
+        "Choose a different output path.\n"
+    )
+
+
 def test_unknown_command_exits_with_error(capsys) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["unknown"])
 
     assert exc_info.value.code == 2
     assert "invalid choice" in capsys.readouterr().err
+
+
+def _mock_video_capture_candidates(monkeypatch, candidates) -> None:
+    monkeypatch.setattr(
+        cli_commands,
+        "build_video_capture_candidates",
+        lambda device_path, duration_seconds, output_path: candidates,
+    )
+
+
+def _mock_audio_input_capture_candidates(monkeypatch, candidates) -> None:
+    monkeypatch.setattr(
+        cli_commands,
+        "build_audio_input_capture_candidates",
+        lambda alsa_device, duration_seconds, output_path: candidates,
+    )
+
+
+def _capture_candidate(
+    kind: str,
+    output_path,
+    candidate_id: str | None = None,
+) -> PipelineCandidate:
+    return PipelineCandidate(
+        candidate_id=candidate_id or f"{kind}-capture-test",
+        purpose=f"capture {kind}",
+        command=f"gst-launch-1.0 capture-{kind} location={output_path}",
+        confidence=1.0,
+        argv=["gst-launch-1.0", f"capture-{kind}", f"location={output_path}"],
+    )
 
 
 def _mock_pipeline_video_candidates(monkeypatch, candidates) -> None:

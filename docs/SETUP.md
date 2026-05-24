@@ -220,8 +220,8 @@ Expected behavior:
 
 Audio loopback is intentionally deferred because it can create feedback or
 surprising routing behavior. ASR, TTS, WebRTC, PulseAudio, PipeWire, effects,
-echo cancellation, recording workflows, synchronized audio/video workflows, and
-group-based execution are also out of scope.
+echo cancellation, general-purpose recording workflows, synchronized audio/video
+workflows, and group-based execution are also out of scope.
 
 ## 9. Verify Milestone 5 Diagnostics
 
@@ -325,15 +325,41 @@ candidates, view diagnostics, or dry-run the selected candidate:
 Group profiles are not implemented. Group membership shown in endpoint
 profiles is informational only.
 
-## 11. Current Limitations
+## 11. Verify Milestone 9 Bounded Capture
+
+Bounded capture writes short validation files from generated candidates only.
+Always dry-run first:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi --dry-run
+/home/jim/.local/bin/uv run gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav --dry-run
+```
+
+Run the selected capture candidate only after inspecting the generated command:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi
+/home/jim/.local/bin/uv run gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav
+```
+
+Capture requires `--duration` and `--output`. The duration must be a positive
+number of seconds, and existing output files are rejected. Video capture uses a
+simple AVI candidate in this first slice; audio input capture writes WAV.
+
+Capture is endpoint-based. It does not accept arbitrary raw pipelines, does not
+overwrite files, does not perform group-based capture, does not synchronize
+audio and video, and does not create background or long-running recordings.
+
+## 12. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.
 - Group-based pipeline execution is not implemented.
+- Synchronized audio/video capture is not implemented.
 - Preview-window lifecycle management is not implemented.
 - PulseAudio and PipeWire probing are not implemented.
-- ASR, TTS, WebRTC, effects, echo cancellation, recording workflows, and
+- ASR, TTS, WebRTC, effects, echo cancellation, general-purpose recording workflows, and
   synchronized audio/video workflows are not implemented.
 - Empty output may mean tools are missing, no matching hardware is present,
   permissions prevent access, or the device is not yet supported.

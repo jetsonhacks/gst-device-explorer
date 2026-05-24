@@ -14,6 +14,7 @@ from gst_device_explorer.core.models import (
 )
 import gst_device_explorer.core.audio_diagnostics as audio_diagnostics
 import gst_device_explorer.core.audio_pipelines as audio_pipelines
+import gst_device_explorer.core.capture as capture
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.execution as execution
 import gst_device_explorer.core.pipelines as pipelines
@@ -24,7 +25,11 @@ import gst_device_explorer.core.video_diagnostics as video_diagnostics
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
-from gst_device_explorer.cli.renderer import print_execution_plan
+from gst_device_explorer.cli.renderer import (
+    print_capture_completed,
+    print_capture_plan,
+    print_execution_plan,
+)
 
 
 def build_video_preview_candidates(device_path: str) -> list[PipelineCandidate]:
@@ -130,6 +135,47 @@ def build_audio_output_profile(alsa_device: str) -> DeviceProfile | None:
     return profiles.build_audio_output_profile(device, environment, groups)
 
 
+def build_video_capture_candidates(
+    device_path: str,
+    duration_seconds: float,
+    output_path: str,
+) -> list[PipelineCandidate]:
+    device = Device(
+        id=device_path,
+        kind="video_input",
+        name=device_path,
+        metadata={"backend": "v4l2", "path": device_path},
+    )
+    capabilities = v4l2_probe.discover_v4l2_capabilities(device_path)
+    environment = gst_probe.inspect_gstreamer_environment()
+    return capture.build_video_capture_candidates(
+        device,
+        capabilities,
+        environment,
+        duration_seconds,
+        capture.validate_capture_output_path(output_path),
+    )
+
+
+def build_audio_input_capture_candidates(
+    alsa_device: str,
+    duration_seconds: float,
+    output_path: str,
+) -> list[PipelineCandidate]:
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_inputs(), alsa_device, kind="audio_input"
+    )
+    if device is None:
+        return []
+    environment = gst_probe.inspect_gstreamer_environment()
+    return capture.build_audio_input_capture_candidates(
+        device,
+        environment,
+        duration_seconds,
+        capture.validate_capture_output_path(output_path),
+    )
+
+
 def run_selected_candidate(
     candidates: list[PipelineCandidate],
     device_label: str,
@@ -163,6 +209,56 @@ def run_selected_candidate(
     except execution.ExecutionStartError as error:
         print(f"Error: could not start pipeline: {error}")
         return 1
+
+
+def run_capture_candidate(
+    candidates: list[PipelineCandidate],
+    endpoint: str,
+    duration_seconds: float,
+    output_path: str,
+    inspect_commands: list[str],
+    selection: str | None,
+    dry_run: bool,
+) -> int:
+    if not candidates:
+        print(f"No capture candidates were generated for {endpoint}.")
+        print()
+        print("Try:")
+        for command in inspect_commands:
+            print(f"  {command}")
+        print("  gst-device-explorer env")
+        return 1
+
+    try:
+        candidate = execution.select_pipeline_candidate(candidates, selection=selection)
+    except execution.CandidateSelectionError as error:
+        print(f"Error: {error}")
+        return 1
+
+    plan = execution.create_execution_plan(candidate)
+    print_capture_plan(
+        plan,
+        endpoint=endpoint,
+        duration_seconds=duration_seconds,
+        output_path=output_path,
+        dry_run=dry_run,
+    )
+
+    if dry_run:
+        return 0
+
+    try:
+        exit_code = execution.run_execution_plan(
+            plan,
+            timeout_seconds=duration_seconds + 5.0,
+        )
+    except execution.ExecutionStartError as error:
+        print(f"Error: could not start capture pipeline: {error}")
+        return 1
+
+    if exit_code == 0:
+        print_capture_completed()
+    return exit_code
 
 
 def _find_alsa_device(
