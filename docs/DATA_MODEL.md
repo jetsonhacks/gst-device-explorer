@@ -249,8 +249,16 @@ outputs. The envelope fields are `schema_version`, `tool_version`, `kind`, and
 command-specific serialized payload under `data`.
 
 `SchemaDocument` records describe the modest schema discovery surface. Milestone
-13 documents the JSON envelope contract only; full JSON Schema coverage for all
+13 documented the JSON envelope contract, and Milestone 14 lists the additional
+payload kinds that use the shared envelope. Full JSON Schema coverage for all
 payload models is deferred.
+
+Milestone 14 wraps legacy JSON payloads for environment inspection, device
+discovery, audio discovery, composite groups, grouping metadata, one composite
+group, video capabilities, pipeline candidates, pipeline diagnostics, endpoint
+profiles, system reports, candidate recommendations, and group validation.
+Capture commands do not expose JSON output in this milestone, and stable error
+envelopes remain deferred.
 
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

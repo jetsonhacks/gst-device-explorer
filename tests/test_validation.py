@@ -244,7 +244,7 @@ def test_group_validation_json_output(capsys) -> None:
 
     data = json.loads(capsys.readouterr().out)
     assert data["kind"] == "group_validation"
-    assert data["endpoint_summaries"][0]["endpoint"] == "/dev/video0"
+    assert data["data"]["endpoint_summaries"][0]["endpoint"] == "/dev/video0"
 
 
 def test_cli_validate_group_text(monkeypatch, capsys) -> None:
@@ -335,7 +335,9 @@ def test_cli_validate_group_json(monkeypatch, capsys) -> None:
     exit_code = main(["validate", "group", "usb-device-1-2-3", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out)["group_id"] == "usb-device-1-2-3"
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "group_validation"
+    assert data["data"]["group_id"] == "usb-device-1-2-3"
 
 
 def test_cli_validate_group_not_found(monkeypatch, capsys) -> None:

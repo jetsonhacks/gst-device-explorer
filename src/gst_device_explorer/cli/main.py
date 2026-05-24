@@ -60,6 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             as_json=args.json,
             empty_message="No ALSA audio input devices found.",
             heading="Audio input devices:",
+            json_kind="audio_inputs",
         )
         return 0
 
@@ -70,6 +71,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             as_json=args.json,
             empty_message="No ALSA audio output devices found.",
             heading="Audio output devices:",
+            json_kind="audio_outputs",
         )
         return 0
 
@@ -116,6 +118,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             as_json=args.json,
             show_all=args.all,
             limit=args.limit,
+            json_kind="video_candidates",
         )
         return 0
 
@@ -136,6 +139,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             heading="Audio input pipeline candidates",
             empty_message="No audio input pipeline candidates found",
             as_json=args.json,
+            json_kind="audio_input_candidates",
         )
         return 0
 
@@ -156,6 +160,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             heading="Audio output pipeline candidates",
             empty_message="No audio output pipeline candidates found",
             as_json=args.json,
+            json_kind="audio_output_candidates",
         )
         return 0
 

@@ -34,6 +34,19 @@ from gst_device_explorer.core.presets import (
 from gst_device_explorer.core.schema import SchemaDocument, SchemaField
 
 
+def to_json_data(
+    items: list[Device]
+    | list[EnvironmentFact]
+    | list[Capability]
+    | list[PipelineCandidate]
+    | list[CompositeDevice]
+    | list[GroupableDevice],
+) -> list[dict]:
+    if items and isinstance(items[0], PipelineCandidate):
+        return [pipeline_candidate_to_json_dict(item) for item in items]
+    return [asdict(item) for item in items]
+
+
 def to_json(
     items: list[Device]
     | list[EnvironmentFact]
@@ -42,13 +55,7 @@ def to_json(
     | list[CompositeDevice]
     | list[GroupableDevice],
 ) -> str:
-    if items and isinstance(items[0], PipelineCandidate):
-        return json.dumps(
-            [pipeline_candidate_to_json_dict(item) for item in items],
-            indent=2,
-            sort_keys=True,
-        )
-    return json.dumps([asdict(item) for item in items], indent=2, sort_keys=True)
+    return json.dumps(to_json_data(items), indent=2, sort_keys=True)
 
 
 def pipeline_candidate_to_json_dict(candidate: PipelineCandidate) -> dict:

@@ -28,7 +28,11 @@ def test_schema_version_constant_is_stable() -> None:
 def test_schema_registry_contains_json_envelope() -> None:
     documents = list_schema_documents()
 
-    assert [document.schema_id for document in documents] == ["json-envelope"]
+    schema_ids = [document.schema_id for document in documents]
+    assert schema_ids[0] == "json-envelope"
+    assert "environment" in schema_ids
+    assert "devices" in schema_ids
+    assert "system_report" in schema_ids
     assert get_schema_document("json-envelope") == documents[0]
     assert get_schema_document("missing") is None
 

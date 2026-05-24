@@ -35,6 +35,7 @@ from gst_device_explorer.cli.serializers import (
     schema_document_summary_to_json_dict,
     schema_document_to_json_dict,
     system_report_to_json_dict,
+    to_json_data,
     to_json,
 )
 
@@ -44,9 +45,10 @@ def print_devices(
     as_json: bool,
     empty_message: str = "No devices found.",
     heading: str = "Devices:",
+    json_kind: str = "devices",
 ) -> None:
     if as_json:
-        print(to_json(devices))
+        _print_json(json_kind, to_json_data(devices))
         return
 
     if not devices:
@@ -60,9 +62,13 @@ def print_devices(
         print(f"  backend: {backend}")
 
 
+def _print_json(kind: str, data) -> None:
+    print(json.dumps(wrap_json(kind, data), indent=2, sort_keys=True))
+
+
 def print_environment(facts: list[EnvironmentFact], as_json: bool) -> None:
     if as_json:
-        print(to_json(facts))
+        _print_json("environment", to_json_data(facts))
         return
 
     if not facts:
@@ -80,7 +86,7 @@ def print_environment(facts: list[EnvironmentFact], as_json: bool) -> None:
 
 def print_composite_groups(groups: list[CompositeDevice], as_json: bool) -> None:
     if as_json:
-        print(to_json(groups))
+        _print_json("composite_groups", to_json_data(groups))
         return
 
     if not groups:
@@ -94,7 +100,7 @@ def print_composite_groups(groups: list[CompositeDevice], as_json: bool) -> None
 
 def print_grouping_metadata(devices: list[GroupableDevice], as_json: bool) -> None:
     if as_json:
-        print(to_json(devices))
+        _print_json("grouping_metadata", to_json_data(devices))
         return
 
     if not devices:
@@ -119,7 +125,7 @@ def print_grouping_metadata(devices: list[GroupableDevice], as_json: bool) -> No
 
 def print_composite_group(group: CompositeDevice, as_json: bool) -> None:
     if as_json:
-        print(json.dumps(asdict(group), indent=2, sort_keys=True))
+        _print_json("composite_group", asdict(group))
         return
 
     _print_composite_group_text(group)
@@ -131,7 +137,7 @@ def print_video_capabilities(
     as_json: bool,
 ) -> None:
     if as_json:
-        print(to_json(capabilities))
+        _print_json("video_capabilities", to_json_data(capabilities))
         return
 
     if not capabilities:
@@ -166,6 +172,7 @@ def print_pipeline_candidates(
     as_json: bool,
     show_all: bool = False,
     limit: int | None = None,
+    json_kind: str = "pipeline_candidates",
 ) -> None:
     rendered_candidates = _select_pipeline_candidates(
         candidates,
@@ -175,7 +182,7 @@ def print_pipeline_candidates(
     )
 
     if as_json:
-        print(to_json(rendered_candidates))
+        _print_json(json_kind, to_json_data(rendered_candidates))
         return
 
     if not rendered_candidates:
@@ -209,19 +216,13 @@ def print_pipeline_candidates(
 def print_device_profile(profile: DeviceProfile | None, as_json: bool) -> None:
     if profile is None:
         if as_json:
-            print(json.dumps(None, indent=2, sort_keys=True))
+            _print_json("device_profile", None)
             return
         print("No device profile found.")
         return
 
     if as_json:
-        print(
-            json.dumps(
-                device_profile_to_json_dict(profile),
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        _print_json("device_profile", device_profile_to_json_dict(profile))
         return
 
     print(f"Device profile for {profile.device_kind} {profile.device}")
@@ -262,19 +263,16 @@ def print_pipeline_diagnostics(
     as_json: bool,
 ) -> None:
     if as_json:
-        print(
-            json.dumps(
-                {
-                    "device_kind": device_kind,
-                    "device": device_path,
-                    "diagnostics": [
-                        pipeline_diagnostic_to_json_dict(d)
-                        for d in diagnostics
-                    ],
-                },
-                indent=2,
-                sort_keys=True,
-            )
+        _print_json(
+            "pipeline_diagnostics",
+            {
+                "device_kind": device_kind,
+                "device": device_path,
+                "diagnostics": [
+                    pipeline_diagnostic_to_json_dict(d)
+                    for d in diagnostics
+                ],
+            },
         )
         return
 
@@ -306,9 +304,7 @@ def print_pipeline_diagnostics(
 
 def print_candidate_ranking(ranking: CandidateRanking, as_json: bool) -> None:
     if as_json:
-        print(
-            json.dumps(candidate_ranking_to_json_dict(ranking), indent=2, sort_keys=True)
-        )
+        _print_json("candidate_recommendation", candidate_ranking_to_json_dict(ranking))
         return
 
     print(f"Recommendations for {ranking.endpoint_kind} {ranking.endpoint}")
@@ -342,7 +338,7 @@ def print_candidate_ranking(ranking: CandidateRanking, as_json: bool) -> None:
 
 def print_system_report(report: SystemReport, as_json: bool) -> None:
     if as_json:
-        print(json.dumps(system_report_to_json_dict(report), indent=2, sort_keys=True))
+        _print_json("system_report", system_report_to_json_dict(report))
         return
 
     video_count = len(report.devices.video)
@@ -372,7 +368,7 @@ def print_system_report(report: SystemReport, as_json: bool) -> None:
 
 def print_group_validation(validation: GroupValidation, as_json: bool) -> None:
     if as_json:
-        print(json.dumps(group_validation_to_json_dict(validation), indent=2, sort_keys=True))
+        _print_json("group_validation", group_validation_to_json_dict(validation))
         return
 
     print(f"Composite group validation: {validation.group_id}")

@@ -77,6 +77,8 @@ def test_devices_json_output(monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "devices"
+    data = data["data"]
     assert data == [
         {
             "capabilities": [],
@@ -149,6 +151,8 @@ def test_groups_metadata_json_output(monkeypatch, capsys) -> None:
     data = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
+    assert data["kind"] == "grouping_metadata"
+    data = data["data"]
     assert data == [
         {
             "device_ref": {
@@ -202,6 +206,8 @@ def test_groups_json_output(monkeypatch, capsys) -> None:
     data = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
+    assert data["kind"] == "composite_groups"
+    data = data["data"]
     assert data == [_composite_group_json()]
 
 
@@ -239,6 +245,8 @@ def test_group_json_output_selects_one_group(monkeypatch, capsys) -> None:
     data = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
+    assert data["kind"] == "composite_group"
+    data = data["data"]
     assert data == _composite_group_json()
 
 
@@ -308,6 +316,8 @@ def test_env_json_output(monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "environment"
+    data = data["data"]
     assert data == [
         {
             "metadata": {"path": None, "tool": "gst-launch-1.0"},
@@ -360,6 +370,8 @@ def test_audio_inputs_json_output(monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "audio_inputs"
+    data = data["data"]
     assert data == [
         {
             "capabilities": [],
@@ -413,6 +425,8 @@ def test_audio_outputs_json_output(monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "audio_outputs"
+    data = data["data"]
     assert data == [
         {
             "capabilities": [],
@@ -440,7 +454,9 @@ def test_audio_inputs_no_device_behavior(monkeypatch, capsys) -> None:
     assert text_exit_code == 0
     assert text_output == "No ALSA audio input devices found.\n"
     assert json_exit_code == 0
-    assert json.loads(json_output) == []
+    data = json.loads(json_output)
+    assert data["kind"] == "audio_inputs"
+    assert data["data"] == []
 
 
 def test_audio_outputs_no_device_behavior(monkeypatch, capsys) -> None:
@@ -459,7 +475,9 @@ def test_audio_outputs_no_device_behavior(monkeypatch, capsys) -> None:
     assert text_exit_code == 0
     assert text_output == "No ALSA audio output devices found.\n"
     assert json_exit_code == 0
-    assert json.loads(json_output) == []
+    data = json.loads(json_output)
+    assert data["kind"] == "audio_outputs"
+    assert data["data"] == []
 
 
 def test_video_text_output_with_capabilities(monkeypatch, capsys) -> None:
@@ -517,6 +535,8 @@ def test_video_json_output_with_capabilities(monkeypatch, capsys) -> None:
 
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "video_capabilities"
+    data = data["data"]
     assert data == [
         {
             "name": "video_format",
@@ -558,7 +578,9 @@ def test_video_json_output_with_no_capabilities(monkeypatch, capsys) -> None:
     exit_code = main(["video", "/dev/video0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == []
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "video_capabilities"
+    assert data["data"] == []
 
 
 def test_pipeline_video_text_output_with_one_candidate(monkeypatch, capsys) -> None:
@@ -669,7 +691,9 @@ def test_pipeline_video_json_output_with_one_candidate(monkeypatch, capsys) -> N
     exit_code = main(["pipeline", "video", "/dev/video0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == [
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "video_candidates"
+    assert data["data"] == [
         {
             "argv": ["gst-launch-1.0", "v4l2src", "device=/dev/video0"],
             "candidate_id": "generic-v4l2-video-preview",
@@ -731,7 +755,9 @@ def test_pipeline_video_json_output_with_no_candidates(monkeypatch, capsys) -> N
     exit_code = main(["pipeline", "video", "/dev/video0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == []
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "video_candidates"
+    assert data["data"] == []
 
 
 def test_pipeline_video_diagnostics_text_output(monkeypatch, capsys) -> None:
@@ -799,7 +825,9 @@ def test_pipeline_video_diagnostics_json_output(monkeypatch, capsys) -> None:
     exit_code = main(["pipeline", "video", "/dev/video0", "--diagnostics", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == {
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "pipeline_diagnostics"
+    assert data["data"] == {
         "device": "/dev/video0",
         "device_kind": "video",
         "diagnostics": [
@@ -890,7 +918,9 @@ def test_profile_audio_output_json_output(monkeypatch, capsys) -> None:
     exit_code = main(["profile", "audio-output", "hw:0,0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == {
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "device_profile"
+    assert data["data"] == {
         "candidate_summary": {
             "available": [
                 {
@@ -941,7 +971,9 @@ def test_profile_audio_output_json_output_with_groups(monkeypatch, capsys) -> No
     exit_code = main(["profile", "audio-output", "hw:0,0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out)["groups"] == [
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "device_profile"
+    assert data["data"]["groups"] == [
         {
             "confidence": 0.9,
             "group_id": "audio-device-alsa-card-0",
@@ -959,7 +991,9 @@ def test_profile_audio_input_json_output(monkeypatch, capsys) -> None:
     exit_code = main(["profile", "audio-input", "hw:0,0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == {
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "device_profile"
+    assert data["data"] == {
         "candidate_summary": {
             "available": [
                 {
@@ -1063,7 +1097,9 @@ def test_profile_video_json_output(monkeypatch, capsys) -> None:
     exit_code = main(["profile", "video", "/dev/video0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == {
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "device_profile"
+    assert data["data"] == {
         "candidate_summary": {
             "available": [
                 {
@@ -1218,7 +1254,9 @@ def test_pipeline_audio_output_json_output_with_one_candidate(
     exit_code = main(["pipeline", "audio-output", "hw:0,0", "--json"])
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == [
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "audio_output_candidates"
+    assert data["data"] == [
         {
             "argv": ["gst-launch-1.0", "audiotestsrc", "wave=sine"],
             "candidate_id": "generic-alsa-audio-output-sine-alsasink",
@@ -1356,7 +1394,9 @@ def test_pipeline_audio_output_diagnostics_json_output(
     )
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out) == {
+    data = json.loads(capsys.readouterr().out)
+    assert data["kind"] == "pipeline_diagnostics"
+    assert data["data"] == {
         "device": "hw:0,0",
         "device_kind": "audio-output",
         "diagnostics": [
@@ -1455,7 +1495,8 @@ def test_pipeline_video_json_output_returns_all_candidates_by_default(
     data = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
-    assert [item["purpose"] for item in data] == [
+    assert data["kind"] == "video_candidates"
+    assert [item["purpose"] for item in data["data"]] == [
         "candidate 1",
         "candidate 2",
         "candidate 3",
@@ -1477,7 +1518,8 @@ def test_pipeline_video_json_output_limit_one_returns_one_candidate(
     data = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
-    assert [item["purpose"] for item in data] == ["candidate 1"]
+    assert data["kind"] == "video_candidates"
+    assert [item["purpose"] for item in data["data"]] == ["candidate 1"]
 
 
 def test_run_video_dry_run_selects_top_candidate(monkeypatch, capsys) -> None:

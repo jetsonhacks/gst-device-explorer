@@ -410,11 +410,13 @@ def test_report_json_command_has_expected_keys(monkeypatch, capsys) -> None:
     data = json.loads(capsys.readouterr().out)
     assert "kind" in data
     assert "tool_version" in data
-    assert "devices" in data
-    assert "groups" in data
-    assert "profiles" in data
-    assert "diagnostics" in data
-    assert "suggested_next_commands" in data
+    assert "schema_version" in data
+    assert "data" in data
+    assert "devices" in data["data"]
+    assert "groups" in data["data"]
+    assert "profiles" in data["data"]
+    assert "diagnostics" in data["data"]
+    assert "suggested_next_commands" in data["data"]
 
 
 def test_report_json_command_kind_is_system_report(monkeypatch, capsys) -> None:
@@ -442,9 +444,9 @@ def test_report_json_command_includes_discovered_devices(monkeypatch, capsys) ->
     main(["report", "--json"])
 
     data = json.loads(capsys.readouterr().out)
-    assert len(data["devices"]["video"]) == 1
-    assert len(data["devices"]["audio_inputs"]) == 1
-    assert len(data["devices"]["audio_outputs"]) == 1
+    assert len(data["data"]["devices"]["video"]) == 1
+    assert len(data["data"]["devices"]["audio_inputs"]) == 1
+    assert len(data["data"]["devices"]["audio_outputs"]) == 1
 
 
 def test_report_json_command_includes_profiles(monkeypatch, capsys) -> None:
@@ -453,9 +455,9 @@ def test_report_json_command_includes_profiles(monkeypatch, capsys) -> None:
     main(["report", "--json"])
 
     data = json.loads(capsys.readouterr().out)
-    assert len(data["profiles"]["video"]) == 1
-    assert len(data["profiles"]["audio_inputs"]) == 1
-    assert len(data["profiles"]["audio_outputs"]) == 1
+    assert len(data["data"]["profiles"]["video"]) == 1
+    assert len(data["data"]["profiles"]["audio_inputs"]) == 1
+    assert len(data["data"]["profiles"]["audio_outputs"]) == 1
 
 
 # ---------------------------------------------------------------------------

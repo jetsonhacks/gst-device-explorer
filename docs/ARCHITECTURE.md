@@ -137,10 +137,14 @@ helper supplies `schema_version`, `tool_version`, `kind`, and `data` fields so
 scripts and future UI layers can identify the response family before reading
 the command-specific payload.
 
-Milestone 13 applies the envelope to bounded config and preset JSON outputs and
-adds schema discovery commands for the envelope contract. It does not generate
-full JSON Schema files and does not change probing, candidate generation,
-ranking, execution, capture, validation, preset, or configuration behavior.
+Milestone 13 applied the envelope to bounded config and preset JSON outputs and
+added schema discovery commands for the envelope contract. Milestone 14 extends
+that same wrapper to older hardware-oriented JSON outputs at the renderer
+boundary. Command-specific payloads are preserved under `data`.
+
+The schema layer does not generate full JSON Schema files and does not change
+probing, candidate generation, ranking, execution, capture, validation, preset,
+or configuration behavior.
 
 ## Renderers
 

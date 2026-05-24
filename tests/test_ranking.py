@@ -469,7 +469,8 @@ def test_print_candidate_ranking_json_mode_emits_valid_json(capsys) -> None:
     print_candidate_ranking(result, as_json=True)
     data = json.loads(capsys.readouterr().out)
 
-    assert data["kind"] == "candidate_ranking"
+    assert data["kind"] == "candidate_recommendation"
+    assert data["data"]["kind"] == "candidate_ranking"
 
 
 # ---------------------------------------------------------------------------
@@ -492,7 +493,8 @@ def test_recommend_video_json_emits_valid_json(monkeypatch, capsys) -> None:
     data = json.loads(capsys.readouterr().out)
 
     assert isinstance(data, dict)
-    assert data["kind"] == "candidate_ranking"
+    assert data["kind"] == "candidate_recommendation"
+    assert data["data"]["kind"] == "candidate_ranking"
 
 
 def test_recommend_video_json_has_expected_keys(monkeypatch, capsys) -> None:
@@ -502,10 +504,13 @@ def test_recommend_video_json_has_expected_keys(monkeypatch, capsys) -> None:
     data = json.loads(capsys.readouterr().out)
 
     assert "kind" in data
-    assert "endpoint_kind" in data
-    assert "endpoint" in data
-    assert "recommended_candidate_id" in data
-    assert "ranked_candidates" in data
+    assert "schema_version" in data
+    assert "tool_version" in data
+    assert "data" in data
+    assert "endpoint_kind" in data["data"]
+    assert "endpoint" in data["data"]
+    assert "recommended_candidate_id" in data["data"]
+    assert "ranked_candidates" in data["data"]
 
 
 def test_recommend_video_json_endpoint_is_device_path(monkeypatch, capsys) -> None:
@@ -514,8 +519,8 @@ def test_recommend_video_json_endpoint_is_device_path(monkeypatch, capsys) -> No
     main(["recommend", "video", "/dev/video0", "--json"])
     data = json.loads(capsys.readouterr().out)
 
-    assert data["endpoint"] == "/dev/video0"
-    assert data["endpoint_kind"] == "video"
+    assert data["data"]["endpoint"] == "/dev/video0"
+    assert data["data"]["endpoint_kind"] == "video"
 
 
 def test_recommend_video_text_exits_zero(monkeypatch, capsys) -> None:
@@ -546,8 +551,8 @@ def test_recommend_video_no_capabilities_returns_empty_ranking(monkeypatch, caps
     main(["recommend", "video", "/dev/video0", "--json"])
     data = json.loads(capsys.readouterr().out)
 
-    assert data["recommended_candidate_id"] is None
-    assert data["ranked_candidates"] == []
+    assert data["data"]["recommended_candidate_id"] is None
+    assert data["data"]["ranked_candidates"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -569,8 +574,9 @@ def test_recommend_audio_input_json_has_expected_keys(monkeypatch, capsys) -> No
     main(["recommend", "audio-input", "hw:0,0", "--json"])
     data = json.loads(capsys.readouterr().out)
 
-    assert data["endpoint_kind"] == "audio-input"
-    assert data["endpoint"] == "hw:0,0"
+    assert data["kind"] == "candidate_recommendation"
+    assert data["data"]["endpoint_kind"] == "audio-input"
+    assert data["data"]["endpoint"] == "hw:0,0"
 
 
 def test_recommend_audio_input_text_exits_zero(monkeypatch, capsys) -> None:
@@ -592,8 +598,8 @@ def test_recommend_audio_input_device_not_found_returns_empty(monkeypatch, capsy
     main(["recommend", "audio-input", "hw:0,0", "--json"])
     data = json.loads(capsys.readouterr().out)
 
-    assert data["recommended_candidate_id"] is None
-    assert data["ranked_candidates"] == []
+    assert data["data"]["recommended_candidate_id"] is None
+    assert data["data"]["ranked_candidates"] == []
 
 
 # ---------------------------------------------------------------------------
@@ -615,8 +621,9 @@ def test_recommend_audio_output_json_has_expected_keys(monkeypatch, capsys) -> N
     main(["recommend", "audio-output", "hw:0,0", "--json"])
     data = json.loads(capsys.readouterr().out)
 
-    assert data["endpoint_kind"] == "audio-output"
-    assert data["endpoint"] == "hw:0,0"
+    assert data["kind"] == "candidate_recommendation"
+    assert data["data"]["endpoint_kind"] == "audio-output"
+    assert data["data"]["endpoint"] == "hw:0,0"
 
 
 def test_recommend_audio_output_text_exits_zero(monkeypatch, capsys) -> None:
@@ -638,7 +645,7 @@ def test_recommend_audio_output_device_not_found_returns_empty(monkeypatch, caps
     main(["recommend", "audio-output", "hw:0,0", "--json"])
     data = json.loads(capsys.readouterr().out)
 
-    assert data["recommended_candidate_id"] is None
+    assert data["data"]["recommended_candidate_id"] is None
 
 
 # ---------------------------------------------------------------------------

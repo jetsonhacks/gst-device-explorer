@@ -210,17 +210,17 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.13.0",
+  "tool_version": "0.14.0",
   "kind": "preset_list",
   "data": []
 }
 ```
 
-The envelope is currently used by `config path --json`, `config show --json`,
-`config validate --json`, `preset list --json`, `preset show --json`, and
-`preset command --json`. The `data` field contains the command-specific payload.
-Other JSON outputs remain useful but are not yet part of this stable envelope
-contract.
+The envelope is used by config, preset, schema discovery, device discovery,
+environment, grouping, video capability, pipeline candidate, pipeline
+diagnostic, profile, report, recommendation, and group validation JSON outputs.
+The `data` field contains the command-specific payload, preserving the older
+payload shape under the envelope.
 
 Inspect the current envelope contract with:
 
@@ -230,9 +230,9 @@ gst-device-explorer schema show json-envelope
 gst-device-explorer schema show json-envelope --json
 ```
 
-Milestone 13 does not publish complete JSON Schema documents for every payload
-and does not change probing, presets, configuration, capture, validation, or
-execution behavior.
+Milestone 14 does not publish complete JSON Schema documents for every payload,
+does not add stable error envelopes, and does not change probing, presets,
+configuration, capture, validation, or execution behavior.
 
 ## Device Profiles
 

@@ -70,6 +70,102 @@ _SCHEMA_DOCUMENTS = (
             ),
         ),
     ),
+    SchemaDocument(
+        schema_id="audio_input_candidates",
+        title="Audio Input Candidates",
+        purpose="Envelope kind for ALSA audio input pipeline candidate JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="audio_inputs",
+        title="Audio Inputs",
+        purpose="Envelope kind for ALSA audio input discovery JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="audio_output_candidates",
+        title="Audio Output Candidates",
+        purpose="Envelope kind for ALSA audio output pipeline candidate JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="audio_outputs",
+        title="Audio Outputs",
+        purpose="Envelope kind for ALSA audio output discovery JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="candidate_recommendation",
+        title="Candidate Recommendation",
+        purpose="Envelope kind for endpoint recommendation JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="composite_group",
+        title="Composite Group",
+        purpose="Envelope kind for one composite device group JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="composite_groups",
+        title="Composite Groups",
+        purpose="Envelope kind for composite device group listing JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="device_profile",
+        title="Device Profile",
+        purpose="Envelope kind for endpoint profile JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="devices",
+        title="Devices",
+        purpose="Envelope kind for combined device discovery JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="environment",
+        title="Environment",
+        purpose="Envelope kind for GStreamer environment inspection JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="group_validation",
+        title="Group Validation",
+        purpose="Envelope kind for composite group validation JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="grouping_metadata",
+        title="Grouping Metadata",
+        purpose="Envelope kind for grouping evidence metadata JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="pipeline_diagnostics",
+        title="Pipeline Diagnostics",
+        purpose="Envelope kind for pipeline diagnostic JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="system_report",
+        title="System Report",
+        purpose="Envelope kind for system report JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="video_candidates",
+        title="Video Candidates",
+        purpose="Envelope kind for video pipeline candidate JSON.",
+        fields=(),
+    ),
+    SchemaDocument(
+        schema_id="video_capabilities",
+        title="Video Capabilities",
+        purpose="Envelope kind for V4L2 capability JSON.",
+        fields=(),
+    ),
 )
 
 

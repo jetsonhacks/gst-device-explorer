@@ -431,7 +431,24 @@ fields `schema_version`, `tool_version`, `kind`, and `data`. The nested `data`
 payload remains command-specific, and full JSON Schema documents for every
 payload are deferred.
 
-## 16. Current Limitations
+## 16. Verify Milestone 14 Extended JSON Envelope Coverage
+
+Inspect representative older command families now wrapped in the shared
+envelope:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer env --json
+/home/jim/.local/bin/uv run gst-device-explorer devices --json
+/home/jim/.local/bin/uv run gst-device-explorer audio-inputs --json
+/home/jim/.local/bin/uv run gst-device-explorer audio-outputs --json
+/home/jim/.local/bin/uv run gst-device-explorer report --json
+/home/jim/.local/bin/uv run gst-device-explorer schema list --json
+```
+
+These commands preserve their command-specific payload under `data`. Text output
+is unchanged, and payload-specific JSON Schema documents remain deferred.
+
+## 17. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
@@ -441,6 +458,7 @@ payload are deferred.
 - Direct preset execution is not implemented.
 - Config-driven behavior changes are not implemented.
 - Complete JSON Schema files for every payload are not implemented.
+- Stable JSON error envelopes are not implemented.
 - Synchronized audio/video capture is not implemented.
 - Preview-window lifecycle management is not implemented.
 - PulseAudio and PipeWire probing are not implemented.
