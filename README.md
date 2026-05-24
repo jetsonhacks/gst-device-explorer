@@ -168,6 +168,23 @@ capture, does not generate group-level pipelines, and does not choose endpoints
 automatically. Use individual endpoint commands such as `profile`, `recommend`,
 `run`, and `capture` to inspect or test a specific video or audio endpoint.
 
+## Presets
+
+Use `preset` to discover named workflows over existing safe commands:
+
+```sh
+gst-device-explorer preset list
+gst-device-explorer preset show camera-preview
+gst-device-explorer preset command camera-preview video /dev/video0
+gst-device-explorer preset command short-video-capture video /dev/video0 --duration 5 --output sample.avi
+```
+
+Presets are built-in descriptions and command suggestions. They return
+structured argv internally and render readable command text or JSON externally.
+They do not execute commands, do not accept arbitrary GStreamer pipelines, and
+do not introduce group execution. Use the suggested endpoint commands when you
+are ready to inspect, run, capture, recommend, or validate.
+
 ## Device Profiles
 
 Use `profile` to get a structured summary of a device endpoint:

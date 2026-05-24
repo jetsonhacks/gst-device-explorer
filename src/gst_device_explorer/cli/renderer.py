@@ -19,11 +19,14 @@ from gst_device_explorer.core.models import (
     PipelineDiagnostic,
     SystemReport,
 )
+from gst_device_explorer.core.presets import PresetCommandSuggestions, PresetDefinition
 from gst_device_explorer.cli.serializers import (
     candidate_ranking_to_json_dict,
     device_profile_to_json_dict,
     group_validation_to_json_dict,
     pipeline_diagnostic_to_json_dict,
+    preset_command_suggestions_to_json_dict,
+    preset_definition_to_json_dict,
     system_report_to_json_dict,
     to_json,
 )
@@ -425,6 +428,88 @@ def print_group_not_found(group_id: str, as_json: bool) -> None:
     print("gst-device-explorer groups")
 
 
+def print_preset_list(presets: list[PresetDefinition], as_json: bool) -> None:
+    if as_json:
+        print(
+            json.dumps(
+                [preset_definition_to_json_dict(preset) for preset in presets],
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    print("Available presets:")
+    for preset in presets:
+        print(f"  {preset.preset_id:<32} {preset.description}")
+
+
+def print_preset(preset: PresetDefinition, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(preset_definition_to_json_dict(preset), indent=2, sort_keys=True))
+        return
+
+    print(f"Preset: {preset.preset_id}")
+    print(f"Title: {preset.title}")
+    print(f"Target kind: {preset.target_kind}")
+    if preset.related_command is not None:
+        print(f"Related command: {preset.related_command}")
+    print()
+    print("Description:")
+    print(f"  {preset.description}")
+    if preset.arguments:
+        print()
+        print("Arguments:")
+        for argument in preset.arguments:
+            required = "required" if argument.required else "optional"
+            print(f"  --{argument.name} ({required}): {argument.description}")
+    if preset.safety_notes:
+        print()
+        print("Safety:")
+        for note in preset.safety_notes:
+            print(f"  - {note}")
+
+
+def print_preset_command_suggestions(
+    result: PresetCommandSuggestions,
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(
+            json.dumps(
+                preset_command_suggestions_to_json_dict(result),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    print(f"Preset: {result.preset_id}")
+    print(f"Target: {result.target_kind} {result.target}")
+    print()
+    heading = "Suggested command:" if len(result.suggestions) == 1 else "Suggested commands:"
+    print(heading)
+    for suggestion in result.suggestions:
+        print(f"  {_render_argv(suggestion.argv)}")
+        if suggestion.description:
+            print(f"  {suggestion.description}")
+    print()
+    print("This command was not executed.")
+    if any(suggestion.dry_run for suggestion in result.suggestions):
+        print("Review the dry-run output before running a non-dry-run command.")
+
+
+def print_preset_not_found(preset_id: str) -> None:
+    print(f"Preset not found: {preset_id}")
+    print()
+    print("Try:")
+    print("  gst-device-explorer preset list")
+
+
+def print_preset_error(message: str) -> None:
+    print(message)
+
+
 def print_execution_plan(plan: ExecutionPlan, dry_run: bool) -> None:
     print(f"Selected pipeline candidate: {plan.candidate_id}")
     print()
@@ -542,3 +627,7 @@ def _endpoint_label(endpoint_kind: str) -> str:
         "audio-output": "Audio output",
     }
     return labels.get(endpoint_kind, endpoint_kind.replace("-", " ").title())
+
+
+def _render_argv(argv: tuple[str, ...]) -> str:
+    return " ".join(argv)

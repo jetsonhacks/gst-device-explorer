@@ -370,13 +370,30 @@ group-level pipelines. Use endpoint commands such as `profile`, `recommend`,
 `run`, and `capture` after validation when you want to inspect or test one
 specific endpoint.
 
-## 13. Current Limitations
+## 13. Verify Milestone 11 Presets
+
+Inspect the built-in preset catalog and ask for command suggestions:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer preset list
+/home/jim/.local/bin/uv run gst-device-explorer preset list --json
+/home/jim/.local/bin/uv run gst-device-explorer preset show camera-preview
+/home/jim/.local/bin/uv run gst-device-explorer preset command camera-preview video /dev/video0
+/home/jim/.local/bin/uv run gst-device-explorer preset command short-video-capture video /dev/video0 --duration 5 --output sample.avi
+```
+
+Presets suggest existing `gst-device-explorer` commands. They do not run those
+commands, do not accept raw GStreamer pipelines, do not add user-authored preset
+files, and do not introduce group execution.
+
+## 14. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.
 - Group-based pipeline execution is not implemented.
 - Group-based capture is not implemented.
+- Direct preset execution is not implemented.
 - Synchronized audio/video capture is not implemented.
 - Preview-window lifecycle management is not implemented.
 - PulseAudio and PipeWire probing are not implemented.

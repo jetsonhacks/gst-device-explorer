@@ -413,4 +413,64 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render the group validation as JSON.",
     )
 
+    preset_parser = subparsers.add_parser(
+        "preset",
+        help="Inspect built-in named workflow presets.",
+    )
+    preset_subparsers = preset_parser.add_subparsers(
+        dest="preset_command",
+        required=True,
+    )
+    preset_list_parser = preset_subparsers.add_parser(
+        "list",
+        help="List built-in presets.",
+    )
+    preset_list_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render presets as JSON.",
+    )
+    preset_show_parser = preset_subparsers.add_parser(
+        "show",
+        help="Show one built-in preset.",
+    )
+    preset_show_parser.add_argument(
+        "preset_id",
+        help="Preset ID.",
+    )
+    preset_show_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the preset as JSON.",
+    )
+    preset_command_parser = preset_subparsers.add_parser(
+        "command",
+        help="Suggest an existing safe command for one preset target.",
+    )
+    preset_command_parser.add_argument(
+        "preset_id",
+        help="Preset ID.",
+    )
+    preset_command_parser.add_argument(
+        "target_kind",
+        help="Target kind such as video, audio-input, audio-output, or group.",
+    )
+    preset_command_parser.add_argument(
+        "target",
+        help="Endpoint or group identifier.",
+    )
+    preset_command_parser.add_argument(
+        "--duration",
+        help="Capture duration in seconds for capture presets.",
+    )
+    preset_command_parser.add_argument(
+        "--output",
+        help="Output path for capture presets.",
+    )
+    preset_command_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render command suggestions as JSON.",
+    )
+
     return parser

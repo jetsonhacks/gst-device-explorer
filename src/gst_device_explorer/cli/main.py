@@ -7,6 +7,7 @@ from typing import Sequence
 from gst_device_explorer.core.models import CompositeDevice
 import gst_device_explorer.core.capture as capture
 import gst_device_explorer.core.discovery as discovery
+import gst_device_explorer.core.presets as presets
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
@@ -265,6 +266,37 @@ def main(argv: Sequence[str] | None = None) -> int:
             renderer.print_group_not_found(args.group_id, as_json=args.json)
             return 1
         renderer.print_group_validation(result, as_json=args.json)
+        return 0
+
+    if args.command == "preset" and args.preset_command == "list":
+        renderer.print_preset_list(presets.list_presets(), as_json=args.json)
+        return 0
+
+    if args.command == "preset" and args.preset_command == "show":
+        preset = presets.get_preset(args.preset_id)
+        if preset is None:
+            renderer.print_preset_not_found(args.preset_id)
+            return 1
+        renderer.print_preset(preset, as_json=args.json)
+        return 0
+
+    if args.command == "preset" and args.preset_command == "command":
+        request = presets.PresetCommandRequest(
+            preset_id=args.preset_id,
+            target_kind=args.target_kind,
+            target=args.target,
+            duration=args.duration,
+            output=args.output,
+        )
+        try:
+            result = presets.build_preset_command_suggestions(request)
+        except presets.UnknownPresetError:
+            renderer.print_preset_not_found(args.preset_id)
+            return 1
+        except presets.PresetError as error:
+            renderer.print_preset_error(str(error))
+            return 1
+        renderer.print_preset_command_suggestions(result, as_json=args.json)
         return 0
 
     parser.error("unknown command")

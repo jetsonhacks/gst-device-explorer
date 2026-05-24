@@ -108,6 +108,17 @@ capture commands. The CLI assembles current groups and endpoint profiles, then
 delegates to the pure validation builder. Individual endpoint commands remain
 responsible for detailed inspection, recommendation, execution, and capture.
 
+## Presets
+
+Presets are a small built-in workflow catalog over existing commands. A preset
+describes a common task, its target kind, required arguments, safety notes, and
+one or more structured argv command suggestions.
+
+Presets do not probe hardware, build pipelines, execute commands, accept raw
+GStreamer strings, or replace endpoint commands. They are an explainability and
+repeatability layer that points users back to the existing `run`, `capture`,
+`pipeline --diagnostics`, and `validate group` flows.
+
 ## Renderers
 
 Renderers turn normalized models and pipeline candidates into user-facing

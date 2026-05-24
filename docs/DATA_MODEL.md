@@ -232,5 +232,10 @@ candidate availability, aggregate missing elements, derive a simple group
 status, and suggest endpoint-level next commands. They do not execute pipelines,
 run capture, or generate group-level pipelines.
 
+`PresetDefinition` records describe built-in named workflows over existing
+commands. `PresetCommandSuggestion` records carry structured argv for suggested
+commands. Presets are not pipeline candidates, device profiles, or platform
+policy objects; they do not execute commands or accept arbitrary pipeline text.
+
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

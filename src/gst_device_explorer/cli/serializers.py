@@ -21,6 +21,11 @@ from gst_device_explorer.core.models import (
     ProfileGroupSummary,
     SystemReport,
 )
+from gst_device_explorer.core.presets import (
+    PresetCommandSuggestion,
+    PresetCommandSuggestions,
+    PresetDefinition,
+)
 
 
 def to_json(
@@ -200,4 +205,47 @@ def endpoint_validation_summary_to_json_dict(
         "status": summary.status,
         "suggested_next_commands": list(summary.suggested_next_commands),
         "unavailable_candidate_count": summary.unavailable_candidate_count,
+    }
+
+
+def preset_definition_to_json_dict(preset: PresetDefinition) -> dict:
+    return {
+        "arguments": [
+            {
+                "description": argument.description,
+                "name": argument.name,
+                "required": argument.required,
+            }
+            for argument in preset.arguments
+        ],
+        "description": preset.description,
+        "preset_id": preset.preset_id,
+        "related_command": preset.related_command,
+        "safety_notes": list(preset.safety_notes),
+        "target_kind": preset.target_kind,
+        "title": preset.title,
+    }
+
+
+def preset_command_suggestions_to_json_dict(
+    result: PresetCommandSuggestions,
+) -> dict:
+    return {
+        "preset_id": result.preset_id,
+        "suggestions": [
+            preset_command_suggestion_to_json_dict(suggestion)
+            for suggestion in result.suggestions
+        ],
+        "target": result.target,
+        "target_kind": result.target_kind,
+    }
+
+
+def preset_command_suggestion_to_json_dict(
+    suggestion: PresetCommandSuggestion,
+) -> dict:
+    return {
+        "argv": list(suggestion.argv),
+        "description": suggestion.description,
+        "dry_run": suggestion.dry_run,
     }
