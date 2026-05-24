@@ -259,6 +259,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             dry_run=args.dry_run,
         )
 
+    if args.command == "validate" and args.validate_command == "group":
+        result = commands.build_group_validation(args.group_id)
+        if result is None:
+            renderer.print_group_not_found(args.group_id, as_json=args.json)
+            return 1
+        renderer.print_group_validation(result, as_json=args.json)
+        return 0
+
     parser.error("unknown command")
     return 2
 

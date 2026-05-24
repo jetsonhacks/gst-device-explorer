@@ -14,6 +14,7 @@ from gst_device_explorer.core.models import (
     DeviceProfile,
     EnvironmentFact,
     ExecutionPlan,
+    GroupValidation,
     PipelineCandidate,
     PipelineDiagnostic,
     SystemReport,
@@ -21,6 +22,7 @@ from gst_device_explorer.core.models import (
 from gst_device_explorer.cli.serializers import (
     candidate_ranking_to_json_dict,
     device_profile_to_json_dict,
+    group_validation_to_json_dict,
     pipeline_diagnostic_to_json_dict,
     system_report_to_json_dict,
     to_json,
@@ -358,6 +360,71 @@ def print_system_report(report: SystemReport, as_json: bool) -> None:
             print(f"  {command}")
 
 
+def print_group_validation(validation: GroupValidation, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(group_validation_to_json_dict(validation), indent=2, sort_keys=True))
+        return
+
+    print(f"Composite group validation: {validation.group_id}")
+    print(f"Status: {validation.status}")
+    print(f"Grouping method: {validation.grouping_method}")
+    if validation.group_label:
+        print(f"Label: {validation.group_label}")
+
+    if validation.evidence:
+        print()
+        print("Evidence:")
+        for evidence in validation.evidence:
+            print(f"- {evidence.source}: {evidence.description}")
+
+    print()
+    print("Endpoints:")
+    if not validation.endpoint_summaries:
+        print("- none")
+    for summary in validation.endpoint_summaries:
+        print(f"- {_endpoint_label(summary.endpoint_kind)}: {summary.endpoint}")
+        print(f"  Status: {summary.status}")
+        print(f"  Available candidates: {summary.available_candidate_count}")
+        print(f"  Unavailable candidates: {summary.unavailable_candidate_count}")
+        if summary.recommended_candidate_id is not None:
+            print(f"  Recommended: {summary.recommended_candidate_id}")
+        if summary.missing_elements:
+            print(f"  Missing elements: {', '.join(summary.missing_elements)}")
+
+    if validation.diagnostics.missing_elements:
+        print()
+        print("Missing elements:")
+        for element in validation.diagnostics.missing_elements:
+            print(f"- {element}")
+
+    if validation.suggested_next_commands:
+        print()
+        print("Suggested next commands:")
+        for command in validation.suggested_next_commands:
+            print(f"- {command}")
+
+
+def print_group_not_found(group_id: str, as_json: bool) -> None:
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "error": "group_not_found",
+                    "group_id": group_id,
+                    "suggested_next_commands": ["gst-device-explorer groups"],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    print(f"Group not found: {group_id}")
+    print()
+    print("Run:")
+    print("gst-device-explorer groups")
+
+
 def print_execution_plan(plan: ExecutionPlan, dry_run: bool) -> None:
     print(f"Selected pipeline candidate: {plan.candidate_id}")
     print()
@@ -466,3 +533,12 @@ def _format_duration(duration_seconds: float) -> str:
     if duration.is_integer():
         return str(int(duration))
     return str(duration)
+
+
+def _endpoint_label(endpoint_kind: str) -> str:
+    labels = {
+        "video": "Video",
+        "audio-input": "Audio input",
+        "audio-output": "Audio output",
+    }
+    return labels.get(endpoint_kind, endpoint_kind.replace("-", " ").title())

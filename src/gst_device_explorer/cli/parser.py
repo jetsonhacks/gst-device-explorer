@@ -391,4 +391,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the selected capture command without starting GStreamer.",
     )
 
+    validate_parser = subparsers.add_parser(
+        "validate",
+        help="Validate discovered composite devices.",
+    )
+    validate_subparsers = validate_parser.add_subparsers(
+        dest="validate_command",
+        required=True,
+    )
+    validate_group_parser = validate_subparsers.add_parser(
+        "group",
+        help="Summarize endpoint health for one composite device group.",
+    )
+    validate_group_parser.add_argument(
+        "group_id",
+        help="Composite device group ID.",
+    )
+    validate_group_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the group validation as JSON.",
+    )
+
     return parser

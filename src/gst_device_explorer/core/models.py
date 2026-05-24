@@ -151,6 +151,58 @@ class SystemReport:
 
 
 @dataclass(frozen=True)
+class EndpointValidationSummary:
+    """Validation summary for one endpoint inside a composite device."""
+
+    endpoint_kind: str
+    endpoint: str
+    status: str
+    available_candidate_count: int = 0
+    unavailable_candidate_count: int = 0
+    recommended_candidate_id: str | None = None
+    missing_elements: list[str] = field(default_factory=list)
+    suggested_next_commands: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class GroupValidationEndpointCounts:
+    """Endpoint counts inside a group validation result."""
+
+    video: int = 0
+    audio_inputs: int = 0
+    audio_outputs: int = 0
+    unknown: int = 0
+
+
+@dataclass(frozen=True)
+class GroupValidationDiagnostics:
+    """Aggregated diagnostics for a group validation result."""
+
+    missing_elements: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class GroupValidation:
+    """A structured validation summary for one composite device group."""
+
+    kind: str
+    group_id: str
+    group_label: str
+    grouping_method: str
+    status: str
+    evidence: list[GroupingEvidence] = field(default_factory=list)
+    endpoint_counts: GroupValidationEndpointCounts = field(
+        default_factory=GroupValidationEndpointCounts
+    )
+    endpoint_summaries: list[EndpointValidationSummary] = field(default_factory=list)
+    diagnostics: GroupValidationDiagnostics = field(
+        default_factory=GroupValidationDiagnostics
+    )
+    suggested_next_commands: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class CandidateRecommendation:
     """One ranked pipeline candidate in a recommendation result."""
 
@@ -222,5 +274,4 @@ class CompositeDevice:
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between 0.0 and 1.0")
-
 

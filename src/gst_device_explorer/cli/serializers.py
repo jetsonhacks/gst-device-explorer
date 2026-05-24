@@ -13,7 +13,9 @@ from gst_device_explorer.core.models import (
     CompositeDevice,
     Device,
     DeviceProfile,
+    EndpointValidationSummary,
     EnvironmentFact,
+    GroupValidation,
     PipelineCandidate,
     PipelineDiagnostic,
     ProfileGroupSummary,
@@ -157,4 +159,45 @@ def system_report_to_json_dict(report: SystemReport) -> dict:
             "missing_elements": list(report.diagnostics.missing_elements),
         },
         "suggested_next_commands": list(report.suggested_next_commands),
+    }
+
+
+def group_validation_to_json_dict(validation: GroupValidation) -> dict:
+    return {
+        "diagnostics": {
+            "missing_elements": list(validation.diagnostics.missing_elements),
+        },
+        "endpoint_counts": {
+            "audio_inputs": validation.endpoint_counts.audio_inputs,
+            "audio_outputs": validation.endpoint_counts.audio_outputs,
+            "unknown": validation.endpoint_counts.unknown,
+            "video": validation.endpoint_counts.video,
+        },
+        "endpoint_summaries": [
+            endpoint_validation_summary_to_json_dict(summary)
+            for summary in validation.endpoint_summaries
+        ],
+        "evidence": [asdict(evidence) for evidence in validation.evidence],
+        "group_id": validation.group_id,
+        "group_label": validation.group_label,
+        "grouping_method": validation.grouping_method,
+        "kind": validation.kind,
+        "status": validation.status,
+        "suggested_next_commands": list(validation.suggested_next_commands),
+        "warnings": list(validation.warnings),
+    }
+
+
+def endpoint_validation_summary_to_json_dict(
+    summary: EndpointValidationSummary,
+) -> dict:
+    return {
+        "available_candidate_count": summary.available_candidate_count,
+        "endpoint": summary.endpoint,
+        "endpoint_kind": summary.endpoint_kind,
+        "missing_elements": list(summary.missing_elements),
+        "recommended_candidate_id": summary.recommended_candidate_id,
+        "status": summary.status,
+        "suggested_next_commands": list(summary.suggested_next_commands),
+        "unavailable_candidate_count": summary.unavailable_candidate_count,
     }

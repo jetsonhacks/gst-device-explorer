@@ -96,6 +96,18 @@ metadata feeding the grouping engine through `groups --metadata` and
 `groups --metadata --json`. Group rendering is presentation only; group-based
 pipeline generation and execution are outside the current scope.
 
+## Validation
+
+Group validation is a core layer that summarizes an existing `CompositeDevice`
+using already-built endpoint profiles. It preserves grouping evidence, derives
+simple endpoint and group statuses, aggregates missing elements, and suggests
+endpoint-level next commands.
+
+Validation does not probe hardware directly and does not execute pipelines or
+capture commands. The CLI assembles current groups and endpoint profiles, then
+delegates to the pure validation builder. Individual endpoint commands remain
+responsible for detailed inspection, recommendation, execution, and capture.
+
 ## Renderers
 
 Renderers turn normalized models and pipeline candidates into user-facing

@@ -226,5 +226,11 @@ identifying the generation strategy.
 `DeviceProfile` summaries are built after candidate generation. They are
 structured views for CLI/JSON inspection and system reports.
 
+`GroupValidation` summaries are built from an existing `CompositeDevice` and
+endpoint profiles. They preserve grouping evidence, summarize per-endpoint
+candidate availability, aggregate missing elements, derive a simple group
+status, and suggest endpoint-level next commands. They do not execute pipelines,
+run capture, or generate group-level pipelines.
+
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

@@ -150,6 +150,24 @@ feeding the grouping engine when a group is missing or unexpected. Group-based
 pipeline generation and group-based execution are not included; use the existing
 `pipeline` and `run` commands for individual video and audio devices.
 
+## Composite Device Validation
+
+Use `validate group` to summarize the endpoint health of one composite device:
+
+```sh
+gst-device-explorer validate group <group-id>
+gst-device-explorer validate group <group-id> --json
+```
+
+Validation reuses existing group evidence and endpoint profiles. It reports a
+simple group status, per-endpoint status, candidate counts, aggregated missing
+GStreamer elements, and suggested endpoint-level next commands.
+
+Group validation is explanatory only. It does not run pipelines, does not run
+capture, does not generate group-level pipelines, and does not choose endpoints
+automatically. Use individual endpoint commands such as `profile`, `recommend`,
+`run`, and `capture` to inspect or test a specific video or audio endpoint.
+
 ## Device Profiles
 
 Use `profile` to get a structured summary of a device endpoint:

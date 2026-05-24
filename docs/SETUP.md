@@ -350,12 +350,33 @@ Capture is endpoint-based. It does not accept arbitrary raw pipelines, does not
 overwrite files, does not perform group-based capture, does not synchronize
 audio and video, and does not create background or long-running recordings.
 
-## 12. Current Limitations
+## 12. Verify Milestone 10 Composite Device Validation
+
+Inspect groups first, then validate a selected group by ID:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer groups
+/home/jim/.local/bin/uv run gst-device-explorer validate group <group-id>
+/home/jim/.local/bin/uv run gst-device-explorer validate group <group-id> --json
+```
+
+Group validation summarizes existing endpoint profiles for the group's members.
+It reports a group status, endpoint statuses, candidate counts, missing
+GStreamer elements, grouping evidence, and suggested endpoint-level next
+commands.
+
+Validation does not run pipelines, does not run capture, and does not generate
+group-level pipelines. Use endpoint commands such as `profile`, `recommend`,
+`run`, and `capture` after validation when you want to inspect or test one
+specific endpoint.
+
+## 13. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.
 - Group-based pipeline execution is not implemented.
+- Group-based capture is not implemented.
 - Synchronized audio/video capture is not implemented.
 - Preview-window lifecycle management is not implemented.
 - PulseAudio and PipeWire probing are not implemented.

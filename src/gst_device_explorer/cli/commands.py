@@ -7,7 +7,9 @@ from gst_device_explorer.core.models import (
     CandidateRanking,
     CompositeDevice,
     Device,
+    DeviceRef,
     DeviceProfile,
+    GroupValidation,
     PipelineCandidate,
     PipelineDiagnostic,
     SystemReport,
@@ -21,6 +23,7 @@ import gst_device_explorer.core.pipelines as pipelines
 import gst_device_explorer.core.profiles as profiles
 import gst_device_explorer.core.ranking as ranking
 import gst_device_explorer.core.report as core_report
+import gst_device_explorer.core.validation as validation
 import gst_device_explorer.core.video_diagnostics as video_diagnostics
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
@@ -348,5 +351,88 @@ def build_system_report() -> SystemReport:
     )
 
 
+def build_group_validation(group_id: str) -> GroupValidation | None:
+    """Build a validation summary for one discovered composite group."""
+
+    groups = discovery.discover_composite_devices()
+    group = _find_group(groups, group_id)
+    if group is None:
+        return None
+
+    environment = gst_probe.inspect_gstreamer_environment()
+    video_devices = v4l2_probe.discover_v4l2_video_devices()
+    audio_input_devices = alsa_probe.discover_alsa_audio_inputs()
+    audio_output_devices = alsa_probe.discover_alsa_audio_outputs()
+
+    endpoint_profiles: list[DeviceProfile] = []
+    for member in group.members:
+        if member.role == "camera":
+            device = _find_video_device(video_devices, member)
+            if device is None:
+                continue
+            capabilities = v4l2_probe.discover_v4l2_capabilities(device.id)
+            profile = profiles.build_video_profile(
+                device,
+                capabilities,
+                environment,
+                groups,
+            )
+        elif member.role == "audio-input":
+            device = _find_device(audio_input_devices, member)
+            profile = (
+                profiles.build_audio_input_profile(device, environment, groups)
+                if device is not None
+                else None
+            )
+        elif member.role == "audio-output":
+            device = _find_device(audio_output_devices, member)
+            profile = (
+                profiles.build_audio_output_profile(device, environment, groups)
+                if device is not None
+                else None
+            )
+        else:
+            profile = None
+
+        if profile is not None:
+            endpoint_profiles.append(profile)
+
+    return validation.build_group_validation(group, endpoint_profiles)
+
+
 def _discover_profile_groups() -> list[CompositeDevice]:
     return discovery.discover_composite_devices()
+
+
+def _find_group(groups: list[CompositeDevice], group_id: str) -> CompositeDevice | None:
+    return next((group for group in groups if group.id == group_id), None)
+
+
+def _find_video_device(devices: list[Device], member: DeviceRef) -> Device | None:
+    return next(
+        (
+            device
+            for device in devices
+            if device.kind == "video_input"
+            and (
+                device.id == member.device_id
+                or device.id == member.path
+                or device.metadata.get("path") == member.path
+            )
+        ),
+        None,
+    )
+
+
+def _find_device(devices: list[Device], member: DeviceRef) -> Device | None:
+    return next(
+        (
+            device
+            for device in devices
+            if device.id == member.device_id
+            or device.id == member.path
+            or device.metadata.get("alsa_device") == member.path
+            or device.metadata.get("alsa_device") == member.device_id
+        ),
+        None,
+    )
