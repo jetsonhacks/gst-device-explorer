@@ -4,7 +4,8 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gst_device_explorer.core import Device, discover_devices
+from gst_device_explorer.core.models import Device
+from gst_device_explorer.core.discovery import discover_devices
 import gst_device_explorer.core.discovery as discovery
 
 

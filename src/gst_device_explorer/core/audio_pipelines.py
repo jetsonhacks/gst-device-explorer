@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from gst_device_explorer.core.diagnostics import find_missing_elements
 from gst_device_explorer.core.models import Device, EnvironmentFact, PipelineCandidate
 
 
@@ -32,7 +33,7 @@ def build_audio_input_test_candidates(
     if device.kind != "audio_input":
         return []
 
-    if _missing_elements(environment, ALSA_AUDIO_INPUT_LEVEL_ELEMENTS):
+    if find_missing_elements(environment, ALSA_AUDIO_INPUT_LEVEL_ELEMENTS):
         return []
 
     alsa_device = _alsa_device_name(device)
@@ -79,7 +80,7 @@ def build_audio_output_test_candidates(
     if device.kind != "audio_output":
         return []
 
-    if _missing_elements(environment, ALSA_AUDIO_OUTPUT_SINE_ELEMENTS):
+    if find_missing_elements(environment, ALSA_AUDIO_OUTPUT_SINE_ELEMENTS):
         return []
 
     alsa_device = _alsa_device_name(device)
@@ -119,18 +120,6 @@ def build_audio_output_test_candidates(
 def _alsa_device_name(device: Device) -> str:
     value = device.metadata.get("alsa_device", device.id)
     return str(value)
-
-
-def _missing_elements(
-    environment: list[EnvironmentFact],
-    required_elements: list[str],
-) -> list[str]:
-    available = {
-        fact.metadata.get("element")
-        for fact in environment
-        if fact.name == "gstreamer_element_available" and fact.value is True
-    }
-    return [element for element in required_elements if element not in available]
 
 
 def _required_elements_reason(required_elements: list[str]) -> str:

@@ -70,6 +70,16 @@ def missing_required_elements(
     return [element for element in required_elements if element not in available_elements]
 
 
+def find_missing_elements(
+    environment: list[EnvironmentFact],
+    required_elements: list[str],
+) -> list[str]:
+    """Return required elements not available in the environment."""
+
+    available = available_required_elements(environment, required_elements)
+    return missing_required_elements(required_elements, available)
+
+
 def suggest_gst_inspect_checks(missing_elements: list[str]) -> list[str]:
     """Return gst-inspect checks for missing GStreamer elements."""
 

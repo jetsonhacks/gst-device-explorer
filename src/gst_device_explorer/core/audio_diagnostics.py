@@ -27,7 +27,7 @@ def build_audio_input_test_diagnostics(
         build_requirement_diagnostic(
             candidate_id=ALSA_AUDIO_INPUT_LEVEL_CANDIDATE_ID,
             device_kind="audio-input",
-            device_id=_alsa_device_name(device),
+            device_id=str(device.metadata.get("alsa_device", device.id)),
             available_reason=(
                 "ALSA capture device and required GStreamer elements are available."
             ),
@@ -50,7 +50,7 @@ def build_audio_output_test_diagnostics(
         build_requirement_diagnostic(
             candidate_id=ALSA_AUDIO_OUTPUT_SINE_CANDIDATE_ID,
             device_kind="audio-output",
-            device_id=_alsa_device_name(device),
+            device_id=str(device.metadata.get("alsa_device", device.id)),
             available_reason=(
                 "ALSA playback device and required GStreamer elements are available."
             ),
@@ -60,6 +60,3 @@ def build_audio_output_test_diagnostics(
     ]
 
 
-def _alsa_device_name(device: Device) -> str:
-    value = device.metadata.get("alsa_device", device.id)
-    return str(value)

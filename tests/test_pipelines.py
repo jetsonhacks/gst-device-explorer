@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gst_device_explorer.core import build_video_preview_candidates
+from gst_device_explorer.core.pipelines import build_video_preview_candidates
 from gst_device_explorer.core.models import Capability, Device, EnvironmentFact
 
 

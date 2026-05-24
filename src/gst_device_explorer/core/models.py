@@ -41,17 +41,6 @@ class EnvironmentFact:
 
 
 @dataclass(frozen=True)
-class Profile:
-    """A named set of preferences or known-good patterns."""
-
-    name: str
-    description: str = ""
-    preferences: list[str] = field(default_factory=list)
-    known_good_patterns: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
 class PipelineCandidate:
     """A structured recommendation for a GStreamer pipeline."""
 
@@ -171,11 +160,3 @@ class CompositeDevice:
             raise ValueError("confidence must be between 0.0 and 1.0")
 
 
-@dataclass(frozen=True)
-class RendererOutput:
-    """A presentation of model data for a user or tool."""
-
-    kind: str
-    content: Any
-    warnings: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)

@@ -24,6 +24,7 @@ from gst_device_explorer.core.models import (
     ProfileGroupSummary,
 )
 import gst_device_explorer.cli.main as cli_main
+import gst_device_explorer.cli.commands as cli_commands
 
 
 def test_devices_text_output(monkeypatch, capsys) -> None:
@@ -593,12 +594,12 @@ def test_pipeline_video_text_output_with_one_candidate(monkeypatch, capsys) -> N
     )
 
     monkeypatch.setattr(
-        cli_main.v4l2_probe,
+        cli_commands.v4l2_probe,
         "discover_v4l2_capabilities",
         lambda device_path: [capability],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: environment,
     )
@@ -612,7 +613,7 @@ def test_pipeline_video_text_output_with_one_candidate(monkeypatch, capsys) -> N
         return [candidate]
 
     monkeypatch.setattr(
-        cli_main.pipelines,
+        cli_commands.pipelines,
         "build_video_preview_candidates",
         fake_build,
     )
@@ -650,17 +651,17 @@ def test_pipeline_video_json_output_with_one_candidate(monkeypatch, capsys) -> N
     )
 
     monkeypatch.setattr(
-        cli_main.v4l2_probe,
+        cli_commands.v4l2_probe,
         "discover_v4l2_capabilities",
         lambda device_path: [],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.pipelines,
+        cli_commands.pipelines,
         "build_video_preview_candidates",
         lambda device, capabilities, facts: [candidate],
     )
@@ -687,17 +688,17 @@ def test_pipeline_video_json_output_with_one_candidate(monkeypatch, capsys) -> N
 
 def test_pipeline_video_text_output_with_no_candidates(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
-        cli_main.v4l2_probe,
+        cli_commands.v4l2_probe,
         "discover_v4l2_capabilities",
         lambda device_path: [],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.pipelines,
+        cli_commands.pipelines,
         "build_video_preview_candidates",
         lambda device, capabilities, facts: [],
     )
@@ -712,17 +713,17 @@ def test_pipeline_video_text_output_with_no_candidates(monkeypatch, capsys) -> N
 
 def test_pipeline_video_json_output_with_no_candidates(monkeypatch, capsys) -> None:
     monkeypatch.setattr(
-        cli_main.v4l2_probe,
+        cli_commands.v4l2_probe,
         "discover_v4l2_capabilities",
         lambda device_path: [],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.pipelines,
+        cli_commands.pipelines,
         "build_video_preview_candidates",
         lambda device, capabilities, facts: [],
     )
@@ -1135,12 +1136,12 @@ def test_pipeline_audio_input_text_output_with_one_candidate(
     )
 
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_inputs",
         lambda: [device],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: environment,
     )
@@ -1151,7 +1152,7 @@ def test_pipeline_audio_input_text_output_with_one_candidate(
         return [candidate]
 
     monkeypatch.setattr(
-        cli_main.audio_pipelines,
+        cli_commands.audio_pipelines,
         "build_audio_input_test_candidates",
         fake_build,
     )
@@ -1199,17 +1200,17 @@ def test_pipeline_audio_output_json_output_with_one_candidate(
     )
 
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_outputs",
         lambda: [_audio_device(kind="audio_output")],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.audio_pipelines,
+        cli_commands.audio_pipelines,
         "build_audio_output_test_candidates",
         lambda device, facts: [candidate],
     )
@@ -1245,7 +1246,7 @@ def test_pipeline_audio_input_text_output_with_no_matching_device(
     capsys,
 ) -> None:
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_inputs",
         lambda: [],
     )
@@ -1267,12 +1268,12 @@ def test_pipeline_audio_input_diagnostics_text_output(
     diagnostic = _audio_diagnostic("input", status="available")
 
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_inputs",
         lambda: [device],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: environment,
     )
@@ -1283,7 +1284,7 @@ def test_pipeline_audio_input_diagnostics_text_output(
         return [diagnostic]
 
     monkeypatch.setattr(
-        cli_main.audio_diagnostics,
+        cli_commands.audio_diagnostics,
         "build_audio_input_test_diagnostics",
         fake_build,
     )
@@ -1888,17 +1889,17 @@ def test_unknown_command_exits_with_error(capsys) -> None:
 
 def _mock_pipeline_video_candidates(monkeypatch, candidates) -> None:
     monkeypatch.setattr(
-        cli_main.v4l2_probe,
+        cli_commands.v4l2_probe,
         "discover_v4l2_capabilities",
         lambda device_path: [],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.pipelines,
+        cli_commands.pipelines,
         "build_video_preview_candidates",
         lambda device, capabilities, facts: candidates,
     )
@@ -1906,17 +1907,17 @@ def _mock_pipeline_video_candidates(monkeypatch, candidates) -> None:
 
 def _mock_pipeline_video_diagnostics(monkeypatch, diagnostics) -> None:
     monkeypatch.setattr(
-        cli_main.v4l2_probe,
+        cli_commands.v4l2_probe,
         "discover_v4l2_capabilities",
         lambda device_path: [],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.video_diagnostics,
+        cli_commands.video_diagnostics,
         "build_video_preview_diagnostics",
         lambda device, capabilities, facts: diagnostics,
     )
@@ -1924,22 +1925,22 @@ def _mock_pipeline_video_diagnostics(monkeypatch, diagnostics) -> None:
 
 def _mock_audio_input_profile(monkeypatch, profile) -> None:
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_inputs",
         lambda: [_audio_device(kind="audio_input")],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.discovery,
+        cli_commands.discovery,
         "discover_composite_devices",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.profiles,
+        cli_commands.profiles,
         "build_audio_input_profile",
         lambda device, facts, groups: profile,
     )
@@ -1947,22 +1948,22 @@ def _mock_audio_input_profile(monkeypatch, profile) -> None:
 
 def _mock_video_profile(monkeypatch, profile) -> None:
     monkeypatch.setattr(
-        cli_main.v4l2_probe,
+        cli_commands.v4l2_probe,
         "discover_v4l2_capabilities",
         lambda device_path: [],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.discovery,
+        cli_commands.discovery,
         "discover_composite_devices",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.profiles,
+        cli_commands.profiles,
         "build_video_profile",
         lambda device, capabilities, facts, groups: profile,
     )
@@ -1970,22 +1971,22 @@ def _mock_video_profile(monkeypatch, profile) -> None:
 
 def _mock_audio_output_profile(monkeypatch, profile) -> None:
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_outputs",
         lambda: [_audio_device(kind="audio_output")],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.discovery,
+        cli_commands.discovery,
         "discover_composite_devices",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.profiles,
+        cli_commands.profiles,
         "build_audio_output_profile",
         lambda device, facts, groups: profile,
     )
@@ -1993,17 +1994,17 @@ def _mock_audio_output_profile(monkeypatch, profile) -> None:
 
 def _mock_pipeline_audio_input_candidates(monkeypatch, candidates) -> None:
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_inputs",
         lambda: [_audio_device(kind="audio_input")],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.audio_pipelines,
+        cli_commands.audio_pipelines,
         "build_audio_input_test_candidates",
         lambda device, facts: candidates,
     )
@@ -2011,17 +2012,17 @@ def _mock_pipeline_audio_input_candidates(monkeypatch, candidates) -> None:
 
 def _mock_pipeline_audio_output_candidates(monkeypatch, candidates) -> None:
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_outputs",
         lambda: [_audio_device(kind="audio_output")],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.audio_pipelines,
+        cli_commands.audio_pipelines,
         "build_audio_output_test_candidates",
         lambda device, facts: candidates,
     )
@@ -2029,17 +2030,17 @@ def _mock_pipeline_audio_output_candidates(monkeypatch, candidates) -> None:
 
 def _mock_pipeline_audio_output_diagnostics(monkeypatch, diagnostics) -> None:
     monkeypatch.setattr(
-        cli_main.alsa_probe,
+        cli_commands.alsa_probe,
         "discover_alsa_audio_outputs",
         lambda: [_audio_device(kind="audio_output")],
     )
     monkeypatch.setattr(
-        cli_main.gst_probe,
+        cli_commands.gst_probe,
         "inspect_gstreamer_environment",
         lambda: [],
     )
     monkeypatch.setattr(
-        cli_main.audio_diagnostics,
+        cli_commands.audio_diagnostics,
         "build_audio_output_test_diagnostics",
         lambda device, facts: diagnostics,
     )

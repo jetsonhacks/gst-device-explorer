@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Any
 
+from gst_device_explorer.core.diagnostics import find_missing_elements
 from gst_device_explorer.core.models import (
     Capability,
     Device,
@@ -42,7 +43,7 @@ def build_video_preview_candidates(
     if device.kind != "video_input":
         return []
 
-    missing_elements = _missing_elements(environment, GENERIC_VIDEO_PREVIEW_ELEMENTS)
+    missing_elements = find_missing_elements(environment, GENERIC_VIDEO_PREVIEW_ELEMENTS)
     if missing_elements:
         return []
 
@@ -126,7 +127,7 @@ def _jetson_mjpeg_preview_candidate(
     if values.get("media_type") != "video" or values.get("pixel_format") != "MJPG":
         return None
 
-    if _missing_elements(environment, JETSON_MJPEG_PREVIEW_ELEMENTS):
+    if find_missing_elements(environment, JETSON_MJPEG_PREVIEW_ELEMENTS):
         return None
 
     caps = _build_mjpg_caps(values)
@@ -168,18 +169,6 @@ def _jetson_mjpeg_preview_candidate(
         required_elements=list(JETSON_MJPEG_PREVIEW_ELEMENTS),
         selected_profile=JETSON_VIDEO_PREVIEW_PROFILE,
     )
-
-
-def _missing_elements(
-    environment: list[EnvironmentFact],
-    required_elements: list[str],
-) -> list[str]:
-    available = {
-        fact.metadata.get("element")
-        for fact in environment
-        if fact.name == "gstreamer_element_available" and fact.value is True
-    }
-    return [element for element in required_elements if element not in available]
 
 
 def _sort_candidates(candidates: list[_RankedCandidate]) -> list[PipelineCandidate]:

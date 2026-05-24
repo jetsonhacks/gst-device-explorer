@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from gst_device_explorer.core import (
+from gst_device_explorer.core.audio_pipelines import (
     build_audio_input_test_candidates,
     build_audio_output_test_candidates,
 )

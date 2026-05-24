@@ -14,6 +14,7 @@ from gst_device_explorer.core.models import (
 from gst_device_explorer.core.pipelines import (
     GENERIC_VIDEO_PREVIEW_ELEMENTS,
     JETSON_MJPEG_PREVIEW_ELEMENTS,
+    _device_path,
 )
 
 
@@ -92,6 +93,3 @@ def _generic_candidate_id(values: dict[str, Any]) -> str | None:
     return None
 
 
-def _device_path(device: Device) -> str:
-    value = device.metadata.get("path", device.id)
-    return str(value)

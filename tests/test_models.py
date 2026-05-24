@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import pytest
 
-from gst_device_explorer.core import (
+from gst_device_explorer.core.models import (
     Capability,
     CompositeDevice,
     Device,
@@ -16,8 +16,6 @@ from gst_device_explorer.core import (
     ExecutionPlan,
     GroupingEvidence,
     PipelineCandidate,
-    Profile,
-    RendererOutput,
 )
 
 
@@ -59,21 +57,6 @@ def test_environment_fact_records_host_stack_information() -> None:
     assert fact.name == "gstreamer_version"
     assert fact.value == "1.24.0"
     assert fact.source == "gst-inspect-1.0"
-
-
-def test_profile_expresses_preferences_and_patterns() -> None:
-    profile = Profile(
-        name="jetson",
-        description="Jetson-oriented GStreamer preferences",
-        preferences=["prefer NVIDIA elements when available"],
-        known_good_patterns=["nvarguscamerasrc for supported CSI cameras"],
-    )
-
-    assert profile.name == "jetson"
-    assert "prefer NVIDIA elements when available" in profile.preferences
-    assert profile.known_good_patterns == [
-        "nvarguscamerasrc for supported CSI cameras"
-    ]
 
 
 def test_pipeline_candidate_contains_structured_recommendation() -> None:
@@ -292,13 +275,3 @@ def test_composite_device_asdict_serializes_nested_members_and_evidence() -> Non
     }
 
 
-def test_renderer_output_presents_structured_data() -> None:
-    output = RendererOutput(
-        kind="json",
-        content={"devices": [{"id": "/dev/video0", "kind": "video_input"}]},
-        warnings=["example output"],
-    )
-
-    assert output.kind == "json"
-    assert output.content["devices"][0]["kind"] == "video_input"
-    assert output.warnings == ["example output"]
