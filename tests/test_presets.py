@@ -171,8 +171,9 @@ def test_preset_list_json_output(capsys) -> None:
 
     data = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert data[0]["preset_id"] == "camera-preview"
-    assert data[-1]["preset_id"] == "composite-device-validation"
+    assert data["kind"] == "preset_list"
+    assert data["data"][0]["preset_id"] == "camera-preview"
+    assert data["data"][-1]["preset_id"] == "composite-device-validation"
 
 
 def test_preset_show_text_output(capsys) -> None:
@@ -200,9 +201,10 @@ def test_preset_show_json_output(capsys) -> None:
 
     data = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert data["preset_id"] == "camera-preview"
-    assert data["target_kind"] == "video"
-    assert data["safety_notes"] == [
+    assert data["kind"] == "preset_show"
+    assert data["data"]["preset_id"] == "camera-preview"
+    assert data["data"]["target_kind"] == "video"
+    assert data["data"]["safety_notes"] == [
         "Uses generated candidates only.",
         "Suggests dry-run first.",
         "Delegates execution to `gst-device-explorer run video`.",
@@ -233,7 +235,8 @@ def test_preset_command_camera_preview_json_output(capsys) -> None:
 
     data = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert data == {
+    assert data["kind"] == "preset_command"
+    assert data["data"] == {
         "preset_id": "camera-preview",
         "suggestions": [
             {
@@ -290,7 +293,8 @@ def test_preset_command_short_audio_capture_json_output(capsys) -> None:
 
     data = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert data["suggestions"][0]["argv"] == [
+    assert data["kind"] == "preset_command"
+    assert data["data"]["suggestions"][0]["argv"] == [
         "gst-device-explorer",
         "capture",
         "audio-input",

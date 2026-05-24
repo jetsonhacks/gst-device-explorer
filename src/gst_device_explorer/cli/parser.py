@@ -517,4 +517,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render validation results as JSON.",
     )
 
+    schema_parser = subparsers.add_parser(
+        "schema",
+        help="Inspect machine-readable schema documentation.",
+    )
+    schema_subparsers = schema_parser.add_subparsers(
+        dest="schema_command",
+        required=True,
+    )
+    schema_list_parser = schema_subparsers.add_parser(
+        "list",
+        help="List known schema documents.",
+    )
+    schema_list_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render schema document list as JSON.",
+    )
+    schema_show_parser = schema_subparsers.add_parser(
+        "show",
+        help="Show one schema document.",
+    )
+    schema_show_parser.add_argument(
+        "schema_id",
+        help="Schema document ID.",
+    )
+    schema_show_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render schema document as JSON.",
+    )
+
     return parser

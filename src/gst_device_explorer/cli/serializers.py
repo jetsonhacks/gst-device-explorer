@@ -31,6 +31,7 @@ from gst_device_explorer.core.presets import (
     PresetCommandSuggestions,
     PresetDefinition,
 )
+from gst_device_explorer.core.schema import SchemaDocument, SchemaField
 
 
 def to_json(
@@ -294,4 +295,30 @@ def config_validation_result_to_json_dict(result: ConfigValidationResult) -> dic
         "source": result.path,
         "valid": result.valid,
         "warnings": [config_issue_to_json_dict(issue) for issue in result.warnings],
+    }
+
+
+def schema_field_to_json_dict(field: SchemaField) -> dict:
+    return {
+        "description": field.description,
+        "name": field.name,
+        "type": field.value_type,
+    }
+
+
+def schema_document_to_json_dict(document: SchemaDocument) -> dict:
+    return {
+        "current_schema_version": document.current_schema_version,
+        "fields": [schema_field_to_json_dict(field) for field in document.fields],
+        "purpose": document.purpose,
+        "schema_id": document.schema_id,
+        "title": document.title,
+    }
+
+
+def schema_document_summary_to_json_dict(document: SchemaDocument) -> dict:
+    return {
+        "purpose": document.purpose,
+        "schema_id": document.schema_id,
+        "title": document.title,
     }

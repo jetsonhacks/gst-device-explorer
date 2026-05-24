@@ -10,6 +10,7 @@ import gst_device_explorer.core.capture as capture
 import gst_device_explorer.core.config as config
 import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.presets as presets
+import gst_device_explorer.core.schema as schema
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
@@ -318,6 +319,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         renderer.print_config_validate(result, as_json=args.json)
         return 0 if result.valid else 1
+
+    if args.command == "schema" and args.schema_command == "list":
+        renderer.print_schema_list(schema.list_schema_documents(), as_json=args.json)
+        return 0
+
+    if args.command == "schema" and args.schema_command == "show":
+        document = schema.get_schema_document(args.schema_id)
+        if document is None:
+            renderer.print_schema_not_found(args.schema_id)
+            return 1
+        renderer.print_schema_document(document, as_json=args.json)
+        return 0
 
     parser.error("unknown command")
     return 2

@@ -265,9 +265,10 @@ def test_cli_config_show_json(monkeypatch, capsys, tmp_path) -> None:
 
     data = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert data["valid"] is True
-    assert data["config"]["audio"]["output_test_frequency"] == 440
-    assert data["applied"] is False
+    assert data["kind"] == "config_show"
+    assert data["data"]["valid"] is True
+    assert data["data"]["config"]["audio"]["output_test_frequency"] == 440
+    assert data["data"]["applied"] is False
 
 
 def test_cli_config_validate_explicit_json(capsys, tmp_path) -> None:
@@ -278,8 +279,9 @@ def test_cli_config_validate_explicit_json(capsys, tmp_path) -> None:
 
     data = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert data["source"] == str(path)
-    assert data["config"]["report"]["include_metadata"] is False
+    assert data["kind"] == "config_validate"
+    assert data["data"]["source"] == str(path)
+    assert data["data"]["config"]["report"]["include_metadata"] is False
 
 
 def test_cli_config_validate_invalid_explicit_returns_nonzero(capsys, tmp_path) -> None:

@@ -412,7 +412,26 @@ capture, validation, or execution yet. Config files cannot introduce arbitrary
 pipelines, shell commands, scripts, package installation, or system
 configuration changes.
 
-## 15. Current Limitations
+## 15. Verify Milestone 13 JSON Schema Envelope
+
+Inspect wrapped JSON output and schema discovery:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer config path --json
+/home/jim/.local/bin/uv run gst-device-explorer config show --json
+/home/jim/.local/bin/uv run gst-device-explorer config validate --json
+/home/jim/.local/bin/uv run gst-device-explorer preset list --json
+/home/jim/.local/bin/uv run gst-device-explorer schema list
+/home/jim/.local/bin/uv run gst-device-explorer schema show json-envelope
+/home/jim/.local/bin/uv run gst-device-explorer schema show json-envelope --json
+```
+
+Selected config, preset, and schema JSON commands include the stable envelope
+fields `schema_version`, `tool_version`, `kind`, and `data`. The nested `data`
+payload remains command-specific, and full JSON Schema documents for every
+payload are deferred.
+
+## 16. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
@@ -421,6 +440,7 @@ configuration changes.
 - Group-based capture is not implemented.
 - Direct preset execution is not implemented.
 - Config-driven behavior changes are not implemented.
+- Complete JSON Schema files for every payload are not implemented.
 - Synchronized audio/video capture is not implemented.
 - Preview-window lifecycle management is not implemented.
 - PulseAudio and PipeWire probing are not implemented.

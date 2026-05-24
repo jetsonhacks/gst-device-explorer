@@ -23,6 +23,7 @@ from gst_device_explorer.core.models import (
     SystemReport,
 )
 from gst_device_explorer.core.presets import PresetCommandSuggestions, PresetDefinition
+from gst_device_explorer.core.schema import SchemaDocument, wrap_json
 from gst_device_explorer.cli.serializers import (
     candidate_ranking_to_json_dict,
     config_validation_result_to_json_dict,
@@ -31,6 +32,8 @@ from gst_device_explorer.cli.serializers import (
     pipeline_diagnostic_to_json_dict,
     preset_command_suggestions_to_json_dict,
     preset_definition_to_json_dict,
+    schema_document_summary_to_json_dict,
+    schema_document_to_json_dict,
     system_report_to_json_dict,
     to_json,
 )
@@ -434,9 +437,10 @@ def print_group_not_found(group_id: str, as_json: bool) -> None:
 
 def print_preset_list(presets: list[PresetDefinition], as_json: bool) -> None:
     if as_json:
+        data = [preset_definition_to_json_dict(preset) for preset in presets]
         print(
             json.dumps(
-                [preset_definition_to_json_dict(preset) for preset in presets],
+                wrap_json("preset_list", data),
                 indent=2,
                 sort_keys=True,
             )
@@ -450,7 +454,13 @@ def print_preset_list(presets: list[PresetDefinition], as_json: bool) -> None:
 
 def print_preset(preset: PresetDefinition, as_json: bool) -> None:
     if as_json:
-        print(json.dumps(preset_definition_to_json_dict(preset), indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                wrap_json("preset_show", preset_definition_to_json_dict(preset)),
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return
 
     print(f"Preset: {preset.preset_id}")
@@ -481,7 +491,10 @@ def print_preset_command_suggestions(
     if as_json:
         print(
             json.dumps(
-                preset_command_suggestions_to_json_dict(result),
+                wrap_json(
+                    "preset_command",
+                    preset_command_suggestions_to_json_dict(result),
+                ),
                 indent=2,
                 sort_keys=True,
             )
@@ -516,13 +529,14 @@ def print_preset_error(message: str) -> None:
 
 def print_config_paths(paths: Sequence[Path], as_json: bool) -> None:
     if as_json:
+        data = {
+            "paths": [str(path) for path in paths],
+            "required": False,
+            "applied": False,
+        }
         print(
             json.dumps(
-                {
-                    "paths": [str(path) for path in paths],
-                    "required": False,
-                    "applied": False,
-                },
+                wrap_json("config_path", data),
                 indent=2,
                 sort_keys=True,
             )
@@ -541,7 +555,7 @@ def print_config_show(result: ConfigValidationResult, as_json: bool) -> None:
     if as_json:
         print(
             json.dumps(
-                config_validation_result_to_json_dict(result),
+                wrap_json("config_show", config_validation_result_to_json_dict(result)),
                 indent=2,
                 sort_keys=True,
             )
@@ -566,7 +580,10 @@ def print_config_validate(result: ConfigValidationResult, as_json: bool) -> None
     if as_json:
         print(
             json.dumps(
-                config_validation_result_to_json_dict(result),
+                wrap_json(
+                    "config_validate",
+                    config_validation_result_to_json_dict(result),
+                ),
                 indent=2,
                 sort_keys=True,
             )
@@ -587,6 +604,64 @@ def print_config_validate(result: ConfigValidationResult, as_json: bool) -> None
         else:
             print("Warnings: none")
     print("Preferences are not applied to command behavior in Milestone 12.")
+
+
+def print_schema_list(documents: list[SchemaDocument], as_json: bool) -> None:
+    if as_json:
+        print(
+            json.dumps(
+                wrap_json(
+                    "schema_list",
+                    {
+                        "schemas": [
+                            schema_document_summary_to_json_dict(document)
+                            for document in documents
+                        ],
+                    },
+                ),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    print("Available schema documents:")
+    print()
+    for document in documents:
+        print(f"  {document.schema_id}")
+        print(f"    {document.purpose}")
+    print()
+    print("Use:")
+    print("  gst-device-explorer schema show <schema-id>")
+
+
+def print_schema_document(document: SchemaDocument, as_json: bool) -> None:
+    if as_json:
+        print(
+            json.dumps(
+                wrap_json("schema_show", schema_document_to_json_dict(document)),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    print(f"Schema: {document.schema_id}")
+    print(f"Purpose: {document.purpose}")
+    print()
+    print("Fields:")
+    for field in document.fields:
+        print(f"  {field.name:<15} {field.value_type:<7} {field.description}")
+    if document.current_schema_version is not None:
+        print()
+        print(f"Current schema_version: {document.current_schema_version}")
+
+
+def print_schema_not_found(schema_id: str) -> None:
+    print(f"Schema not found: {schema_id}")
+    print()
+    print("Try:")
+    print("  gst-device-explorer schema list")
 
 
 def print_execution_plan(plan: ExecutionPlan, dry_run: bool) -> None:

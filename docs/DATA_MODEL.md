@@ -243,5 +243,14 @@ warnings, and errors for defaults or TOML files. Configuration is display and
 validation only in Milestone 12; it does not change command behavior or allow
 raw pipelines, scripts, hooks, plugins, or arbitrary argv.
 
+`JsonEnvelope` records describe the stable wrapper used by selected JSON
+outputs. The envelope fields are `schema_version`, `tool_version`, `kind`, and
+`data`. The wrapper identifies the response family while preserving the existing
+command-specific serialized payload under `data`.
+
+`SchemaDocument` records describe the modest schema discovery surface. Milestone
+13 documents the JSON envelope contract only; full JSON Schema coverage for all
+payload models is deferred.
+
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

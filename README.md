@@ -203,6 +203,37 @@ capture, validation, or execution yet. Config files cannot introduce arbitrary
 pipelines, shell commands, scripts, package installation, or system
 configuration changes.
 
+## Machine-Readable JSON
+
+Selected JSON outputs use a stable envelope for scripts and future interfaces:
+
+```json
+{
+  "schema_version": "1.0",
+  "tool_version": "0.13.0",
+  "kind": "preset_list",
+  "data": []
+}
+```
+
+The envelope is currently used by `config path --json`, `config show --json`,
+`config validate --json`, `preset list --json`, `preset show --json`, and
+`preset command --json`. The `data` field contains the command-specific payload.
+Other JSON outputs remain useful but are not yet part of this stable envelope
+contract.
+
+Inspect the current envelope contract with:
+
+```sh
+gst-device-explorer schema list
+gst-device-explorer schema show json-envelope
+gst-device-explorer schema show json-envelope --json
+```
+
+Milestone 13 does not publish complete JSON Schema documents for every payload
+and does not change probing, presets, configuration, capture, validation, or
+execution behavior.
+
 ## Device Profiles
 
 Use `profile` to get a structured summary of a device endpoint:

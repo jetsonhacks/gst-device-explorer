@@ -130,6 +130,18 @@ candidate generation, ranking, presets, reports, capture, validation, or
 execution. Configuration files cannot define raw pipelines, shell commands,
 scripts, hooks, plugins, or remote behavior.
 
+## Schema Stability
+
+Selected JSON outputs are wrapped in a small stable envelope. The core schema
+helper supplies `schema_version`, `tool_version`, `kind`, and `data` fields so
+scripts and future UI layers can identify the response family before reading
+the command-specific payload.
+
+Milestone 13 applies the envelope to bounded config and preset JSON outputs and
+adds schema discovery commands for the envelope contract. It does not generate
+full JSON Schema files and does not change probing, candidate generation,
+ranking, execution, capture, validation, preset, or configuration behavior.
+
 ## Renderers
 
 Renderers turn normalized models and pipeline candidates into user-facing
