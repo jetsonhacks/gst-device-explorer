@@ -340,6 +340,11 @@ sidebar/detail panes. It does not run GUI actions, execute suggested commands,
 start media pipelines, capture media, install packages, or change system
 configuration.
 
+Milestone 22 improves the selected-item detail pane with clearer identity,
+summary, capability, candidate, diagnostic, safe-action, and notes sections.
+Copy buttons are allowed only for already-displayed text such as endpoint IDs,
+group IDs, and suggested command strings. Copying text does not run commands.
+
 PySide6 is kept out of core probe/discovery modules. CLI-only behavior should
 continue to work without importing Qt unless the GUI command is launched.
 

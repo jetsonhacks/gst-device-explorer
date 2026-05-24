@@ -33,10 +33,10 @@ probing models, CLI renderers, video and audio pipeline candidate generation,
 and safe execution for selected video preview and ALSA audio test candidates. It
 can also create short, explicit, bounded capture files from generated video and
 audio-input candidates. Composite device groups are computed from discovered
-device metadata. Milestone 21 lets the PySide6 GUI render live discovered
-devices and groups, refresh that read-only snapshot, and keep the deterministic
-demo mode for screenshots and validation. Editing, audio loopback, group-based
-execution, and preview-window lifecycle management are not implemented yet.
+device metadata. Milestone 22 improves the PySide6 detail pane with organized
+identity, capability, candidate, diagnostic, action, and copy sections while
+keeping the GUI read-only. Editing, audio loopback, group-based execution, and
+preview-window lifecycle management are not implemented yet.
 
 ## Minimal GUI Shell
 
@@ -52,9 +52,10 @@ uv run gst-device-explorer gui --demo
 `gui` uses existing safe live discovery/probe paths to render cameras, audio
 inputs, audio outputs, and composite groups. `gui --demo` renders deterministic
 synthetic devices and does not probe real hardware. The Refresh control rebuilds
-the read-only GUI snapshot. Action buttons show labels, safety metadata,
-suggested commands, and disabled reasons, but they do not run pipelines,
-capture media, spawn subprocesses, or execute suggested commands.
+the read-only GUI snapshot. The detail pane includes safe copy affordances for
+displayed identifiers and suggested commands. Action buttons show labels, safety
+metadata, suggested commands, and disabled reasons, but they do not run
+pipelines, capture media, spawn subprocesses, or execute suggested commands.
 
 ## System Report
 
@@ -300,7 +301,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.21.0",
+  "tool_version": "0.22.0",
   "kind": "preset_list",
   "data": []
 }
@@ -317,7 +318,7 @@ Selected known error paths return a companion error envelope:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.21.0",
+  "tool_version": "0.22.0",
   "kind": "error",
   "error": {
     "code": "unknown_schema",

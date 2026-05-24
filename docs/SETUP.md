@@ -106,9 +106,10 @@ uv run gst-device-explorer gui --demo
 
 The live GUI renders discovered cameras, audio inputs, audio outputs, and
 composite groups. The Refresh control rebuilds the read-only discovery snapshot.
-Demo mode does not probe real hardware. Action controls are metadata only in
-Milestone 21; they do not run pipelines, capture media, spawn subprocesses, or
-execute suggested commands.
+Demo mode does not probe real hardware. The detail pane includes organized
+sections and safe copy buttons for displayed identifiers and suggested commands.
+Action controls are metadata/copy only in Milestone 22; they do not run
+pipelines, capture media, spawn subprocesses, or execute suggested commands.
 
 Useful pipeline candidate variants:
 
@@ -557,13 +558,14 @@ install the GUI extra and launch:
 Confirm that the window opens, the sidebar renders grouped and standalone demo
 endpoints, live mode renders discovered devices/groups when present, group nodes
 expand/collapse, selecting nodes updates the detail pane, and Refresh updates
-the tree without crashing. Do not use this milestone to validate preview,
+the tree without crashing. Check that copy buttons copy identifiers or suggested
+commands without running them. Do not use this milestone to validate preview,
 capture, or execution behavior; those controls are intentionally display-only.
 
 ## 20. Current Limitations
 
 - The GUI is a minimal shell over live read-only discovery and deterministic demo data.
-- GUI action controls do not execute commands yet.
+- GUI action controls only display/copy metadata and do not execute commands yet.
 - Camera preview in the GUI is not implemented.
 - Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.

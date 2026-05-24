@@ -150,6 +150,13 @@ def build_detail_pane_for_group(
             )
             or ("No grouping evidence was provided.",),
         ),
+        DetailSection(
+            title="Notes / Limitations",
+            items=(
+                "Composite groups are informational in the GUI.",
+                "Group-based execution and synchronized capture are not available.",
+            ),
+        ),
     ]
     if validation is not None:
         sections.append(

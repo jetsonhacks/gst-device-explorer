@@ -38,7 +38,9 @@ def create_main_window(
             self._tree.setObjectName("sidebarTree")
             self._tree.setMinimumWidth(280)
             self._tree.setMaximumWidth(420)
-            self._detail = create_detail_pane_widget()
+            self._detail = create_detail_pane_widget(
+                status_callback=lambda message: self.statusBar().showMessage(message, 2500)
+            )
             splitter.addWidget(self._tree)
             splitter.addWidget(self._detail)
             splitter.setStretchFactor(0, 0)

@@ -272,6 +272,12 @@ snapshot, repopulates the sidebar, preserves the selected node when possible,
 and renders empty/error states cleanly. GUI actions remain metadata only and do
 not execute suggested commands or pipelines.
 
+Milestone 22 polishes the Qt detail pane. The renderer organizes selected-item
+details into identity, summary, capabilities, candidate, diagnostic, safe-action,
+copy, and notes sections. Copy buttons write already-displayed identifiers or
+suggested command strings to the local clipboard and update the window status
+bar; they do not execute commands. Action controls remain display metadata only.
+
 ## TUI Review Mode
 
 The TUI is a read-only renderer over existing report, preset, configuration, and
