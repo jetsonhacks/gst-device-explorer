@@ -14,11 +14,14 @@ from gst_device_explorer.core.models import (
     Capability,
     CompositeDevice,
     Device,
+    DeviceProfile,
     DeviceRef,
     EnvironmentFact,
     GroupingEvidence,
     PipelineCandidate,
     PipelineDiagnostic,
+    ProfileCandidateSummary,
+    ProfileGroupSummary,
 )
 import gst_device_explorer.cli.main as cli_main
 
@@ -819,6 +822,287 @@ def test_pipeline_video_diagnostics_json_output(monkeypatch, capsys) -> None:
                 "status": "available",
                 "suggested_next_checks": [],
             }
+        ],
+    }
+
+
+def test_profile_audio_input_text_output(monkeypatch, capsys) -> None:
+    profile = _audio_device_profile("audio-input", available=True)
+    _mock_audio_input_profile(monkeypatch, profile)
+
+    exit_code = main(["profile", "audio-input", "hw:0,0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Device profile for audio-input hw:0,0\n"
+        "\n"
+        "Name: USB Audio: Capture\n"
+        "\n"
+        "Metadata:\n"
+        "  alsa_device: hw:0,0\n"
+        "  backend: alsa\n"
+        "\n"
+        "Pipeline candidates:\n"
+        "  available   generic-alsa-audio-input-level-fakesink\n"
+        "\n"
+        "Suggested next commands:\n"
+        "  gst-device-explorer pipeline audio-input hw:0,0\n"
+        "  gst-device-explorer pipeline audio-input hw:0,0 --diagnostics\n"
+        "  gst-device-explorer run audio-input hw:0,0 --dry-run\n"
+    )
+
+
+def test_profile_audio_output_text_output_with_unavailable_candidate(
+    monkeypatch,
+    capsys,
+) -> None:
+    profile = _audio_device_profile("audio-output", available=False)
+    _mock_audio_output_profile(monkeypatch, profile)
+
+    exit_code = main(["profile", "audio-output", "hw:0,0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Device profile for audio-output hw:0,0\n"
+        "\n"
+        "Name: USB Audio: Playback\n"
+        "\n"
+        "Metadata:\n"
+        "  alsa_device: hw:0,0\n"
+        "  backend: alsa\n"
+        "\n"
+        "Pipeline candidates:\n"
+        "  unavailable generic-alsa-audio-output-sine-alsasink\n"
+        "    missing: alsasink\n"
+        "\n"
+        "Suggested next commands:\n"
+        "  gst-device-explorer pipeline audio-output hw:0,0\n"
+        "  gst-device-explorer pipeline audio-output hw:0,0 --diagnostics\n"
+        "  gst-device-explorer run audio-output hw:0,0 --dry-run\n"
+    )
+
+
+def test_profile_audio_output_json_output(monkeypatch, capsys) -> None:
+    profile = _audio_device_profile("audio-output", available=True)
+    _mock_audio_output_profile(monkeypatch, profile)
+
+    exit_code = main(["profile", "audio-output", "hw:0,0", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "candidate_summary": {
+            "available": [
+                {
+                    "candidate_id": "generic-alsa-audio-output-sine-alsasink",
+                    "missing_elements": [],
+                    "reason": (
+                        "ALSA playback device and required GStreamer elements "
+                        "are available."
+                    ),
+                    "status": "available",
+                }
+            ],
+            "unavailable": [],
+        },
+        "capabilities_summary": {},
+        "device": "hw:0,0",
+        "device_kind": "audio-output",
+        "display_name": "USB Audio: Playback",
+        "groups": [],
+        "metadata": {
+            "alsa_device": "hw:0,0",
+            "backend": "alsa",
+        },
+        "suggested_next_commands": [
+            "gst-device-explorer pipeline audio-output hw:0,0",
+            "gst-device-explorer pipeline audio-output hw:0,0 --diagnostics",
+            "gst-device-explorer run audio-output hw:0,0 --dry-run",
+        ],
+    }
+
+
+def test_profile_audio_output_json_output_with_groups(monkeypatch, capsys) -> None:
+    profile = _audio_device_profile(
+        "audio-output",
+        available=True,
+        groups=[
+            ProfileGroupSummary(
+                group_id="audio-device-alsa-card-0",
+                label="Reachy Mini Audio",
+                confidence=0.9,
+                kind="audio-device",
+                member_count=2,
+            )
+        ],
+    )
+    _mock_audio_output_profile(monkeypatch, profile)
+
+    exit_code = main(["profile", "audio-output", "hw:0,0", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out)["groups"] == [
+        {
+            "confidence": 0.9,
+            "group_id": "audio-device-alsa-card-0",
+            "kind": "audio-device",
+            "label": "Reachy Mini Audio",
+            "member_count": 2,
+        }
+    ]
+
+
+def test_profile_audio_input_json_output(monkeypatch, capsys) -> None:
+    profile = _audio_device_profile("audio-input", available=True)
+    _mock_audio_input_profile(monkeypatch, profile)
+
+    exit_code = main(["profile", "audio-input", "hw:0,0", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "candidate_summary": {
+            "available": [
+                {
+                    "candidate_id": "generic-alsa-audio-input-level-fakesink",
+                    "missing_elements": [],
+                    "reason": (
+                        "ALSA capture device and required GStreamer elements "
+                        "are available."
+                    ),
+                    "status": "available",
+                }
+            ],
+            "unavailable": [],
+        },
+        "capabilities_summary": {},
+        "device": "hw:0,0",
+        "device_kind": "audio-input",
+        "display_name": "USB Audio: Capture",
+        "groups": [],
+        "metadata": {
+            "alsa_device": "hw:0,0",
+            "backend": "alsa",
+        },
+        "suggested_next_commands": [
+            "gst-device-explorer pipeline audio-input hw:0,0",
+            "gst-device-explorer pipeline audio-input hw:0,0 --diagnostics",
+            "gst-device-explorer run audio-input hw:0,0 --dry-run",
+        ],
+    }
+
+
+def test_profile_video_text_output(monkeypatch, capsys) -> None:
+    profile = _video_device_profile(
+        available=True,
+        groups=[
+            ProfileGroupSummary(
+                group_id="usb-device-1-4-1",
+                label="Reachy Mini Camera",
+                confidence=0.9,
+                kind="unknown",
+                member_count=2,
+            ),
+            ProfileGroupSummary(
+                group_id="usb-family-1-4",
+                label="Reachy Mini",
+                confidence=0.8,
+                kind="unknown",
+                member_count=4,
+            ),
+        ],
+    )
+    _mock_video_profile(monkeypatch, profile)
+
+    exit_code = main(["profile", "video", "/dev/video0"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Device profile for video /dev/video0\n"
+        "\n"
+        "Name: video0\n"
+        "\n"
+        "Metadata:\n"
+        "  backend: v4l2\n"
+        "  path: /dev/video0\n"
+        "\n"
+        "Capabilities:\n"
+        "  Formats: MJPG, YUYV\n"
+        "  Max resolution: 1920x1080\n"
+        "  Frame rates: 30/1\n"
+        "  Mode count: 2\n"
+        "\n"
+        "Pipeline candidates:\n"
+        "  available   generic-v4l2-mjpeg-jpegdec-autovideosink\n"
+        "\n"
+        "Groups:\n"
+        "  Reachy Mini Camera    confidence 0.90\n"
+        "  Reachy Mini    confidence 0.80\n"
+        "\n"
+        "Suggested next commands:\n"
+        "  gst-device-explorer pipeline video /dev/video0\n"
+        "  gst-device-explorer pipeline video /dev/video0 --diagnostics\n"
+        "  gst-device-explorer run video /dev/video0 --dry-run\n"
+    )
+
+
+def test_profile_video_json_output(monkeypatch, capsys) -> None:
+    profile = _video_device_profile(
+        available=True,
+        groups=[
+            ProfileGroupSummary(
+                group_id="usb-device-1-4-1",
+                label="Reachy Mini Camera",
+                confidence=0.9,
+                kind="unknown",
+                member_count=2,
+            )
+        ],
+    )
+    _mock_video_profile(monkeypatch, profile)
+
+    exit_code = main(["profile", "video", "/dev/video0", "--json"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "candidate_summary": {
+            "available": [
+                {
+                    "candidate_id": "generic-v4l2-mjpeg-jpegdec-autovideosink",
+                    "missing_elements": [],
+                    "reason": (
+                        "Required GStreamer elements are available and the "
+                        "device exposes a compatible video format."
+                    ),
+                    "status": "available",
+                }
+            ],
+            "unavailable": [],
+        },
+        "capabilities_summary": {
+            "formats": ["MJPG", "YUYV"],
+            "frame_rates": ["30/1"],
+            "max_resolution": "1920x1080",
+            "mode_count": 2,
+        },
+        "device": "/dev/video0",
+        "device_kind": "video",
+        "display_name": "video0",
+        "groups": [
+            {
+                "confidence": 0.9,
+                "group_id": "usb-device-1-4-1",
+                "kind": "unknown",
+                "label": "Reachy Mini Camera",
+                "member_count": 2,
+            }
+        ],
+        "metadata": {
+            "backend": "v4l2",
+            "path": "/dev/video0",
+        },
+        "suggested_next_commands": [
+            "gst-device-explorer pipeline video /dev/video0",
+            "gst-device-explorer pipeline video /dev/video0 --diagnostics",
+            "gst-device-explorer run video /dev/video0 --dry-run",
         ],
     }
 
@@ -1638,6 +1922,75 @@ def _mock_pipeline_video_diagnostics(monkeypatch, diagnostics) -> None:
     )
 
 
+def _mock_audio_input_profile(monkeypatch, profile) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_inputs",
+        lambda: [_audio_device(kind="audio_input")],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.profiles,
+        "build_audio_input_profile",
+        lambda device, facts, groups: profile,
+    )
+
+
+def _mock_video_profile(monkeypatch, profile) -> None:
+    monkeypatch.setattr(
+        cli_main.v4l2_probe,
+        "discover_v4l2_capabilities",
+        lambda device_path: [],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.profiles,
+        "build_video_profile",
+        lambda device, capabilities, facts, groups: profile,
+    )
+
+
+def _mock_audio_output_profile(monkeypatch, profile) -> None:
+    monkeypatch.setattr(
+        cli_main.alsa_probe,
+        "discover_alsa_audio_outputs",
+        lambda: [_audio_device(kind="audio_output")],
+    )
+    monkeypatch.setattr(
+        cli_main.gst_probe,
+        "inspect_gstreamer_environment",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.discovery,
+        "discover_composite_devices",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        cli_main.profiles,
+        "build_audio_output_profile",
+        lambda device, facts, groups: profile,
+    )
+
+
 def _mock_pipeline_audio_input_candidates(monkeypatch, candidates) -> None:
     monkeypatch.setattr(
         cli_main.alsa_probe,
@@ -1733,6 +2086,91 @@ def _video_diagnostic(status: str) -> PipelineDiagnostic:
         available_elements=["v4l2src", "videoconvert", "autovideosink"],
         missing_elements=[],
         suggested_next_checks=[],
+    )
+
+
+def _audio_device_profile(
+    device_kind: str,
+    available: bool,
+    groups: list[ProfileGroupSummary] | None = None,
+) -> DeviceProfile:
+    is_input = device_kind == "audio-input"
+    candidate_id = (
+        "generic-alsa-audio-input-level-fakesink"
+        if is_input
+        else "generic-alsa-audio-output-sine-alsasink"
+    )
+    display_name = "USB Audio: Capture" if is_input else "USB Audio: Playback"
+    reason = (
+        "ALSA capture device and required GStreamer elements are available."
+        if is_input
+        else "ALSA playback device and required GStreamer elements are available."
+    )
+    status = "available" if available else "unavailable"
+    if not available:
+        reason = "Required GStreamer elements are missing."
+    entry = ProfileCandidateSummary(
+        candidate_id=candidate_id,
+        status=status,
+        reason=reason,
+        missing_elements=[] if available else ["alsasink"],
+    )
+    return DeviceProfile(
+        device_kind=device_kind,
+        device="hw:0,0",
+        display_name=display_name,
+        metadata={"backend": "alsa", "alsa_device": "hw:0,0"},
+        capabilities_summary={},
+        candidate_summary={
+            "available": [entry] if available else [],
+            "unavailable": [] if available else [entry],
+        },
+        groups=groups or [],
+        suggested_next_commands=[
+            f"gst-device-explorer pipeline {device_kind} hw:0,0",
+            f"gst-device-explorer pipeline {device_kind} hw:0,0 --diagnostics",
+            f"gst-device-explorer run {device_kind} hw:0,0 --dry-run",
+        ],
+    )
+
+
+def _video_device_profile(
+    available: bool,
+    groups: list[ProfileGroupSummary] | None = None,
+) -> DeviceProfile:
+    status = "available" if available else "unavailable"
+    entry = ProfileCandidateSummary(
+        candidate_id="generic-v4l2-mjpeg-jpegdec-autovideosink",
+        status=status,
+        reason=(
+            "Required GStreamer elements are available and the device exposes "
+            "a compatible video format."
+            if available
+            else "Required GStreamer elements are missing."
+        ),
+        missing_elements=[] if available else ["autovideosink"],
+    )
+    return DeviceProfile(
+        device_kind="video",
+        device="/dev/video0",
+        display_name="video0",
+        metadata={"backend": "v4l2", "path": "/dev/video0"},
+        capabilities_summary={
+            "formats": ["MJPG", "YUYV"],
+            "max_resolution": "1920x1080",
+            "frame_rates": ["30/1"],
+            "mode_count": 2,
+        },
+        candidate_summary={
+            "available": [entry] if available else [],
+            "unavailable": [] if available else [entry],
+        },
+        groups=groups or [],
+        suggested_next_commands=[
+            "gst-device-explorer pipeline video /dev/video0",
+            "gst-device-explorer pipeline video /dev/video0 --diagnostics",
+            "gst-device-explorer run video /dev/video0 --dry-run",
+        ],
     )
 
 

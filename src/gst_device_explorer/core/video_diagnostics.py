@@ -82,6 +82,7 @@ def build_video_preview_diagnostics(
 
     return diagnostics
 
+
 def _generic_candidate_id(values: dict[str, Any]) -> str | None:
     pixel_format = values.get("pixel_format")
     if pixel_format == "MJPG":
@@ -89,6 +90,7 @@ def _generic_candidate_id(values: dict[str, Any]) -> str | None:
     if pixel_format == "YUYV":
         return GENERIC_V4L2_YUYV_CANDIDATE_ID
     return None
+
 
 def _device_path(device: Device) -> str:
     value = device.metadata.get("path", device.id)

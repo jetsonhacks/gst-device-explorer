@@ -86,6 +86,43 @@ class PipelineDiagnostic:
 
 
 @dataclass(frozen=True)
+class ProfileCandidateSummary:
+    """A concise profile summary of one pipeline candidate diagnostic."""
+
+    candidate_id: str
+    status: str
+    reason: str
+    missing_elements: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ProfileGroupSummary:
+    """A concise profile summary of one composite group membership."""
+
+    group_id: str
+    label: str
+    confidence: float
+    kind: str
+    member_count: int
+
+
+@dataclass(frozen=True)
+class DeviceProfile:
+    """A structured endpoint summary built from discovered facts."""
+
+    device_kind: str
+    device: str
+    display_name: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    capabilities_summary: dict[str, Any] = field(default_factory=dict)
+    candidate_summary: dict[str, list[ProfileCandidateSummary]] = field(
+        default_factory=lambda: {"available": [], "unavailable": []}
+    )
+    groups: list[ProfileGroupSummary] = field(default_factory=list)
+    suggested_next_commands: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ExecutionPlan:
     """A selected pipeline candidate prepared for safe execution."""
 

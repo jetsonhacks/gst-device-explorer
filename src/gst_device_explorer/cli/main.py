@@ -11,10 +11,12 @@ from gst_device_explorer.core.models import (
     Capability,
     CompositeDevice,
     Device,
+    DeviceProfile,
     EnvironmentFact,
     ExecutionPlan,
     PipelineCandidate,
     PipelineDiagnostic,
+    ProfileGroupSummary,
 )
 from gst_device_explorer.core.grouping import GroupableDevice
 import gst_device_explorer.core.discovery as discovery
@@ -23,6 +25,7 @@ import gst_device_explorer.core.audio_diagnostics as audio_diagnostics
 import gst_device_explorer.core.audio_pipelines as audio_pipelines
 import gst_device_explorer.core.video_diagnostics as video_diagnostics
 import gst_device_explorer.core.pipelines as pipelines
+import gst_device_explorer.core.profiles as profiles
 import gst_device_explorer.probes.alsa as alsa_probe
 import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
@@ -89,6 +92,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             device_path=args.device_path,
             as_json=args.json,
         )
+        return 0
+
+    if args.command == "profile" and args.profile_command == "audio-input":
+        profile = _build_audio_input_profile(args.alsa_device)
+        _print_device_profile(profile, as_json=args.json)
+        return 0
+
+    if args.command == "profile" and args.profile_command == "audio-output":
+        profile = _build_audio_output_profile(args.alsa_device)
+        _print_device_profile(profile, as_json=args.json)
+        return 0
+
+    if args.command == "profile" and args.profile_command == "video":
+        profile = _build_video_profile(args.device_path)
+        _print_device_profile(profile, as_json=args.json)
         return 0
 
     if args.command == "pipeline" and args.pipeline_command == "video":
@@ -280,6 +298,54 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Render video capabilities as JSON.",
     )
 
+    profile_parser = subparsers.add_parser(
+        "profile",
+        help="Build endpoint device profiles.",
+    )
+    profile_subparsers = profile_parser.add_subparsers(
+        dest="profile_command",
+        required=True,
+    )
+    profile_video_parser = profile_subparsers.add_parser(
+        "video",
+        help="Build a V4L2 video endpoint profile.",
+    )
+    profile_video_parser.add_argument(
+        "device_path",
+        help="Path to a video device.",
+    )
+    profile_video_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the profile as JSON.",
+    )
+    profile_audio_input_parser = profile_subparsers.add_parser(
+        "audio-input",
+        help="Build an ALSA audio input endpoint profile.",
+    )
+    profile_audio_input_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    profile_audio_input_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the profile as JSON.",
+    )
+    profile_audio_output_parser = profile_subparsers.add_parser(
+        "audio-output",
+        help="Build an ALSA audio output endpoint profile.",
+    )
+    profile_audio_output_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    profile_audio_output_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the profile as JSON.",
+    )
+
     pipeline_parser = subparsers.add_parser(
         "pipeline",
         help="Build pipeline candidates.",
@@ -448,6 +514,19 @@ def _build_video_preview_diagnostics(device_path: str) -> list[PipelineDiagnosti
     )
 
 
+def _build_video_profile(device_path: str) -> DeviceProfile | None:
+    device = Device(
+        id=device_path,
+        kind="video_input",
+        name=device_path,
+        metadata={"backend": "v4l2", "path": device_path},
+    )
+    capabilities = v4l2_probe.discover_v4l2_capabilities(device_path)
+    environment = gst_probe.inspect_gstreamer_environment()
+    groups = _discover_profile_groups()
+    return profiles.build_video_profile(device, capabilities, environment, groups)
+
+
 def _build_audio_input_test_candidates(alsa_device: str) -> list[PipelineCandidate]:
     device = _find_alsa_device(
         alsa_probe.discover_alsa_audio_inputs(),
@@ -459,6 +538,20 @@ def _build_audio_input_test_candidates(alsa_device: str) -> list[PipelineCandida
 
     environment = gst_probe.inspect_gstreamer_environment()
     return audio_pipelines.build_audio_input_test_candidates(device, environment)
+
+
+def _build_audio_input_profile(alsa_device: str) -> DeviceProfile | None:
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_inputs(),
+        alsa_device,
+        kind="audio_input",
+    )
+    if device is None:
+        return None
+
+    environment = gst_probe.inspect_gstreamer_environment()
+    groups = _discover_profile_groups()
+    return profiles.build_audio_input_profile(device, environment, groups)
 
 
 def _build_audio_input_test_diagnostics(
@@ -487,6 +580,20 @@ def _build_audio_output_test_candidates(alsa_device: str) -> list[PipelineCandid
 
     environment = gst_probe.inspect_gstreamer_environment()
     return audio_pipelines.build_audio_output_test_candidates(device, environment)
+
+
+def _build_audio_output_profile(alsa_device: str) -> DeviceProfile | None:
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_outputs(),
+        alsa_device,
+        kind="audio_output",
+    )
+    if device is None:
+        return None
+
+    environment = gst_probe.inspect_gstreamer_environment()
+    groups = _discover_profile_groups()
+    return profiles.build_audio_output_profile(device, environment, groups)
 
 
 def _build_audio_output_test_diagnostics(
@@ -521,6 +628,10 @@ def _find_alsa_device(
         ),
         None,
     )
+
+
+def _discover_profile_groups() -> list[CompositeDevice]:
+    return discovery.discover_composite_devices()
 
 
 def _print_devices(
@@ -722,6 +833,73 @@ def _print_pipeline_candidates(
                 print(f"   - {warning}")
 
 
+def _print_device_profile(profile: DeviceProfile | None, as_json: bool) -> None:
+    if profile is None:
+        if as_json:
+            print(json.dumps(None, indent=2, sort_keys=True))
+            return
+        print("No device profile found.")
+        return
+
+    if as_json:
+        print(
+            json.dumps(
+                _device_profile_to_json_dict(profile),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    print(f"Device profile for {profile.device_kind} {profile.device}")
+    if profile.display_name is not None:
+        print()
+        print(f"Name: {profile.display_name}")
+    if profile.metadata:
+        print()
+        print("Metadata:")
+        for key in sorted(profile.metadata):
+            print(f"  {key}: {profile.metadata[key]}")
+    if profile.capabilities_summary:
+        print()
+        print("Capabilities:")
+        _print_capabilities_summary(profile.capabilities_summary)
+    print()
+    print("Pipeline candidates:")
+    for status in ("available", "unavailable"):
+        for candidate in profile.candidate_summary.get(status, []):
+            print(f"  {status:<11} {candidate.candidate_id}")
+            if candidate.missing_elements:
+                print("    missing: " + ", ".join(candidate.missing_elements))
+    if profile.groups:
+        print()
+        print("Groups:")
+        for group in profile.groups:
+            print(f"  {group.label}    confidence {group.confidence:.2f}")
+    print()
+    print("Suggested next commands:")
+    for command in profile.suggested_next_commands:
+        print(f"  {command}")
+
+
+def _print_capabilities_summary(summary: dict) -> None:
+    labels = {
+        "formats": "Formats",
+        "max_resolution": "Max resolution",
+        "frame_rates": "Frame rates",
+        "mode_count": "Mode count",
+    }
+    for key in ("formats", "max_resolution", "frame_rates", "mode_count"):
+        if key not in summary:
+            continue
+        value = summary[key]
+        if isinstance(value, list):
+            rendered = ", ".join(str(item) for item in value)
+        else:
+            rendered = str(value)
+        print(f"  {labels[key]}: {rendered}")
+
+
 def _select_pipeline_candidates(
     candidates: list[PipelineCandidate],
     as_json: bool,
@@ -878,6 +1056,50 @@ def _pipeline_diagnostic_to_json_dict(diagnostic: PipelineDiagnostic) -> dict:
         "required_elements": diagnostic.required_elements,
         "status": diagnostic.status,
         "suggested_next_checks": diagnostic.suggested_next_checks,
+    }
+
+
+def _device_profile_to_json_dict(profile: DeviceProfile) -> dict:
+    return {
+        "candidate_summary": {
+            "available": [
+                _profile_candidate_summary_to_json_dict(candidate)
+                for candidate in profile.candidate_summary.get("available", [])
+            ],
+            "unavailable": [
+                _profile_candidate_summary_to_json_dict(candidate)
+                for candidate in profile.candidate_summary.get("unavailable", [])
+            ],
+        },
+        "capabilities_summary": profile.capabilities_summary,
+        "device": profile.device,
+        "device_kind": profile.device_kind,
+        "display_name": profile.display_name,
+        "groups": [
+            _profile_group_summary_to_json_dict(group)
+            for group in profile.groups
+        ],
+        "metadata": profile.metadata,
+        "suggested_next_commands": profile.suggested_next_commands,
+    }
+
+
+def _profile_candidate_summary_to_json_dict(candidate) -> dict:
+    return {
+        "candidate_id": candidate.candidate_id,
+        "missing_elements": candidate.missing_elements,
+        "reason": candidate.reason,
+        "status": candidate.status,
+    }
+
+
+def _profile_group_summary_to_json_dict(group: ProfileGroupSummary) -> dict:
+    return {
+        "confidence": group.confidence,
+        "group_id": group.group_id,
+        "kind": group.kind,
+        "label": group.label,
+        "member_count": group.member_count,
     }
 
 

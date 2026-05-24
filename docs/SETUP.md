@@ -274,7 +274,58 @@ Then dry-run and run the selected candidate:
 /home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0
 ```
 
-## 10. Current Limitations
+## 10. Verify Milestone 6 Device Profiles
+
+Device profiles summarize discovered device information, group membership,
+pipeline candidate availability, and suggested next commands in one view.
+
+Discover devices and groups first:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer devices
+/home/jim/.local/bin/uv run gst-device-explorer audio-inputs
+/home/jim/.local/bin/uv run gst-device-explorer audio-outputs
+/home/jim/.local/bin/uv run gst-device-explorer groups
+```
+
+Inspect profiles:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer profile video /dev/video0
+/home/jim/.local/bin/uv run gst-device-explorer profile video /dev/video0 --json
+
+/home/jim/.local/bin/uv run gst-device-explorer profile audio-input hw:0,0
+/home/jim/.local/bin/uv run gst-device-explorer profile audio-input hw:0,0 --json
+
+/home/jim/.local/bin/uv run gst-device-explorer profile audio-output hw:0,0
+/home/jim/.local/bin/uv run gst-device-explorer profile audio-output hw:0,0 --json
+```
+
+A profile includes:
+
+- device kind, identifier, and display name when available
+- subsystem metadata
+- capabilities summary (video only: formats, max resolution, frame rates, mode count)
+- pipeline candidate summary (available and unavailable, with missing elements listed)
+- informational group membership when the endpoint belongs to a composite group
+- suggested next commands
+
+Profiles are read-only summaries. They do not execute pipelines and do not
+change candidate or diagnostic behavior.
+
+After inspecting a profile, follow the suggested next commands to inspect
+candidates, view diagnostics, or dry-run the selected candidate:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0
+/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0 --diagnostics
+/home/jim/.local/bin/uv run gst-device-explorer run video /dev/video0 --dry-run
+```
+
+Group profiles are not implemented. Group membership shown in endpoint
+profiles is informational only.
+
+## 11. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.

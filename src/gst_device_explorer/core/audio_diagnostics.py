@@ -59,6 +59,7 @@ def build_audio_output_test_diagnostics(
         )
     ]
 
+
 def _alsa_device_name(device: Device) -> str:
     value = device.metadata.get("alsa_device", device.id)
     return str(value)

@@ -5,12 +5,15 @@ from gst_device_explorer.core.models import (
     CompositeDevice,
     Device,
     DeviceRef,
+    DeviceProfile,
     EnvironmentFact,
     ExecutionPlan,
     GroupingEvidence,
     PipelineDiagnostic,
     PipelineCandidate,
     Profile,
+    ProfileCandidateSummary,
+    ProfileGroupSummary,
     RendererOutput,
 )
 from gst_device_explorer.core.grouping import (
@@ -128,11 +131,55 @@ def build_audio_output_test_diagnostics(
     return _build_audio_output_test_diagnostics(device, environment)
 
 
+def build_audio_input_profile(
+    device: Device,
+    environment: list[EnvironmentFact],
+    groups: list[CompositeDevice] | None = None,
+) -> DeviceProfile | None:
+    """Build an audio input endpoint profile."""
+
+    from gst_device_explorer.core.profiles import (
+        build_audio_input_profile as _build_audio_input_profile,
+    )
+
+    return _build_audio_input_profile(device, environment, groups)
+
+
+def build_audio_output_profile(
+    device: Device,
+    environment: list[EnvironmentFact],
+    groups: list[CompositeDevice] | None = None,
+) -> DeviceProfile | None:
+    """Build an audio output endpoint profile."""
+
+    from gst_device_explorer.core.profiles import (
+        build_audio_output_profile as _build_audio_output_profile,
+    )
+
+    return _build_audio_output_profile(device, environment, groups)
+
+
+def build_video_profile(
+    device: Device,
+    capabilities: list[Capability],
+    environment: list[EnvironmentFact],
+    groups: list[CompositeDevice] | None = None,
+) -> DeviceProfile | None:
+    """Build a video endpoint profile."""
+
+    from gst_device_explorer.core.profiles import (
+        build_video_profile as _build_video_profile,
+    )
+
+    return _build_video_profile(device, capabilities, environment, groups)
+
+
 __all__ = [
     "Capability",
     "CompositeDevice",
     "Device",
     "DeviceRef",
+    "DeviceProfile",
     "EnvironmentFact",
     "ExecutionPlan",
     "GroupingEvidence",
@@ -140,13 +187,18 @@ __all__ = [
     "PipelineDiagnostic",
     "PipelineCandidate",
     "Profile",
+    "ProfileCandidateSummary",
+    "ProfileGroupSummary",
     "RendererOutput",
+    "build_audio_input_profile",
     "build_audio_input_test_candidates",
     "build_audio_input_test_diagnostics",
+    "build_audio_output_profile",
     "build_audio_output_test_candidates",
     "build_audio_output_test_diagnostics",
     "build_composite_devices",
     "build_groupable_devices",
+    "build_video_profile",
     "build_video_preview_candidates",
     "build_video_preview_diagnostics",
     "discover_composite_devices",

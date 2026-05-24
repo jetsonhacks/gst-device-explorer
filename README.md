@@ -85,6 +85,73 @@ feeding the grouping engine when a group is missing or unexpected. Group-based
 pipeline generation and group-based execution are not included; use the existing
 `pipeline` and `run` commands for individual video and audio devices.
 
+## Device Profiles
+
+Use `profile` to get a structured summary of a device endpoint:
+
+```sh
+gst-device-explorer profile video /dev/video0
+gst-device-explorer profile video /dev/video0 --json
+
+gst-device-explorer profile audio-input hw:0,0
+gst-device-explorer profile audio-input hw:0,0 --json
+
+gst-device-explorer profile audio-output hw:0,0
+gst-device-explorer profile audio-output hw:0,0 --json
+```
+
+A device profile combines existing discovery, grouping, candidate, and
+diagnostic information in one compact view. It answers:
+
+- What is this device and what capabilities were discovered?
+- Which pipeline candidates are available?
+- Which candidates are blocked, and why?
+- Is this endpoint part of a composite device group?
+- What should I try next?
+
+Profiles differ from raw discovery (`devices`, `audio-inputs`, `video`),
+pipeline inspection (`pipeline`), and diagnostics (`pipeline --diagnostics`)
+in that they summarize all of these into one place. Profiles do not re-probe
+the device and do not execute pipelines.
+
+### Profile Workflow
+
+The recommended workflow when exploring a new device:
+
+```sh
+# 1. Discover devices
+gst-device-explorer devices
+gst-device-explorer audio-inputs
+gst-device-explorer audio-outputs
+
+# 2. Inspect groups (optional)
+gst-device-explorer groups
+
+# 3. Inspect profile
+gst-device-explorer profile video /dev/video0
+gst-device-explorer profile audio-input hw:0,0
+
+# 4. Inspect pipeline candidates
+gst-device-explorer pipeline video /dev/video0
+
+# 5. Inspect diagnostics if a candidate is missing
+gst-device-explorer pipeline video /dev/video0 --diagnostics
+
+# 6. Dry-run
+gst-device-explorer run video /dev/video0 --dry-run
+
+# 7. Run
+gst-device-explorer run video /dev/video0
+```
+
+### Group Membership in Profiles
+
+When composite device groups include the endpoint, the profile lists matching
+groups under a `Groups:` section. This is informational only — it does not
+change candidate generation or which device is targeted. Group-based pipeline
+generation and group-based execution remain out of scope. Group profiles are
+deferred.
+
 ## Video Pipeline Candidates and Run
 
 Use `pipeline` to inspect generated video preview candidates:
