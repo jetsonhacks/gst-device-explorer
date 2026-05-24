@@ -1,12 +1,21 @@
 # gst-device-explorer
 
-`gst-device-explorer` is a GStreamer-oriented device exploration tool for
-discovering media devices, inspecting capabilities, and generating useful
-pipeline candidates, with an architecture intended to support additional
-hardware exploration plugins over time.
+`gst-device-explorer` is a GUI-first Linux / Jetson media device explorer. It
+discovers camera, microphone, speaker, and grouped composite devices, then lets
+the user inspect capabilities and safely try generated GStreamer actions.
+
+The mental model is:
+
+```text
+camera-caps for modern Jetson media devices.
+```
+
+The CLI remains important as a backend, debug interface, and testable probe
+layer, but the GUI is now the primary product direction.
 
 Its first real domain is media exploration: video inputs, audio inputs, audio
-outputs, the local GStreamer environment, and useful pipeline candidates.
+outputs, grouped composite USB devices, the local GStreamer environment, and
+useful generated pipeline candidates.
 
 Pipeline candidates carry a profile label identifying the generation strategy,
 such as a generic Linux preview or a Jetson/NVIDIA accelerated preview. The
@@ -14,18 +23,20 @@ project also provides `DeviceProfile` endpoint summaries that combine discovery,
 candidate, diagnostic, and grouping information for CLI inspection and system
 reports.
 
-The architecture should support GStreamer-oriented device exploration first and
-extensible hardware exploration later. Future exploration plugins may inspect
-other device classes, such as robot hardware, actuators, Dynamixel servos, or
-sensors, but that is not part of the initial implementation scope.
+Future work should be judged by whether it improves the GUI media exploration
+experience. Additional backend infrastructure should support the sidebar,
+detail panes, grouping views, diagnostics, and safe generated actions rather
+than becoming a separate industrial diagnostics platform.
 
 The project is currently in an early implementation phase. It has initial
 probing models, CLI renderers, video and audio pipeline candidate generation,
 and safe execution for selected video preview and ALSA audio test candidates. It
 can also create short, explicit, bounded capture files from generated video and
 audio-input candidates. Composite device groups are computed from discovered
-device metadata. GUI, editing, audio loopback, group-based execution, and
-preview-window lifecycle management are not implemented yet.
+device metadata. Milestone 19 adds toolkit-neutral GUI application models for a
+future sidebar/main-pane application, but no actual GUI window or toolkit
+dependency is implemented yet. Editing, audio loopback, group-based execution,
+and preview-window lifecycle management are not implemented yet.
 
 ## System Report
 
@@ -271,7 +282,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.18.0",
+  "tool_version": "0.19.0",
   "kind": "preset_list",
   "data": []
 }
@@ -288,7 +299,7 @@ Selected known error paths return a companion error envelope:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.18.0",
+  "tool_version": "0.19.0",
   "kind": "error",
   "error": {
     "code": "unknown_schema",

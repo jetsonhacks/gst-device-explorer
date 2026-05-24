@@ -213,6 +213,34 @@ representations. The first renderer is expected to be a CLI. A future GUI should
 use the same underlying models and builders rather than duplicating discovery or
 pipeline logic.
 
+## GUI Application Model
+
+Milestone 19 resets the product direction around a GUI-first media explorer:
+camera-caps for modern Jetson media devices. The CLI remains a backend, debug
+surface, and testable probe layer, but future work should be judged by whether
+it improves the GUI media exploration experience.
+
+`gst_device_explorer.gui.model` defines frozen, toolkit-neutral dataclasses for
+a future sidebar/main-pane application:
+
+- `MediaExplorerSnapshot`
+- `SidebarNode`
+- `DetailPaneModel`
+- `DetailSection`
+- `GuiAction`
+- `GuiActionResult`
+
+`gst_device_explorer.gui.builders` maps existing core models such as `Device`,
+`CompositeDevice`, `DeviceProfile`, `GroupValidation`, and `CandidateRanking`
+into renderable GUI state. These builders are pure: they do not probe hardware,
+run subprocesses, execute GStreamer pipelines, capture media, start background
+workflows, or import Qt, GTK, Tkinter, Textual, web frameworks, or any other GUI
+toolkit.
+
+GUI actions are advisory metadata only. Where possible they reference existing
+`SuggestedCommand` objects so a future GUI can show or copy generated commands
+without opening an arbitrary execution surface.
+
 ## TUI Review Mode
 
 The TUI is a read-only renderer over existing report, preset, configuration, and
