@@ -17,6 +17,7 @@ import gst_device_explorer.probes.v4l2 as v4l2_probe
 from gst_device_explorer.cli.parser import build_parser
 import gst_device_explorer.cli.commands as commands
 import gst_device_explorer.cli.renderer as renderer
+import gst_device_explorer.cli.tui as tui
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -168,6 +169,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = commands.build_system_report()
         renderer.print_system_report(report, as_json=args.json)
         return 0
+
+    if args.command == "tui":
+        if args.snapshot:
+            print(tui.render_snapshot(), end="")
+            return 0
+        return tui.run_tui()
 
     if args.command == "recommend" and args.recommend_command == "video":
         result = commands.build_video_recommendation(args.device_path)

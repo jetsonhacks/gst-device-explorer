@@ -220,6 +220,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render the report as JSON.",
     )
 
+    tui_parser = subparsers.add_parser(
+        "tui",
+        help="Open a read-only terminal review interface.",
+    )
+    tui_parser.add_argument(
+        "--snapshot",
+        action="store_true",
+        help="Render the initial TUI overview without entering interactive mode.",
+    )
+
     recommend_parser = subparsers.add_parser(
         "recommend",
         help="Rank and recommend pipeline candidates for an endpoint.",

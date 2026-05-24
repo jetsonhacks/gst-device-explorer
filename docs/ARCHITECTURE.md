@@ -153,6 +153,17 @@ representations. The first renderer is expected to be a CLI. A future GUI should
 use the same underlying models and builders rather than duplicating discovery or
 pipeline logic.
 
+## TUI Review Mode
+
+The TUI is a read-only renderer over existing report, preset, configuration, and
+schema data. Its core review model and navigation state are pure and testable
+without opening a terminal. The curses runner is intentionally thin: it maps key
+presses to state transitions and draws rendered lines.
+
+Milestone 15 TUI mode displays suggested CLI commands but does not execute them.
+It does not run pipelines, run capture, execute presets, edit configuration,
+install packages, or change system settings.
+
 ## Execution Flow
 
 Safe execution is a separate layer that consumes structured pipeline candidates.

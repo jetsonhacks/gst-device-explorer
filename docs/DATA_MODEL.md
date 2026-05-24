@@ -260,5 +260,11 @@ profiles, system reports, candidate recommendations, and group validation.
 Capture commands do not expose JSON output in this milestone, and stable error
 envelopes remain deferred.
 
+`TuiReviewModel` records collect an existing system report, built-in presets,
+configuration validation status, and schema documents for read-only terminal
+review. `TuiSection` records hold deterministic rendered line lists, and
+`TuiNavigationState` records the selected section, active section, and quit
+intent. These models do not execute suggested commands.
+
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

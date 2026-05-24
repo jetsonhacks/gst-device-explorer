@@ -448,7 +448,27 @@ envelope:
 These commands preserve their command-specific payload under `data`. Text output
 is unchanged, and payload-specific JSON Schema documents remain deferred.
 
-## 17. Current Limitations
+## 17. Verify Milestone 15 TUI Review Mode
+
+Check the TUI parser and non-interactive snapshot:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer tui --help
+/home/jim/.local/bin/uv run gst-device-explorer tui --snapshot
+```
+
+If the terminal supports curses, run the interactive TUI:
+
+```sh
+/home/jim/.local/bin/uv run gst-device-explorer tui
+```
+
+The TUI is read-only. It summarizes environment, devices, composite groups,
+presets, configuration, schema kinds, and suggested commands. It does not run
+pipelines, capture media, execute presets, edit configuration, install
+packages, or change system settings.
+
+## 18. Current Limitations
 
 - GUI is not implemented.
 - Audio loopback is not implemented.
@@ -457,6 +477,7 @@ is unchanged, and payload-specific JSON Schema documents remain deferred.
 - Group-based capture is not implemented.
 - Direct preset execution is not implemented.
 - Config-driven behavior changes are not implemented.
+- TUI execution/capture/config editing controls are not implemented.
 - Complete JSON Schema files for every payload are not implemented.
 - Stable JSON error envelopes are not implemented.
 - Synchronized audio/video capture is not implemented.

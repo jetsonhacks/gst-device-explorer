@@ -210,7 +210,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.14.0",
+  "tool_version": "0.15.0",
   "kind": "preset_list",
   "data": []
 }
@@ -233,6 +233,21 @@ gst-device-explorer schema show json-envelope --json
 Milestone 14 does not publish complete JSON Schema documents for every payload,
 does not add stable error envelopes, and does not change probing, presets,
 configuration, capture, validation, or execution behavior.
+
+## TUI Review Mode
+
+Use `tui` to browse a read-only terminal overview:
+
+```sh
+gst-device-explorer tui
+gst-device-explorer tui --snapshot
+```
+
+The TUI summarizes existing environment, device, group, preset, configuration,
+schema, and suggested-command information. It is a review surface only: it does
+not run pipelines, capture media, execute presets, edit configuration, install
+packages, or change system settings. Suggested commands are displayed for the
+user to run separately.
 
 ## Device Profiles
 
