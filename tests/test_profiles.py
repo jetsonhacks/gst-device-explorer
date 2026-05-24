@@ -48,7 +48,7 @@ def test_audio_input_profile_summarizes_available_candidate() -> None:
     assert profile.candidate_summary["available"][0].status == "available"
     assert profile.candidate_summary["available"][0].missing_elements == []
     assert profile.candidate_summary["unavailable"] == []
-    assert profile.suggested_next_commands == [
+    assert [cmd.command for cmd in profile.suggested_next_commands] == [
         "gst-device-explorer pipeline audio-input hw:0,0",
         "gst-device-explorer pipeline audio-input hw:0,0 --diagnostics",
         "gst-device-explorer run audio-input hw:0,0 --dry-run",
@@ -73,7 +73,7 @@ def test_audio_output_profile_summarizes_available_candidate() -> None:
         "ALSA playback device and required GStreamer elements are available."
     )
     assert profile.candidate_summary["unavailable"] == []
-    assert profile.suggested_next_commands == [
+    assert [cmd.command for cmd in profile.suggested_next_commands] == [
         "gst-device-explorer pipeline audio-output hw:0,0",
         "gst-device-explorer pipeline audio-output hw:0,0 --diagnostics",
         "gst-device-explorer run audio-output hw:0,0 --dry-run",
@@ -215,7 +215,7 @@ def test_video_profile_summarizes_capabilities_and_available_candidates() -> Non
     ]
     assert profile.candidate_summary["unavailable"] == []
     assert profile.groups == []
-    assert profile.suggested_next_commands == [
+    assert [cmd.command for cmd in profile.suggested_next_commands] == [
         "gst-device-explorer pipeline video /dev/video0",
         "gst-device-explorer pipeline video /dev/video0 --diagnostics",
         "gst-device-explorer run video /dev/video0 --dry-run",

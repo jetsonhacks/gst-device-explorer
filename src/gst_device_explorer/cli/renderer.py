@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from dataclasses import asdict
 from pathlib import Path
 from typing import Sequence
@@ -24,6 +25,7 @@ from gst_device_explorer.core.models import (
 )
 from gst_device_explorer.core.presets import PresetCommandSuggestions, PresetDefinition
 from gst_device_explorer.core.schema import SchemaDocument, wrap_json
+from gst_device_explorer.core.suggestions import SuggestedCommand
 from gst_device_explorer.cli.serializers import (
     candidate_ranking_to_json_dict,
     config_validation_result_to_json_dict,
@@ -252,8 +254,8 @@ def print_device_profile(profile: DeviceProfile | None, as_json: bool) -> None:
             print(f"  {group.label}    confidence {group.confidence:.2f}")
     print()
     print("Suggested next commands:")
-    for command in profile.suggested_next_commands:
-        print(f"  {command}")
+    for cmd in profile.suggested_next_commands:
+        print(f"  {cmd.command}")
 
 
 def print_pipeline_diagnostics(
@@ -362,8 +364,8 @@ def print_system_report(report: SystemReport, as_json: bool) -> None:
     if report.suggested_next_commands:
         print()
         print("Suggested next commands:")
-        for command in report.suggested_next_commands:
-            print(f"  {command}")
+        for cmd in report.suggested_next_commands:
+            print(f"  {cmd.command}")
 
 
 def print_group_validation(validation: GroupValidation, as_json: bool) -> None:
@@ -406,8 +408,8 @@ def print_group_validation(validation: GroupValidation, as_json: bool) -> None:
     if validation.suggested_next_commands:
         print()
         print("Suggested next commands:")
-        for command in validation.suggested_next_commands:
-            print(f"- {command}")
+        for cmd in validation.suggested_next_commands:
+            print(f"- {cmd.command}")
 
 
 def print_group_not_found(group_id: str, as_json: bool) -> None:
@@ -779,8 +781,32 @@ def _endpoint_label(endpoint_kind: str) -> str:
     return labels.get(endpoint_kind, endpoint_kind.replace("-", " ").title())
 
 
+def print_suggestions_catalog(
+    suggestions: list[SuggestedCommand],
+    as_json: bool,
+) -> None:
+    if as_json:
+        from gst_device_explorer.cli.serializers import suggested_command_to_json_dict
+
+        _print_json(
+            "suggestion_catalog",
+            {"suggested_commands": [suggested_command_to_json_dict(s) for s in suggestions]},
+        )
+        return
+
+    if not suggestions:
+        print("No suggestions found.")
+        return
+
+    print("Suggested commands:")
+    for suggestion in suggestions:
+        print(f"  {suggestion.command}")
+        if suggestion.purpose:
+            print(f"    {suggestion.purpose}")
+
+
 def _render_argv(argv: tuple[str, ...]) -> str:
-    return " ".join(argv)
+    return shlex.join(argv)
 
 
 def _print_explorer_config(config: ExplorerConfig) -> None:

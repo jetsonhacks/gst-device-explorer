@@ -314,11 +314,12 @@ def _schema_lines(model: TuiReviewModel) -> tuple[str, ...]:
 
 
 def _suggested_command_lines(model: TuiReviewModel) -> tuple[str, ...]:
+    report_commands = [cmd.command for cmd in model.report.suggested_next_commands]
     commands = _dedupe(
         [
             "gst-device-explorer report",
             "gst-device-explorer report --json",
-            *model.report.suggested_next_commands,
+            *report_commands,
             "gst-device-explorer preset list",
             "gst-device-explorer config show",
             "gst-device-explorer schema list",

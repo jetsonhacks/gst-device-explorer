@@ -20,6 +20,18 @@ from gst_device_explorer.core.models import (
     ProfileCandidateSummary,
     ProfileGroupSummary,
 )
+from gst_device_explorer.core.suggestions import (
+    SuggestedCommand,
+    suggest_audio_input_pipeline,
+    suggest_audio_input_pipeline_diagnostics,
+    suggest_audio_input_run_dry_run,
+    suggest_audio_output_pipeline,
+    suggest_audio_output_pipeline_diagnostics,
+    suggest_audio_output_run_dry_run,
+    suggest_video_pipeline,
+    suggest_video_pipeline_diagnostics,
+    suggest_video_run_dry_run,
+)
 from gst_device_explorer.core.video_diagnostics import build_video_preview_diagnostics
 
 
@@ -92,9 +104,9 @@ def build_video_profile(
             endpoint_path=device_path,
         ),
         suggested_next_commands=[
-            f"gst-device-explorer pipeline video {device_path}",
-            f"gst-device-explorer pipeline video {device_path} --diagnostics",
-            f"gst-device-explorer run video {device_path} --dry-run",
+            suggest_video_pipeline(device_path),
+            suggest_video_pipeline_diagnostics(device_path),
+            suggest_video_run_dry_run(device_path),
         ],
     )
 
@@ -119,11 +131,7 @@ def _build_audio_profile(
             endpoint_id=device.id,
             endpoint_path=alsa_device,
         ),
-        suggested_next_commands=[
-            f"gst-device-explorer pipeline {device_kind} {alsa_device}",
-            f"gst-device-explorer pipeline {device_kind} {alsa_device} --diagnostics",
-            f"gst-device-explorer run {device_kind} {alsa_device} --dry-run",
-        ],
+        suggested_next_commands=_audio_profile_suggestions(device_kind, alsa_device),
     )
 
 
@@ -264,6 +272,23 @@ def _fps_values(values: dict[str, Any]) -> list[float | int]:
 def _fps_to_fraction(fps: float | int) -> str:
     fraction = Fraction(str(fps)).limit_denominator(1001)
     return f"{fraction.numerator}/{fraction.denominator}"
+
+
+def _audio_profile_suggestions(
+    device_kind: str,
+    device: str,
+) -> list[SuggestedCommand]:
+    if device_kind == "audio-input":
+        return [
+            suggest_audio_input_pipeline(device),
+            suggest_audio_input_pipeline_diagnostics(device),
+            suggest_audio_input_run_dry_run(device),
+        ]
+    return [
+        suggest_audio_output_pipeline(device),
+        suggest_audio_output_pipeline_diagnostics(device),
+        suggest_audio_output_run_dry_run(device),
+    ]
 
 
 def _max_resolution(values_list: list[dict[str, Any]]) -> str | None:

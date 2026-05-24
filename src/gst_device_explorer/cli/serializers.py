@@ -32,6 +32,22 @@ from gst_device_explorer.core.presets import (
     PresetDefinition,
 )
 from gst_device_explorer.core.schema import SchemaDocument, SchemaField
+from gst_device_explorer.core.suggestions import SuggestedCommand
+
+
+def suggested_command_to_json_dict(suggestion: SuggestedCommand) -> dict:
+    return {
+        "argv": list(suggestion.argv),
+        "command": suggestion.command,
+        "id": suggestion.id,
+        "notes": list(suggestion.notes),
+        "purpose": suggestion.purpose,
+        "safety": suggestion.safety,
+        "source": suggestion.source,
+        "target": suggestion.target,
+        "target_kind": suggestion.target_kind,
+        "title": suggestion.title,
+    }
 
 
 def to_json_data(
@@ -102,7 +118,10 @@ def device_profile_to_json_dict(profile: DeviceProfile) -> dict:
         "display_name": profile.display_name,
         "groups": [profile_group_summary_to_json_dict(g) for g in profile.groups],
         "metadata": profile.metadata,
-        "suggested_next_commands": profile.suggested_next_commands,
+        "suggested_next_commands": [
+            suggested_command_to_json_dict(cmd)
+            for cmd in profile.suggested_next_commands
+        ],
     }
 
 
@@ -176,7 +195,10 @@ def system_report_to_json_dict(report: SystemReport) -> dict:
         "diagnostics": {
             "missing_elements": list(report.diagnostics.missing_elements),
         },
-        "suggested_next_commands": list(report.suggested_next_commands),
+        "suggested_next_commands": [
+            suggested_command_to_json_dict(cmd)
+            for cmd in report.suggested_next_commands
+        ],
     }
 
 
@@ -201,7 +223,10 @@ def group_validation_to_json_dict(validation: GroupValidation) -> dict:
         "grouping_method": validation.grouping_method,
         "kind": validation.kind,
         "status": validation.status,
-        "suggested_next_commands": list(validation.suggested_next_commands),
+        "suggested_next_commands": [
+            suggested_command_to_json_dict(cmd)
+            for cmd in validation.suggested_next_commands
+        ],
         "warnings": list(validation.warnings),
     }
 
@@ -216,7 +241,10 @@ def endpoint_validation_summary_to_json_dict(
         "missing_elements": list(summary.missing_elements),
         "recommended_candidate_id": summary.recommended_candidate_id,
         "status": summary.status,
-        "suggested_next_commands": list(summary.suggested_next_commands),
+        "suggested_next_commands": [
+            suggested_command_to_json_dict(cmd)
+            for cmd in summary.suggested_next_commands
+        ],
         "unavailable_candidate_count": summary.unavailable_candidate_count,
     }
 

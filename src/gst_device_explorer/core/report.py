@@ -13,6 +13,7 @@ from gst_device_explorer.core.models import (
     ReportProfiles,
     SystemReport,
 )
+from gst_device_explorer.core.suggestions import SuggestedCommand
 import gst_device_explorer.core.profiles as profiles_mod
 
 
@@ -116,12 +117,14 @@ def _aggregate_missing_elements(device_profiles: list[DeviceProfile]) -> list[st
     return result
 
 
-def _aggregate_suggested_commands(device_profiles: list[DeviceProfile]) -> list[str]:
+def _aggregate_suggested_commands(
+    device_profiles: list[DeviceProfile],
+) -> list[SuggestedCommand]:
     seen: set[str] = set()
-    result: list[str] = []
+    result: list[SuggestedCommand] = []
     for profile in device_profiles:
-        for command in profile.suggested_next_commands:
-            if command not in seen:
-                seen.add(command)
-                result.append(command)
+        for cmd in profile.suggested_next_commands:
+            if cmd.id not in seen:
+                seen.add(cmd.id)
+                result.append(cmd)
     return result

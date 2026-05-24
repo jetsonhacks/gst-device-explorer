@@ -18,6 +18,7 @@ from gst_device_explorer.core.models import (
     SystemReport,
 )
 from gst_device_explorer.core.presets import PresetDefinition
+from gst_device_explorer.core.suggestions import suggest_video_pipeline
 from gst_device_explorer.core.schema import list_schema_documents
 from gst_device_explorer.core.tui import (
     TuiNavigationState,
@@ -217,5 +218,5 @@ def _report() -> SystemReport:
                 confidence=0.9,
             )
         ],
-        suggested_next_commands=["gst-device-explorer pipeline video /dev/video0"],
+        suggested_next_commands=[suggest_video_pipeline("/dev/video0")],
     )

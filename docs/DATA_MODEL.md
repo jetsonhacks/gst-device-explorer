@@ -159,6 +159,32 @@ preferences for particular platforms, operating systems, or workflows and is
 consumed by pipeline builders — may be added in a later milestone but is not
 part of the current implementation.
 
+## SuggestedCommand
+
+A suggested command is advisory metadata pointing the user to a relevant CLI
+command they can copy and run manually. It is never executed automatically.
+
+It should include:
+
+- ID (slug derived deterministically from argv)
+- Title (short human label)
+- Argv (tuple of strings used to render the command)
+- Purpose (sentence explaining the goal)
+- Source (origin category, e.g. `"profile"`, `"environment"`, `"external"`)
+- Safety (vocabulary entry: `inspection`, `dry_run`, `bounded_capture`,
+  `safe_execution`, or `external_check`)
+- Target kind (optional, e.g. `"video"`, `"audio-input"`, `"group"`)
+- Target (optional, e.g. `"/dev/video0"`, `"hw:0,0"`)
+- Notes (optional tuple of supplementary strings)
+
+A `command` property renders the argv via `shlex.join` for safe shell display.
+
+`SuggestedCommand` objects appear in `DeviceProfile.suggested_next_commands`,
+`SystemReport.suggested_next_commands`,
+`EndpointValidationSummary.suggested_next_commands`, and
+`GroupValidation.suggested_next_commands`. They are also available as a static
+catalog via `suggestions list`.
+
 ## PipelineCandidate
 
 A pipeline candidate is a structured recommendation for a GStreamer pipeline.
@@ -265,6 +291,15 @@ configuration validation status, and schema documents for read-only terminal
 review. `TuiSection` records hold deterministic rendered line lists, and
 `TuiNavigationState` records the selected section, active section, and quit
 intent. These models do not execute suggested commands.
+
+`SuggestedCommand` records carry advisory command metadata. Builder functions
+in `core/suggestions.py` produce typed suggestions for profiles, validation,
+reports, and a generic catalog. Suggestions are never executed automatically;
+they are display-only advisory data that users copy and run manually. Four
+existing model fields changed from `list[str]` to `list[SuggestedCommand]` in
+Milestone 16: `DeviceProfile`, `SystemReport`, `EndpointValidationSummary`,
+and `GroupValidation`. Serializers expose the full shape; renderers extract
+`.command` for text display.
 
 Renderers display structured data. They should not contain probing or
 pipeline-selection logic.

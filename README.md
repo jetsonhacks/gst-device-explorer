@@ -185,6 +185,34 @@ They do not execute commands, do not accept arbitrary GStreamer pipelines, and
 do not introduce group execution. Use the suggested endpoint commands when you
 are ready to inspect, run, capture, recommend, or validate.
 
+## Suggested Command Catalog
+
+Use `suggestions list` to browse a catalog of generic suggested commands:
+
+```sh
+gst-device-explorer suggestions list
+gst-device-explorer suggestions list --json
+```
+
+The catalog lists broad starting-point commands covering discovery, environment
+inspection, group listing, report generation, schema browsing, and configuration.
+It is a read-only reference and does not execute any command. Each entry includes
+a title, full argv, rendered command string, purpose, safety classification, and
+optional notes.
+
+Suggested commands also appear inline inside `profile`, `validate group`,
+`report`, and `tui` outputs, where they are tailored to the specific endpoint or
+group being inspected. The `suggestions list` catalog gives a static overview of
+the common commands available across the tool.
+
+Safety classifications used throughout suggested commands:
+
+- `inspection` — read-only probing, no side effects
+- `dry_run` — prints a command without executing it
+- `bounded_capture` — time-limited file write to an explicit output path
+- `safe_execution` — runs a generated pipeline with Ctrl+C to stop
+- `external_check` — invokes an external tool (e.g., `gst-inspect-1.0`)
+
 ## Configuration
 
 Use `config` to inspect and validate bounded preferences:
@@ -210,7 +238,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.15.0",
+  "tool_version": "0.16.0",
   "kind": "preset_list",
   "data": []
 }

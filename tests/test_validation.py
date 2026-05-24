@@ -22,6 +22,18 @@ from gst_device_explorer.core.models import (
     ProfileCandidateSummary,
 )
 from gst_device_explorer.core.validation import build_group_validation
+from gst_device_explorer.core.suggestions import (
+    suggest_env_command,
+    suggest_video_pipeline,
+    suggest_video_pipeline_diagnostics,
+    suggest_video_run_dry_run,
+    suggest_audio_input_pipeline,
+    suggest_audio_input_pipeline_diagnostics,
+    suggest_audio_input_run_dry_run,
+    suggest_audio_output_pipeline,
+    suggest_audio_output_pipeline_diagnostics,
+    suggest_audio_output_run_dry_run,
+)
 import gst_device_explorer.cli.commands as cli_commands
 
 
@@ -124,7 +136,7 @@ def test_unknown_endpoint_status_when_profile_is_missing() -> None:
 
     assert validation.endpoint_summaries[0].status == "unknown"
     assert validation.status == "unknown"
-    assert validation.endpoint_summaries[0].suggested_next_commands == [
+    assert [cmd.command for cmd in validation.endpoint_summaries[0].suggested_next_commands] == [
         "gst-device-explorer profile video /dev/video0"
     ]
 
@@ -163,18 +175,20 @@ def test_suggested_commands_are_deduplicated() -> None:
                 "audio-input",
                 "hw:2,0",
                 available=["audio-input"],
-                suggested=["gst-device-explorer env"],
+                suggested=[suggest_env_command()],
             ),
             _profile(
                 "audio-output",
                 "hw:2,0",
                 available=["audio-output"],
-                suggested=["gst-device-explorer env"],
+                suggested=[suggest_env_command()],
             ),
         ],
     )
 
-    assert validation.suggested_next_commands == ["gst-device-explorer env"]
+    assert [cmd.command for cmd in validation.suggested_next_commands] == [
+        "gst-device-explorer env"
+    ]
 
 
 def test_grouping_evidence_is_preserved() -> None:
@@ -199,20 +213,21 @@ def test_group_validation_json_shape() -> None:
         "unknown": 0,
         "video": 1,
     }
-    assert data["endpoint_summaries"][0] == {
+    summary = data["endpoint_summaries"][0]
+    assert {k: v for k, v in summary.items() if k != "suggested_next_commands"} == {
         "available_candidate_count": 1,
         "endpoint": "/dev/video0",
         "endpoint_kind": "video",
         "missing_elements": [],
         "recommended_candidate_id": "video-preview",
         "status": "ok",
-        "suggested_next_commands": [
-            "gst-device-explorer pipeline video /dev/video0",
-            "gst-device-explorer pipeline video /dev/video0 --diagnostics",
-            "gst-device-explorer run video /dev/video0 --dry-run",
-        ],
         "unavailable_candidate_count": 0,
     }
+    assert [c["command"] for c in summary["suggested_next_commands"]] == [
+        "gst-device-explorer pipeline video /dev/video0",
+        "gst-device-explorer pipeline video /dev/video0 --diagnostics",
+        "gst-device-explorer run video /dev/video0 --dry-run",
+    ]
 
 
 def test_group_validation_text_output(capsys) -> None:
@@ -440,13 +455,35 @@ def _audio_group() -> CompositeDevice:
     )
 
 
+def _default_profile_suggestions(device_kind: str, device: str) -> list:
+    if device_kind == "video":
+        return [
+            suggest_video_pipeline(device),
+            suggest_video_pipeline_diagnostics(device),
+            suggest_video_run_dry_run(device),
+        ]
+    if device_kind == "audio-input":
+        return [
+            suggest_audio_input_pipeline(device),
+            suggest_audio_input_pipeline_diagnostics(device),
+            suggest_audio_input_run_dry_run(device),
+        ]
+    if device_kind == "audio-output":
+        return [
+            suggest_audio_output_pipeline(device),
+            suggest_audio_output_pipeline_diagnostics(device),
+            suggest_audio_output_run_dry_run(device),
+        ]
+    return []
+
+
 def _profile(
     device_kind: str,
     device: str,
     available: list[str] | None = None,
     unavailable: list[str] | None = None,
     missing: list[str] | None = None,
-    suggested: list[str] | None = None,
+    suggested: list | None = None,
 ) -> DeviceProfile:
     return DeviceProfile(
         device_kind=device_kind,
@@ -472,11 +509,8 @@ def _profile(
             ],
         },
         suggested_next_commands=suggested
-        or [
-            f"gst-device-explorer pipeline {device_kind} {device}",
-            f"gst-device-explorer pipeline {device_kind} {device} --diagnostics",
-            f"gst-device-explorer run {device_kind} {device} --dry-run",
-        ],
+        if suggested is not None
+        else _default_profile_suggestions(device_kind, device),
     )
 
 

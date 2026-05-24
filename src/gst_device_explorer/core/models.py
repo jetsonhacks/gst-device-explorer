@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from gst_device_explorer.core.suggestions import SuggestedCommand
+
 
 @dataclass(frozen=True)
 class Capability:
@@ -108,7 +110,7 @@ class DeviceProfile:
         default_factory=lambda: {"available": [], "unavailable": []}
     )
     groups: list[ProfileGroupSummary] = field(default_factory=list)
-    suggested_next_commands: list[str] = field(default_factory=list)
+    suggested_next_commands: list[SuggestedCommand] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -147,7 +149,7 @@ class SystemReport:
     groups: list[CompositeDevice] = field(default_factory=list)
     profiles: ReportProfiles = field(default_factory=ReportProfiles)
     diagnostics: ReportDiagnostics = field(default_factory=ReportDiagnostics)
-    suggested_next_commands: list[str] = field(default_factory=list)
+    suggested_next_commands: list[SuggestedCommand] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -161,7 +163,7 @@ class EndpointValidationSummary:
     unavailable_candidate_count: int = 0
     recommended_candidate_id: str | None = None
     missing_elements: list[str] = field(default_factory=list)
-    suggested_next_commands: list[str] = field(default_factory=list)
+    suggested_next_commands: list[SuggestedCommand] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -198,7 +200,7 @@ class GroupValidation:
     diagnostics: GroupValidationDiagnostics = field(
         default_factory=GroupValidationDiagnostics
     )
-    suggested_next_commands: list[str] = field(default_factory=list)
+    suggested_next_commands: list[SuggestedCommand] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 

@@ -196,7 +196,9 @@ def test_build_system_report_collects_suggested_commands_from_profiles() -> None
         tool_version="0.7.0",
     )
 
-    assert "gst-device-explorer pipeline video /dev/video0" in report.suggested_next_commands
+    assert "gst-device-explorer pipeline video /dev/video0" in [
+        cmd.command for cmd in report.suggested_next_commands
+    ]
 
 
 def test_build_system_report_deduplicates_suggested_commands() -> None:

@@ -23,6 +23,17 @@ from gst_device_explorer.core.models import (
     ProfileCandidateSummary,
     ProfileGroupSummary,
 )
+from gst_device_explorer.core.suggestions import (
+    suggest_audio_input_pipeline,
+    suggest_audio_input_pipeline_diagnostics,
+    suggest_audio_input_run_dry_run,
+    suggest_audio_output_pipeline,
+    suggest_audio_output_pipeline_diagnostics,
+    suggest_audio_output_run_dry_run,
+    suggest_video_pipeline,
+    suggest_video_pipeline_diagnostics,
+    suggest_video_run_dry_run,
+)
 import gst_device_explorer.cli.main as cli_main
 import gst_device_explorer.cli.commands as cli_commands
 
@@ -920,7 +931,8 @@ def test_profile_audio_output_json_output(monkeypatch, capsys) -> None:
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
     assert data["kind"] == "device_profile"
-    assert data["data"] == {
+    d = data["data"]
+    assert {k: v for k, v in d.items() if k != "suggested_next_commands"} == {
         "candidate_summary": {
             "available": [
                 {
@@ -944,12 +956,12 @@ def test_profile_audio_output_json_output(monkeypatch, capsys) -> None:
             "alsa_device": "hw:0,0",
             "backend": "alsa",
         },
-        "suggested_next_commands": [
-            "gst-device-explorer pipeline audio-output hw:0,0",
-            "gst-device-explorer pipeline audio-output hw:0,0 --diagnostics",
-            "gst-device-explorer run audio-output hw:0,0 --dry-run",
-        ],
     }
+    assert [c["command"] for c in d["suggested_next_commands"]] == [
+        "gst-device-explorer pipeline audio-output hw:0,0",
+        "gst-device-explorer pipeline audio-output hw:0,0 --diagnostics",
+        "gst-device-explorer run audio-output hw:0,0 --dry-run",
+    ]
 
 
 def test_profile_audio_output_json_output_with_groups(monkeypatch, capsys) -> None:
@@ -993,7 +1005,8 @@ def test_profile_audio_input_json_output(monkeypatch, capsys) -> None:
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
     assert data["kind"] == "device_profile"
-    assert data["data"] == {
+    d = data["data"]
+    assert {k: v for k, v in d.items() if k != "suggested_next_commands"} == {
         "candidate_summary": {
             "available": [
                 {
@@ -1017,12 +1030,12 @@ def test_profile_audio_input_json_output(monkeypatch, capsys) -> None:
             "alsa_device": "hw:0,0",
             "backend": "alsa",
         },
-        "suggested_next_commands": [
-            "gst-device-explorer pipeline audio-input hw:0,0",
-            "gst-device-explorer pipeline audio-input hw:0,0 --diagnostics",
-            "gst-device-explorer run audio-input hw:0,0 --dry-run",
-        ],
     }
+    assert [c["command"] for c in d["suggested_next_commands"]] == [
+        "gst-device-explorer pipeline audio-input hw:0,0",
+        "gst-device-explorer pipeline audio-input hw:0,0 --diagnostics",
+        "gst-device-explorer run audio-input hw:0,0 --dry-run",
+    ]
 
 
 def test_profile_video_text_output(monkeypatch, capsys) -> None:
@@ -1099,7 +1112,8 @@ def test_profile_video_json_output(monkeypatch, capsys) -> None:
     assert exit_code == 0
     data = json.loads(capsys.readouterr().out)
     assert data["kind"] == "device_profile"
-    assert data["data"] == {
+    d = data["data"]
+    assert {k: v for k, v in d.items() if k != "suggested_next_commands"} == {
         "candidate_summary": {
             "available": [
                 {
@@ -1136,12 +1150,12 @@ def test_profile_video_json_output(monkeypatch, capsys) -> None:
             "backend": "v4l2",
             "path": "/dev/video0",
         },
-        "suggested_next_commands": [
-            "gst-device-explorer pipeline video /dev/video0",
-            "gst-device-explorer pipeline video /dev/video0 --diagnostics",
-            "gst-device-explorer run video /dev/video0 --dry-run",
-        ],
     }
+    assert [c["command"] for c in d["suggested_next_commands"]] == [
+        "gst-device-explorer pipeline video /dev/video0",
+        "gst-device-explorer pipeline video /dev/video0 --diagnostics",
+        "gst-device-explorer run video /dev/video0 --dry-run",
+    ]
 
 
 def test_pipeline_audio_input_text_output_with_one_candidate(
@@ -2400,11 +2414,19 @@ def _audio_device_profile(
             "unavailable": [] if available else [entry],
         },
         groups=groups or [],
-        suggested_next_commands=[
-            f"gst-device-explorer pipeline {device_kind} hw:0,0",
-            f"gst-device-explorer pipeline {device_kind} hw:0,0 --diagnostics",
-            f"gst-device-explorer run {device_kind} hw:0,0 --dry-run",
-        ],
+        suggested_next_commands=(
+            [
+                suggest_audio_input_pipeline("hw:0,0"),
+                suggest_audio_input_pipeline_diagnostics("hw:0,0"),
+                suggest_audio_input_run_dry_run("hw:0,0"),
+            ]
+            if is_input
+            else [
+                suggest_audio_output_pipeline("hw:0,0"),
+                suggest_audio_output_pipeline_diagnostics("hw:0,0"),
+                suggest_audio_output_run_dry_run("hw:0,0"),
+            ]
+        ),
     )
 
 
@@ -2441,9 +2463,9 @@ def _video_device_profile(
         },
         groups=groups or [],
         suggested_next_commands=[
-            "gst-device-explorer pipeline video /dev/video0",
-            "gst-device-explorer pipeline video /dev/video0 --diagnostics",
-            "gst-device-explorer run video /dev/video0 --dry-run",
+            suggest_video_pipeline("/dev/video0"),
+            suggest_video_pipeline_diagnostics("/dev/video0"),
+            suggest_video_run_dry_run("/dev/video0"),
         ],
     )
 

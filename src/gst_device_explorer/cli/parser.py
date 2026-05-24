@@ -558,4 +558,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render schema document as JSON.",
     )
 
+    suggestions_parser = subparsers.add_parser(
+        "suggestions",
+        help="List generic suggested commands.",
+    )
+    suggestions_subparsers = suggestions_parser.add_subparsers(
+        dest="suggestions_command",
+        required=True,
+    )
+    suggestions_list_parser = suggestions_subparsers.add_parser(
+        "list",
+        help="List generic suggested commands from the catalog.",
+    )
+    suggestions_list_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the suggestion catalog as JSON.",
+    )
+
     return parser

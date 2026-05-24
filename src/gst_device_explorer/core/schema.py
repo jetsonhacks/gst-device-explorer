@@ -166,6 +166,75 @@ _SCHEMA_DOCUMENTS = (
         purpose="Envelope kind for V4L2 capability JSON.",
         fields=(),
     ),
+    SchemaDocument(
+        schema_id="suggestion_catalog",
+        title="Suggestion Catalog",
+        purpose="Envelope kind for the generic suggested command catalog JSON.",
+        fields=(
+            SchemaField(
+                name="suggested_commands",
+                value_type="array",
+                description="List of generic suggested commands in catalog order.",
+            ),
+        ),
+    ),
+    SchemaDocument(
+        schema_id="suggested_command",
+        title="Suggested Command",
+        purpose="Structured advisory command suggestion included in profile, report, and validation JSON payloads.",
+        fields=(
+            SchemaField(
+                name="id",
+                value_type="string",
+                description="Deterministic slug derived from argv.",
+            ),
+            SchemaField(
+                name="title",
+                value_type="string",
+                description="Human-readable command title.",
+            ),
+            SchemaField(
+                name="argv",
+                value_type="array",
+                description="Structured command arguments.",
+            ),
+            SchemaField(
+                name="command",
+                value_type="string",
+                description="Shell-safe display string rendered from argv.",
+            ),
+            SchemaField(
+                name="purpose",
+                value_type="string",
+                description="Explanation of why this command is suggested.",
+            ),
+            SchemaField(
+                name="source",
+                value_type="string",
+                description="Subsystem that generated this suggestion.",
+            ),
+            SchemaField(
+                name="safety",
+                value_type="string",
+                description="Safety category: inspection, dry_run, bounded_capture, safe_execution, external_check.",
+            ),
+            SchemaField(
+                name="target_kind",
+                value_type="string|null",
+                description="Optional target device kind.",
+            ),
+            SchemaField(
+                name="target",
+                value_type="string|null",
+                description="Optional target device or group identifier.",
+            ),
+            SchemaField(
+                name="notes",
+                value_type="array",
+                description="Optional advisory notes.",
+            ),
+        ),
+    ),
 )
 
 

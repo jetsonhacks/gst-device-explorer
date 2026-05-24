@@ -11,6 +11,7 @@ from gst_device_explorer.core.models import (
     GroupValidationDiagnostics,
     GroupValidationEndpointCounts,
 )
+from gst_device_explorer.core.suggestions import SuggestedCommand, suggest_profile
 
 
 def build_group_validation(
@@ -162,18 +163,21 @@ def _aggregate_missing_elements(
 
 def _deduplicate_commands(
     endpoint_summaries: list[EndpointValidationSummary],
-) -> list[str]:
+) -> list[SuggestedCommand]:
     seen: set[str] = set()
-    result: list[str] = []
+    result: list[SuggestedCommand] = []
     for summary in endpoint_summaries:
-        for command in summary.suggested_next_commands:
-            if command not in seen:
-                seen.add(command)
-                result.append(command)
+        for cmd in summary.suggested_next_commands:
+            if cmd.id not in seen:
+                seen.add(cmd.id)
+                result.append(cmd)
     return result
 
 
-def _default_suggested_commands(endpoint_kind: str, endpoint: str) -> list[str]:
+def _default_suggested_commands(
+    endpoint_kind: str,
+    endpoint: str,
+) -> list[SuggestedCommand]:
     if endpoint_kind in {"video", "audio-input", "audio-output"}:
-        return [f"gst-device-explorer profile {endpoint_kind} {endpoint}"]
+        return [suggest_profile(endpoint_kind, endpoint)]
     return []

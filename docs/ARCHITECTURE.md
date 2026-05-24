@@ -130,6 +130,32 @@ candidate generation, ranking, presets, reports, capture, validation, or
 execution. Configuration files cannot define raw pipelines, shell commands,
 scripts, hooks, plugins, or remote behavior.
 
+## Suggested Command Catalog
+
+`SuggestedCommand` is a frozen, hashable dataclass in the core layer. It
+represents a displayable, advisory command — something the user can copy and
+run manually. It is never executed automatically by this tool.
+
+The model carries: `id` (slug derived from argv), `title`, `argv` (tuple),
+`purpose`, `source`, `safety`, optional `target_kind`, `target`, and `notes`.
+A `command` property renders the argv via `shlex.join` for shell-safe display.
+
+Builder functions in `core/suggestions.py` construct named suggestions for
+all endpoint kinds and tool commands. Builders are pure functions with no
+side effects. The `list_generic_suggestions()` function returns a static catalog
+of broad starting-point commands for the `suggestions list` CLI command.
+
+Four model fields changed from `list[str]` to `list[SuggestedCommand]` in
+Milestone 16: `DeviceProfile.suggested_next_commands`,
+`SystemReport.suggested_next_commands`,
+`EndpointValidationSummary.suggested_next_commands`, and
+`GroupValidation.suggested_next_commands`. Serializers expose the full
+`SuggestedCommand` shape under these keys. Renderers extract `.command` for
+text display.
+
+Safety vocabulary: `inspection`, `dry_run`, `bounded_capture`,
+`safe_execution`, `external_check`.
+
 ## Schema Stability
 
 Selected JSON outputs are wrapped in a small stable envelope. The core schema
