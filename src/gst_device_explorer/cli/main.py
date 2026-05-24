@@ -159,6 +159,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         renderer.print_system_report(report, as_json=args.json)
         return 0
 
+    if args.command == "recommend" and args.recommend_command == "video":
+        result = commands.build_video_recommendation(args.device_path)
+        renderer.print_candidate_ranking(result, as_json=args.json)
+        return 0
+
+    if args.command == "recommend" and args.recommend_command == "audio-input":
+        result = commands.build_audio_input_recommendation(args.alsa_device)
+        renderer.print_candidate_ranking(result, as_json=args.json)
+        return 0
+
+    if args.command == "recommend" and args.recommend_command == "audio-output":
+        result = commands.build_audio_output_recommendation(args.alsa_device)
+        renderer.print_candidate_ranking(result, as_json=args.json)
+        return 0
+
     if args.command == "run" and args.run_command == "video":
         candidates = commands.build_video_preview_candidates(args.device_path)
         return commands.run_selected_candidate(

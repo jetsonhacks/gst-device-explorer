@@ -151,6 +151,31 @@ class SystemReport:
 
 
 @dataclass(frozen=True)
+class CandidateRecommendation:
+    """One ranked pipeline candidate in a recommendation result."""
+
+    candidate_id: str
+    rank: int
+    selected_profile: str | None
+    available: bool
+    score: int
+    reasons: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    missing_elements: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class CandidateRanking:
+    """Ranked pipeline candidates for one endpoint."""
+
+    kind: str
+    endpoint_kind: str
+    endpoint: str
+    recommended_candidate_id: str | None
+    ranked_candidates: list[CandidateRecommendation] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class ExecutionPlan:
     """A selected pipeline candidate prepared for safe execution."""
 

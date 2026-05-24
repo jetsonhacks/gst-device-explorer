@@ -7,6 +7,7 @@ from dataclasses import asdict
 
 from gst_device_explorer.core.grouping import GroupableDevice
 from gst_device_explorer.core.models import (
+    CandidateRanking,
     Capability,
     CompositeDevice,
     Device,
@@ -18,6 +19,7 @@ from gst_device_explorer.core.models import (
     SystemReport,
 )
 from gst_device_explorer.cli.serializers import (
+    candidate_ranking_to_json_dict,
     device_profile_to_json_dict,
     pipeline_diagnostic_to_json_dict,
     system_report_to_json_dict,
@@ -288,6 +290,42 @@ def print_pipeline_diagnostics(
             print()
             print("Suggested next step:")
             print(f"  gst-device-explorer run {device_kind} {device_path} --dry-run")
+
+
+def print_candidate_ranking(ranking: CandidateRanking, as_json: bool) -> None:
+    if as_json:
+        print(
+            json.dumps(candidate_ranking_to_json_dict(ranking), indent=2, sort_keys=True)
+        )
+        return
+
+    print(f"Recommendations for {ranking.endpoint_kind} {ranking.endpoint}")
+    print()
+
+    if ranking.recommended_candidate_id is not None:
+        print(f"Recommended: {ranking.recommended_candidate_id}")
+    else:
+        print("No available candidate.")
+
+    if not ranking.ranked_candidates:
+        return
+
+    print()
+    for item in ranking.ranked_candidates:
+        status = "available" if item.available else "unavailable"
+        print(f"{item.rank}. {item.candidate_id}  [{status}]")
+        if item.selected_profile is not None:
+            print(f"   Profile label: {item.selected_profile}")
+        for reason in item.reasons:
+            print(f"   Reason: {reason}")
+        if item.warnings:
+            for warning in item.warnings:
+                print(f"   Warning: {warning}")
+        if item.missing_elements:
+            print(f"   Missing elements: {', '.join(item.missing_elements)}")
+            print("   Suggested checks:")
+            for element in item.missing_elements:
+                print(f"     gst-inspect-1.0 {element}")
 
 
 def print_system_report(report: SystemReport, as_json: bool) -> None:

@@ -52,6 +52,43 @@ The report includes:
 
 Text output is a compact summary. File output (`--output`) is deferred.
 
+## Candidate Ranking and Recommendations
+
+Use `recommend` to rank generated pipeline candidates and identify the best one
+to try first:
+
+```sh
+gst-device-explorer recommend video /dev/video0
+gst-device-explorer recommend video /dev/video0 --json
+
+gst-device-explorer recommend audio-input hw:0,0
+gst-device-explorer recommend audio-input hw:0,0 --json
+
+gst-device-explorer recommend audio-output hw:0,0
+gst-device-explorer recommend audio-output hw:0,0 --json
+```
+
+`recommend` ranks the same candidates that `pipeline` generates, without
+creating new pipelines or executing any of them. It explains why one candidate
+is suggested over another, including availability status, missing GStreamer
+elements, and confidence scores.
+
+Text output lists all ranked candidates in order with reasons. JSON output
+includes the full ranking with scores and reasons in machine-readable form.
+
+To inspect or run the recommended candidate:
+
+```sh
+# Inspect all candidates first
+gst-device-explorer pipeline video /dev/video0
+
+# Dry-run the recommended (rank 1) candidate
+gst-device-explorer run video /dev/video0 --dry-run
+
+# Run a specific candidate by ID
+gst-device-explorer run video /dev/video0 --candidate jetson-uvc-mjpeg-nvjpeg-nveglglessink
+```
+
 ## Composite Device Groups
 
 Use `groups` to inspect higher-level composite devices inferred from discovered

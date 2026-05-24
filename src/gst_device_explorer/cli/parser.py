@@ -220,6 +220,54 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render the report as JSON.",
     )
 
+    recommend_parser = subparsers.add_parser(
+        "recommend",
+        help="Rank and recommend pipeline candidates for an endpoint.",
+    )
+    recommend_subparsers = recommend_parser.add_subparsers(
+        dest="recommend_command",
+        required=True,
+    )
+    recommend_video_parser = recommend_subparsers.add_parser(
+        "video",
+        help="Rank and recommend V4L2 video pipeline candidates.",
+    )
+    recommend_video_parser.add_argument(
+        "device_path",
+        help="Path to a video device.",
+    )
+    recommend_video_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the ranking as JSON.",
+    )
+    recommend_audio_input_parser = recommend_subparsers.add_parser(
+        "audio-input",
+        help="Rank and recommend ALSA audio input pipeline candidates.",
+    )
+    recommend_audio_input_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    recommend_audio_input_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the ranking as JSON.",
+    )
+    recommend_audio_output_parser = recommend_subparsers.add_parser(
+        "audio-output",
+        help="Rank and recommend ALSA audio output pipeline candidates.",
+    )
+    recommend_audio_output_parser.add_argument(
+        "alsa_device",
+        help="ALSA device name such as hw:0,0.",
+    )
+    recommend_audio_output_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Render the ranking as JSON.",
+    )
+
     run_parser = subparsers.add_parser(
         "run",
         help="Select and run one pipeline candidate.",

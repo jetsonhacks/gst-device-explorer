@@ -7,6 +7,8 @@ from dataclasses import asdict
 
 from gst_device_explorer.core.grouping import GroupableDevice
 from gst_device_explorer.core.models import (
+    CandidateRanking,
+    CandidateRecommendation,
     Capability,
     CompositeDevice,
     Device,
@@ -100,6 +102,32 @@ def profile_group_summary_to_json_dict(group: ProfileGroupSummary) -> dict:
         "kind": group.kind,
         "label": group.label,
         "member_count": group.member_count,
+    }
+
+
+def candidate_ranking_to_json_dict(ranking: CandidateRanking) -> dict:
+    return {
+        "endpoint": ranking.endpoint,
+        "endpoint_kind": ranking.endpoint_kind,
+        "kind": ranking.kind,
+        "ranked_candidates": [
+            candidate_recommendation_to_json_dict(item)
+            for item in ranking.ranked_candidates
+        ],
+        "recommended_candidate_id": ranking.recommended_candidate_id,
+    }
+
+
+def candidate_recommendation_to_json_dict(item: CandidateRecommendation) -> dict:
+    return {
+        "available": item.available,
+        "candidate_id": item.candidate_id,
+        "missing_elements": list(item.missing_elements),
+        "rank": item.rank,
+        "reasons": list(item.reasons),
+        "score": item.score,
+        "selected_profile": item.selected_profile,
+        "warnings": list(item.warnings),
     }
 
 

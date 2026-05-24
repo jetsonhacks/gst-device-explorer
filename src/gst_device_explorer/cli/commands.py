@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from gst_device_explorer import __version__
 from gst_device_explorer.core.models import (
+    CandidateRanking,
     CompositeDevice,
     Device,
     DeviceProfile,
@@ -17,6 +18,7 @@ import gst_device_explorer.core.discovery as discovery
 import gst_device_explorer.core.execution as execution
 import gst_device_explorer.core.pipelines as pipelines
 import gst_device_explorer.core.profiles as profiles
+import gst_device_explorer.core.ranking as ranking
 import gst_device_explorer.core.report as core_report
 import gst_device_explorer.core.video_diagnostics as video_diagnostics
 import gst_device_explorer.probes.alsa as alsa_probe
@@ -180,6 +182,49 @@ def _find_alsa_device(
         ),
         None,
     )
+
+
+def build_video_recommendation(device_path: str) -> CandidateRanking:
+    """Build a ranked recommendation for a V4L2 video endpoint."""
+    device = Device(
+        id=device_path,
+        kind="video_input",
+        name=device_path,
+        metadata={"backend": "v4l2", "path": device_path},
+    )
+    capabilities = v4l2_probe.discover_v4l2_capabilities(device_path)
+    environment = gst_probe.inspect_gstreamer_environment()
+    candidates = pipelines.build_video_preview_candidates(device, capabilities, environment)
+    diagnostics = video_diagnostics.build_video_preview_diagnostics(
+        device, capabilities, environment
+    )
+    return ranking.rank_candidates(candidates, diagnostics, "video", device_path)
+
+
+def build_audio_input_recommendation(alsa_device: str) -> CandidateRanking:
+    """Build a ranked recommendation for an ALSA audio input endpoint."""
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_inputs(), alsa_device, kind="audio_input"
+    )
+    if device is None:
+        return ranking.empty_ranking("audio-input", alsa_device)
+    environment = gst_probe.inspect_gstreamer_environment()
+    candidates = audio_pipelines.build_audio_input_test_candidates(device, environment)
+    diagnostics = audio_diagnostics.build_audio_input_test_diagnostics(device, environment)
+    return ranking.rank_candidates(candidates, diagnostics, "audio-input", alsa_device)
+
+
+def build_audio_output_recommendation(alsa_device: str) -> CandidateRanking:
+    """Build a ranked recommendation for an ALSA audio output endpoint."""
+    device = _find_alsa_device(
+        alsa_probe.discover_alsa_audio_outputs(), alsa_device, kind="audio_output"
+    )
+    if device is None:
+        return ranking.empty_ranking("audio-output", alsa_device)
+    environment = gst_probe.inspect_gstreamer_environment()
+    candidates = audio_pipelines.build_audio_output_test_candidates(device, environment)
+    diagnostics = audio_diagnostics.build_audio_output_test_diagnostics(device, environment)
+    return ranking.rank_candidates(candidates, diagnostics, "audio-output", alsa_device)
 
 
 def build_system_report() -> SystemReport:
