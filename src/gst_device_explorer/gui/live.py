@@ -32,6 +32,7 @@ from gst_device_explorer.gui.builders import (
     build_detail_pane_for_video,
     build_media_explorer_snapshot,
     build_sidebar_model,
+    group_children_by_parent,
 )
 from gst_device_explorer.gui.model import (
     DetailPaneModel,
@@ -208,6 +209,7 @@ def build_detail_pane_map(
         for ranking_item in recommendations
     }
     validations_by_group = {item.group_id: item for item in validations}
+    children_by_group = group_children_by_parent(groups)
     result: dict[str, DetailPaneModel] = {
         snapshot.detail_pane.selected_id: snapshot.detail_pane,
         "root:devices": build_overview_detail_pane(snapshot),
@@ -221,6 +223,7 @@ def build_detail_pane_map(
         result[f"group:{group.id}"] = build_detail_pane_for_group(
             group,
             validation=validations_by_group.get(group.id),
+            child_groups=children_by_group.get(group.id, ()),
         )
     for device in video_devices:
         target = _device_target(device)

@@ -28,6 +28,7 @@ from gst_device_explorer.gui.builders import (
     build_detail_pane_for_video,
     build_media_explorer_snapshot,
     build_unknown_detail_pane,
+    group_children_by_parent,
 )
 from gst_device_explorer.gui.model import DetailPaneModel, MediaExplorerSnapshot, SidebarNode
 
@@ -152,13 +153,18 @@ def _build_demo_detail_panes(
 ) -> dict[str, DetailPaneModel]:
     by_profile = {(profile.device_kind, profile.device): profile for profile in profiles}
     by_ranking = {(ranking.endpoint_kind, ranking.endpoint): ranking for ranking in recommendations}
+    children_by_group = group_children_by_parent([group])
     result: dict[str, DetailPaneModel] = {
         "root:devices": build_unknown_detail_pane("root:devices"),
         "section:composite-groups": build_unknown_detail_pane("section:composite-groups"),
         "section:cameras": build_unknown_detail_pane("section:cameras"),
         "section:audio-inputs": build_unknown_detail_pane("section:audio-inputs"),
         "section:audio-outputs": build_unknown_detail_pane("section:audio-outputs"),
-        "group:demo-usb-device": build_detail_pane_for_group(group, validation=validation),
+        "group:demo-usb-device": build_detail_pane_for_group(
+            group,
+            validation=validation,
+            child_groups=children_by_group.get(group.id, ()),
+        ),
     }
     for device in video_devices:
         pane = build_detail_pane_for_video(

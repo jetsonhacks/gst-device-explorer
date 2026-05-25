@@ -158,7 +158,12 @@ def test_group_detail_pane_preserves_status_and_validation_actions() -> None:
 
     assert pane.kind == "group"
     assert pane.status == "limited"
-    assert pane.sections[0].title == "Endpoints"
+    sections = {section.title: section for section in pane.sections}
+    assert "Group Summary" in sections
+    assert "Endpoints" in sections
+    assert "Direct Endpoints" in sections
+    assert "Grouping Evidence" in sections
+    assert "Reproduce with CLI" in sections
     assert any(action.kind == "validate_group" for action in pane.actions)
     validate_action = next(action for action in pane.actions if action.kind == "validate_group")
     assert validate_action.suggested_command is not None

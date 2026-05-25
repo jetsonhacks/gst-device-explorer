@@ -16,15 +16,20 @@ from gst_device_explorer.core.models import (
     CameraControlChoice,
     CameraControlSet,
     Capability,
+    CompositeDevice,
     Device,
     DeviceProfile,
+    DeviceRef,
+    GroupingEvidence,
     ProfileGroupSummary,
 )
+from gst_device_explorer.gui.builders import build_media_explorer_snapshot
 from gst_device_explorer.gui.demo import build_demo_gui_snapshot
 from gst_device_explorer.gui.live import build_error_detail_pane, build_empty_snapshot
 from gst_device_explorer.gui.model import DetailSection
 from gst_device_explorer.gui.qt_camera_controls import camera_control_group_labels, camera_control_widget_plans
 from gst_device_explorer.gui.qt_camera_modes import camera_mode_tree
+from gst_device_explorer.gui.qt_device_info import create_device_information_widget
 from gst_device_explorer.gui.qt_detail import (
     action_copy_text,
     copy_display_text,
@@ -223,6 +228,66 @@ def test_group_explore_tab_is_dashboard_with_endpoint_cards() -> None:
     assert "Preview" not in text
     assert "Capture" not in text
     assert "Validate Group" not in text
+
+
+def test_group_device_information_explains_evidence_membership_and_cli() -> None:
+    snapshot = build_media_explorer_snapshot(
+        video_devices=[_video_device("/dev/video0"), _video_device("/dev/video1")],
+        audio_inputs=[_audio_input_device("hw:2,0")],
+        audio_outputs=[_audio_output_device("hw:2,0")],
+        groups=[_reachy_audio_group(), _reachy_camera_group(), _reachy_parent_group()],
+        selected_id="group:usb-family-1-4",
+    )
+    text = device_information_accessible_text(snapshot.detail_pane)
+
+    assert text.startswith("Device Information\n")
+    assert "Group Summary" in text
+    assert "Name: Reachy Mini" in text
+    assert "Group id: usb-family-1-4" in text
+    assert "Direct endpoints: 0" in text
+    assert "Child groups: 2" in text
+    assert "Grouping Evidence" in text
+    assert "composite groups share USB ancestor 1-4" in text
+    assert "Direct Endpoints" in text
+    assert "No direct endpoints outside child groups." in text
+    assert "Child Groups" in text
+    assert "Reachy Mini Audio: audio-device-alsa-card-0, endpoints hw:2,0, hw:2,0" in text
+    assert "Reachy Mini Camera: usb-device-1-4-1-4, endpoints /dev/video0, /dev/video1" in text
+    assert "Constituent Endpoints" not in text
+    assert "Metadata / Diagnostics" in text
+    assert "No additional group metadata is available." in text
+    assert "Reproduce with CLI" in text
+    assert "gst-device-explorer groups" in text
+    assert "gst-device-explorer validate group usb-family-1-4" in text
+    assert "gst-device-explorer report" in text
+    assert "Preview" not in text
+    assert "Capture" not in text
+
+
+def test_group_device_information_renders_cli_commands_as_read_only_code() -> None:
+    snapshot = build_media_explorer_snapshot(
+        groups=[_reachy_parent_group()],
+        selected_id="group:usb-family-1-4",
+    )
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_device_information_widget(snapshot.detail_pane)
+
+    try:
+        command_fields = widget.findChildren(QtWidgets.QLineEdit, "groupReproduceCommandText")
+
+        assert [field.text() for field in command_fields] == [
+            "gst-device-explorer groups",
+            "gst-device-explorer validate group usb-family-1-4",
+            "gst-device-explorer report",
+        ]
+        assert all(field.isReadOnly() for field in command_fields)
+        assert all(field.property("presentation") == "code" for field in command_fields)
+        assert all(field.font().fixedPitch() for field in command_fields)
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
 
 
 def test_group_explore_widget_endpoint_actions_are_navigation_only() -> None:
@@ -693,6 +758,96 @@ def _grouped_controls() -> CameraControlSet:
                 ),
             ),
         ),
+    )
+
+
+def _video_device(path: str) -> Device:
+    return Device(
+        id=path,
+        kind="video_input",
+        name=f"Camera {path}",
+        metadata={"path": path},
+        capabilities=[_video_capability("MJPG", "Motion-JPEG", 640, 480, [30.0])],
+    )
+
+
+def _audio_input_device(device_id: str) -> Device:
+    return Device(
+        id=device_id,
+        kind="audio_input",
+        name=f"Microphone {device_id}",
+        metadata={"alsa_device": device_id},
+    )
+
+
+def _audio_output_device(device_id: str) -> Device:
+    return Device(
+        id=device_id,
+        kind="audio_output",
+        name=f"Speaker {device_id}",
+        metadata={"alsa_device": device_id},
+    )
+
+
+def _reachy_audio_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="audio-device-alsa-card-0",
+        name="Reachy Mini Audio",
+        kind="audio-device",
+        confidence=0.9,
+        members=[
+            DeviceRef(role="audio-input", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+            DeviceRef(role="audio-output", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="alsa-card",
+                description="audio devices share ALSA card 0",
+                strength=0.9,
+            )
+        ],
+    )
+
+
+def _reachy_camera_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="usb-device-1-4-1-4",
+        name="Reachy Mini Camera",
+        kind="unknown",
+        confidence=0.9,
+        members=[
+            DeviceRef(role="camera", device_id="/dev/video0", path="/dev/video0", subsystem="v4l2"),
+            DeviceRef(role="camera", device_id="/dev/video1", path="/dev/video1", subsystem="v4l2"),
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="usb-topology",
+                description="devices share USB parent path 1-4.1.4",
+                strength=0.9,
+            )
+        ],
+    )
+
+
+def _reachy_parent_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="usb-family-1-4",
+        name="Reachy Mini",
+        kind="unknown",
+        confidence=0.8,
+        members=[
+            DeviceRef(role="audio-input", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+            DeviceRef(role="audio-output", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+            DeviceRef(role="camera", device_id="/dev/video0", path="/dev/video0", subsystem="v4l2"),
+            DeviceRef(role="camera", device_id="/dev/video1", path="/dev/video1", subsystem="v4l2"),
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="usb-topology",
+                description="composite groups share USB ancestor 1-4",
+                strength=0.8,
+            )
+        ],
     )
 
 

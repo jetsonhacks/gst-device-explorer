@@ -20,6 +20,8 @@ from gst_device_explorer.gui.qt_sections import (
     section_kind,
 )
 
+GROUP_DEVICE_INFO_EXPLORE_ONLY_SECTIONS = frozenset({"Endpoints"})
+
 
 def device_information_accessible_text(detail: DetailPaneModel) -> str:
     """Return the text intended for the Device Information tab."""
@@ -32,6 +34,8 @@ def device_information_accessible_text(detail: DetailPaneModel) -> str:
         lines.extend(detail.summary)
     for section in detail.sections:
         if is_camera_explore_section(detail, section):
+            continue
+        if is_group_explore_only_section(detail, section.title):
             continue
         lines.append(section_display_title(section))
         lines.extend(section.items)
@@ -77,9 +81,16 @@ def create_device_information_widget(
     for section in detail.sections:
         if is_camera_explore_section(detail, section):
             continue
+        if is_group_explore_only_section(detail, section.title):
+            continue
         section_box = QGroupBox(section_display_title(section))
         section_layout = QVBoxLayout(section_box)
-        if section_kind(section) in {"candidate", "capability", "identity", "group"}:
+        if detail.kind == "group" and section.title == "Reproduce with CLI":
+            for item in section.items:
+                section_layout.addWidget(
+                    _create_command_row(item, status_callback=status_callback)
+                )
+        elif section_kind(section) in {"candidate", "capability", "identity", "group"}:
             section_layout.addWidget(create_section_table(section))
         else:
             for item in section.items:
@@ -117,3 +128,37 @@ def create_device_information_widget(
     layout.addWidget(actions_box)
     layout.addStretch(1)
     return pane
+
+
+def is_group_explore_only_section(detail: DetailPaneModel, title: str) -> bool:
+    if detail.kind != "group" or title not in GROUP_DEVICE_INFO_EXPLORE_ONLY_SECTIONS:
+        return False
+    return any(section.title == "Child Groups" for section in detail.sections)
+
+
+def _create_command_row(
+    command: str,
+    *,
+    status_callback: Callable[[str], None] | None = None,
+) -> object:
+    from PySide6.QtGui import QFont, QFontDatabase
+    from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QSizePolicy, QWidget
+
+    row = QWidget()
+    layout = QHBoxLayout(row)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(6)
+    command_text = QLineEdit(command)
+    command_text.setObjectName("groupReproduceCommandText")
+    command_text.setReadOnly(True)
+    command_text.setProperty("presentation", "code")
+    command_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+    command_font.setStyleHint(QFont.Monospace)
+    command_font.setFixedPitch(True)
+    command_text.setFont(command_font)
+    command_text.setMinimumWidth(0)
+    command_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    command_text.setCursorPosition(0)
+    layout.addWidget(command_text, 1)
+    layout.addWidget(create_copy_button("Copy", command, status_callback=status_callback))
+    return row

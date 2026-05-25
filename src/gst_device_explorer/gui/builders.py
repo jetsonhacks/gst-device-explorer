@@ -28,6 +28,7 @@ from gst_device_explorer.core.suggestions import (
     suggest_audio_output_pipeline_diagnostics,
     suggest_audio_output_run_dry_run,
     suggest_devices_command,
+    suggest_group_list,
     suggest_group_validation,
     suggest_report,
     suggest_video_pipeline_diagnostics,
@@ -137,16 +138,57 @@ def build_detail_pane_for_group(
     group: CompositeDevice,
     *,
     validation: GroupValidation | None = None,
+    child_groups: Sequence[CompositeDevice] = (),
 ) -> DetailPaneModel:
     """Build a group detail pane from an existing composite-device model."""
 
+    child_member_keys = {
+        key
+        for child_group in child_groups
+        for key in _group_member_keys(child_group)
+    }
+    direct_members = tuple(
+        member
+        for member in sorted(group.members, key=lambda m: (m.role, m.device_id))
+        if _member_key(member.role, member.device_id) not in child_member_keys
+    )
+    all_members = tuple(sorted(group.members, key=lambda m: (m.role, m.device_id)))
+    validation_command = suggest_group_validation(group.id).command
     sections = [
+        DetailSection(
+            title="Group Summary",
+            items=(
+                f"Name: {group.name}",
+                f"Group id: {group.id}",
+                f"Kind: {group.kind}",
+                f"Confidence: {group.confidence:.2f}",
+                f"Direct endpoints: {len(direct_members) if child_groups else len(all_members)}",
+                f"Child groups: {len(child_groups)}",
+                f"Total endpoints: {len(all_members)}",
+            ),
+        ),
         DetailSection(
             title="Endpoints",
             items=tuple(
                 f"{_role_label(member.role)}: {member.device_id}"
-                for member in sorted(group.members, key=lambda m: (m.role, m.device_id))
+                for member in all_members
             ),
+        ),
+        DetailSection(
+            title="Direct Endpoints",
+            items=tuple(
+                f"{_role_label(member.role)}: {member.device_id}"
+                for member in direct_members
+            )
+            or ("No direct endpoints outside child groups.",),
+        ),
+        DetailSection(
+            title="Child Groups",
+            items=tuple(
+                f"{child.name}: {child.id}, endpoints {_group_member_targets(child)}, confidence {child.confidence:.2f}"
+                for child in child_groups
+            )
+            or ("No child groups inferred.",),
         ),
         DetailSection(
             title="Grouping Evidence",
@@ -155,6 +197,22 @@ def build_detail_pane_for_group(
                 for evidence in group.evidence
             )
             or ("No grouping evidence was provided.",),
+        ),
+        DetailSection(
+            title="Metadata / Diagnostics",
+            items=(
+                "No additional group metadata is available."
+                if validation is None
+                else f"Validation status: {validation.status}",
+            ),
+        ),
+        DetailSection(
+            title="Reproduce with CLI",
+            items=(
+                suggest_group_list().command,
+                validation_command,
+                suggest_report().command,
+            ),
         ),
         DetailSection(
             title="Notes / Limitations",
@@ -376,6 +434,7 @@ def _detail_for_selection(
             return build_detail_pane_for_group(
                 group,
                 validation=validation_by_group.get(group.id),
+                child_groups=group_children_by_parent(groups).get(group.id, ()),
             )
 
     for node_kind, devices, builder in (
@@ -433,7 +492,7 @@ def _section_node(node_id: str, label: str, children: tuple[SidebarNode, ...]) -
 
 
 def _group_nodes(groups: Sequence[CompositeDevice]) -> tuple[SidebarNode, ...]:
-    children_by_group = _group_children_by_parent(groups)
+    children_by_group = group_children_by_parent(groups)
     child_ids = {child.id for children in children_by_group.values() for child in children}
     return tuple(
         _group_node(group, children_by_group=children_by_group)
@@ -475,7 +534,7 @@ def _group_node(
     )
 
 
-def _group_children_by_parent(
+def group_children_by_parent(
     groups: Sequence[CompositeDevice],
 ) -> dict[str, tuple[CompositeDevice, ...]]:
     result: dict[str, tuple[CompositeDevice, ...]] = {}
@@ -506,6 +565,13 @@ def _group_member_keys(group: CompositeDevice) -> set[tuple[str, str]]:
         _member_key(member.role, member.device_id)
         for member in group.members
     }
+
+
+def _group_member_targets(group: CompositeDevice) -> str:
+    return ", ".join(
+        member.device_id
+        for member in sorted(group.members, key=lambda member: (member.role, member.device_id))
+    )
 
 
 def _member_key(role: str, device_id: str) -> tuple[str, str]:
