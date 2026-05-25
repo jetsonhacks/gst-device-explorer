@@ -6,6 +6,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from gst_device_explorer.gui.model import DetailPaneModel
+from gst_device_explorer.gui.qt_audio_input_explorer import (
+    audio_input_explore_lines,
+    create_audio_input_explorer_widget,
+    has_audio_input_explorer,
+)
 from gst_device_explorer.gui.qt_camera_explorer import (
     camera_explore_lines,
     create_camera_explorer_widget,
@@ -33,6 +38,8 @@ def explore_accessible_text(detail: DetailPaneModel) -> str:
     lines = ["Explore"]
     if has_camera_explorer(detail):
         lines.extend(camera_explore_lines(detail))
+    elif has_audio_input_explorer(detail):
+        lines.extend(audio_input_explore_lines(detail))
     elif has_group_explorer(detail):
         lines.extend(group_explore_lines(detail))
     else:
@@ -58,6 +65,8 @@ def create_explore_widget(
     pane.setAccessibleDescription(explore_accessible_text(detail))
     if has_camera_explorer(detail):
         layout.addWidget(create_camera_explorer_widget(detail, status_callback=status_callback), 1)
+    elif has_audio_input_explorer(detail):
+        layout.addWidget(create_audio_input_explorer_widget(detail, status_callback=status_callback), 1)
     elif has_group_explorer(detail):
         layout.addWidget(
             create_group_explorer_widget(detail, navigate_callback=navigate_callback),

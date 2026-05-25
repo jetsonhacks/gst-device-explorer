@@ -561,18 +561,69 @@ def test_device_information_tab_contains_report_sections_not_camera_explorer() -
     assert "Dynamic V4L2 Controls" not in text
 
 
-def test_non_camera_explore_tabs_are_lightweight_placeholders() -> None:
+def test_group_and_audio_output_explore_tabs_have_expected_surfaces() -> None:
     demo = build_demo_gui_snapshot()
     group_text = explore_accessible_text(demo.detail_panes["group:demo-usb-device"])
-    input_text = explore_accessible_text(demo.detail_panes["audio_input:hw:2,0"])
     output_text = explore_accessible_text(demo.detail_panes["audio_output:hw:2,0"])
 
     assert "Group Explore" in group_text
     assert "Explore Camera" in group_text
-    assert "Audio input exploration controls are deferred." in input_text
     assert "Audio output exploration controls are deferred." in output_text
-    assert "Candidate Pipelines" not in input_text
     assert "Recommended Candidate" not in output_text
+
+
+def test_audio_input_explore_tab_is_inspector_with_generated_pipeline() -> None:
+    pane = build_demo_gui_snapshot().detail_panes["audio_input:hw:2,0"]
+    text = explore_accessible_text(pane)
+
+    assert text.startswith("Explore\n")
+    assert "Audio Input" in text
+    assert "Reachy-Style Microphone - hw:2,0" in text
+    assert "Kind: Audio Input" in text
+    assert "Endpoint: hw:2,0" in text
+    assert "Audio Input Mode" in text
+    assert "Sample Format" in text
+    assert "No detailed format list available" in text
+    assert "Sample Rate" in text
+    assert "Channels" in text
+    assert "Using default generated input candidate" in text
+    assert "Generated Input Pipeline" in text
+    assert "gst-launch-1.0 alsasrc device=hw:2,0" in text
+    assert "Copy Pipeline" in text
+    assert "Future Input Test" in text
+    assert "Input testing is deferred" in text
+    assert "Audio input exploration controls are deferred." not in text
+    assert "Capture" not in text
+    assert "Record" not in text
+
+
+def test_audio_input_pipeline_widget_is_read_only_code_and_copyable() -> None:
+    statuses: list[str] = []
+    pane = build_demo_gui_snapshot().detail_panes["audio_input:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, status_callback=statuses.append)
+
+    try:
+        pipeline = widget.findChild(QtWidgets.QLineEdit, "audioInputPipelineText")
+        copy_button = widget.findChild(QtWidgets.QPushButton, "audioInputPipelineCopyButton")
+
+        assert pipeline is not None
+        assert copy_button is not None
+        assert pipeline.isReadOnly()
+        assert pipeline.property("presentation") == "code"
+        assert pipeline.font().fixedPitch()
+        assert pipeline.text().startswith("gst-launch-1.0 alsasrc device=hw:2,0")
+        assert copy_button.text() == "Copy Pipeline"
+
+        copy_button.click()
+
+        assert statuses == ["Copied to clipboard."]
+        assert copy_button.text() == "Copied"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
 
 
 def test_audio_input_output_panes_have_audio_specific_text() -> None:
