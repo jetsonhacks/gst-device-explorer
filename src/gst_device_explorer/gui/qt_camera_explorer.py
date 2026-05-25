@@ -23,6 +23,9 @@ from gst_device_explorer.gui.qt_sections import (
     target_from_summary,
 )
 
+CAMERA_MODE_SECTION_TITLE = "Camera Mode"
+CAMERA_FRAME_RATE_LABEL = "Frame Rate"
+
 CAMERA_EXPLORE_SECTION_TITLES = frozenset(
     {
         "Camera Explorer",
@@ -48,8 +51,8 @@ def camera_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     subheader = _camera_subheader_text(detail)
     if subheader:
         lines.append(subheader)
-    lines.append("Camera Settings")
-    lines.extend(("Pixel Format", "Image Size", "Frame Duration / FPS"))
+    lines.append(CAMERA_MODE_SECTION_TITLE)
+    lines.extend(("Pixel Format", "Image Size", CAMERA_FRAME_RATE_LABEL))
     labels = format_labels(detail)
     lines.extend(labels.get(pixel_format, pixel_format) for pixel_format in camera_mode_tree(detail))
     for section in detail.sections:
@@ -74,6 +77,7 @@ def create_camera_explorer_widget(
     *,
     status_callback: Callable[[str], None] | None = None,
 ) -> object:
+    from PySide6.QtGui import QFont, QFontDatabase
     from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget
     from PySide6.QtWidgets import QListWidgetItem, QPushButton, QSizePolicy, QVBoxLayout, QWidget
     from PySide6.QtCore import Qt
@@ -100,7 +104,7 @@ def create_camera_explorer_widget(
             {
                 "Pixel Format": "cameraPixelFormatList",
                 "Image Size": "cameraImageSizeList",
-                "Frame Duration / FPS": "cameraFrameDurationList",
+                CAMERA_FRAME_RATE_LABEL: "cameraFrameRateList",
             }[title]
         )
         lst.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -109,7 +113,7 @@ def create_camera_explorer_widget(
         col.addWidget(lst)
         return col, lst
 
-    settings_box = QGroupBox("Camera Settings")
+    settings_box = QGroupBox(CAMERA_MODE_SECTION_TITLE)
     settings_outer = QVBoxLayout(settings_box)
     settings_outer.setSpacing(6)
     settings_layout = QHBoxLayout()
@@ -117,7 +121,7 @@ def create_camera_explorer_widget(
 
     fmt_col, fmt_list = _list_column("Pixel Format")
     res_col, res_list = _list_column("Image Size")
-    rate_col, rate_list = _list_column("Frame Duration / FPS")
+    rate_col, rate_list = _list_column(CAMERA_FRAME_RATE_LABEL)
 
     labels = format_labels(detail)
     for fmt in mode_tree:
@@ -145,11 +149,25 @@ def create_camera_explorer_widget(
     pipeline_box = QGroupBox("Generated Pipeline")
     pipeline_box_layout = QVBoxLayout(pipeline_box)
     pipeline_row = QHBoxLayout()
+    pipeline_row.setSpacing(6)
     pipeline_edit = QLineEdit(pipeline or "Pipeline unavailable for this camera mode.")
     pipeline_edit.setReadOnly(True)
     pipeline_edit.setObjectName("cameraPipelineText")
+    pipeline_edit.setProperty("presentation", "code")
+    pipeline_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+    pipeline_font.setStyleHint(QFont.Monospace)
+    pipeline_font.setFixedPitch(True)
+    pipeline_edit.setFont(pipeline_font)
+    pipeline_edit.setMinimumWidth(0)
+    pipeline_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    pipeline_edit.setStyleSheet(
+        "QLineEdit#cameraPipelineText {"
+        "font-family: monospace;"
+        "padding: 3px 6px;"
+        "}"
+    )
     pipeline_edit.setCursorPosition(0)
-    pipeline_row.addWidget(pipeline_edit)
+    pipeline_row.addWidget(pipeline_edit, 1)
     copy_btn = _copy_dynamic_button(
         "Copy Pipeline",
         pipeline_edit.text,
@@ -296,17 +314,34 @@ def _copy_dynamic_button(
     *,
     status_callback: Callable[[str], None] | None = None,
 ) -> object:
+    from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QPushButton, QSizePolicy
 
     button = QPushButton(label)
+    button.setObjectName("cameraPipelineCopyButton")
+    button.setToolTip(label)
     button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-    button.clicked.connect(
-        lambda _checked=False: copy_to_clipboard(
+    original_label = label
+
+    def _copy(_checked: bool = False) -> None:
+        copy_to_clipboard(
             text_getter(),
             status_callback=status_callback,
         )
-    )
+        button.setText("Copied")
+        button.setToolTip("Copied")
+        QTimer.singleShot(1200, lambda: _reset_copy_button(button, original_label))
+
+    button.clicked.connect(_copy)
     return button
+
+
+def _reset_copy_button(button: object, label: str) -> None:
+    try:
+        button.setText(label)
+        button.setToolTip(label)
+    except RuntimeError:
+        pass
 
 
 def _pipeline_text(detail: DetailPaneModel) -> str | None:
