@@ -14,6 +14,9 @@ from gst_device_explorer.gui.qt_detail import (
     copyable_texts,
     detail_accessible_text,
     detail_identity_items,
+    detail_tab_titles,
+    device_information_accessible_text,
+    explore_accessible_text,
     section_display_title,
     section_kind,
 )
@@ -52,6 +55,58 @@ def test_video_detail_pane_has_camera_specific_text() -> None:
     assert "Capabilities" in text
     assert "Candidate Pipelines" in text
     assert "Recommended Candidate" in text
+
+
+def test_selected_detail_pane_has_explore_and_device_information_tabs() -> None:
+    pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
+
+    assert detail_tab_titles(pane) == ("Explore", "Device Information")
+
+
+def test_camera_explore_tab_contains_camera_explorer_not_report_sections() -> None:
+    pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
+    text = explore_accessible_text(pane)
+
+    assert text.startswith("Explore\n")
+    assert "Camera Explorer" in text
+    assert "Generated Pipeline" in text
+    assert "gst-launch-1.0 v4l2src device=/dev/video0" in text
+    assert "Dynamic V4L2 Controls" in text
+    assert "brightness: type=int" in text
+    assert "Identity and Metadata" not in text
+    assert "Candidate Pipelines" not in text
+    assert "Safe Actions" not in text
+
+
+def test_device_information_tab_contains_report_sections_not_camera_explorer() -> None:
+    pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
+    text = device_information_accessible_text(pane)
+
+    assert text.startswith("Device Information\n")
+    assert "Identity" in text
+    assert "Summary" in text
+    assert "Identity and Metadata" in text
+    assert "Capabilities" in text
+    assert "Candidate Pipelines" in text
+    assert "Recommended Candidate" in text
+    assert "Copy" in text
+    assert "Safe Actions" in text
+    assert "Camera Explorer" not in text
+    assert "Dynamic V4L2 Controls" not in text
+
+
+def test_non_camera_explore_tabs_are_lightweight_placeholders() -> None:
+    demo = build_demo_gui_snapshot()
+    group_text = explore_accessible_text(demo.detail_panes["group:demo-usb-device"])
+    input_text = explore_accessible_text(demo.detail_panes["audio_input:hw:2,0"])
+    output_text = explore_accessible_text(demo.detail_panes["audio_output:hw:2,0"])
+
+    assert "Group exploration dashboard is deferred." in group_text
+    assert "Select an endpoint in the sidebar to explore it directly." in group_text
+    assert "Audio input exploration controls are deferred." in input_text
+    assert "Audio output exploration controls are deferred." in output_text
+    assert "Candidate Pipelines" not in input_text
+    assert "Recommended Candidate" not in output_text
 
 
 def test_audio_input_output_panes_have_audio_specific_text() -> None:
