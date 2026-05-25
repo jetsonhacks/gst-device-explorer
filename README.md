@@ -62,8 +62,8 @@ When a camera is selected, the GUI prioritizes camera exploration over generic
 report text. It shows available pixel formats, resolutions, frame rates, a
 display-only GStreamer pipeline string, a copy pipeline button, and the V4L2
 controls advertised by that specific camera. Controls are rendered dynamically
-from read-only `v4l2-ctl --list-ctrls-menus` data and are disabled in this
-milestone; the GUI does not write controls or call `v4l2-ctl --set-ctrl`.
+as disabled read-only widgets from `v4l2-ctl --list-ctrls-menus` data; the GUI
+does not write controls or call `v4l2-ctl --set-ctrl`.
 
 ## System Report
 
@@ -309,7 +309,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.27.0",
+  "tool_version": "0.28.4",
   "kind": "preset_list",
   "data": []
 }
@@ -326,7 +326,7 @@ Selected known error paths return a companion error envelope:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.27.0",
+  "tool_version": "0.28.4",
   "kind": "error",
   "error": {
     "code": "unknown_schema",

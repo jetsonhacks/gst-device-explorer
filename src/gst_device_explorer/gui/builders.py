@@ -233,6 +233,7 @@ def build_detail_pane_for_video(
         target=target,
         summary=_device_summary(device, profile),
         sections=(
+            _raw_camera_capability_section(device),
             *camera_explorer_sections(state),
             *_endpoint_sections(device, profile, recommendation),
         ),
@@ -538,6 +539,11 @@ def _device_target(device: Device) -> str:
 
 
 def _display_name(device: Device, profile: DeviceProfile | None, *, fallback: str) -> str:
+    if device.kind == "video_input" and profile is not None and profile.groups:
+        group_label = profile.groups[0].label
+        if "camera" in group_label.lower():
+            return group_label
+        return f"{group_label} Camera"
     if profile is not None and profile.display_name:
         return profile.display_name
     if device.name:
@@ -592,6 +598,46 @@ def _endpoint_sections(
             )
         )
     return tuple(sections)
+
+
+def _raw_camera_capability_section(device: Device) -> DetailSection:
+    items = []
+    for capability in device.capabilities:
+        if capability.name != "video_format":
+            continue
+        values = capability.values
+        pixel_format = values.get("pixel_format") or values.get("raw_pixel_format")
+        width = values.get("width")
+        height = values.get("height")
+        if not pixel_format or not isinstance(width, int) or not isinstance(height, int):
+            continue
+        fps_values = values.get("fps", ())
+        if isinstance(fps_values, (int, float)):
+            fps_items = (f"{float(fps_values):g}",)
+        elif isinstance(fps_values, list):
+            fps_items = tuple(f"{float(value):g}" for value in fps_values)
+        else:
+            fps_items = ()
+        fields = [
+            f"pixel_format={pixel_format}",
+            f"width={width}",
+            f"height={height}",
+            f"fps={ '|'.join(fps_items) }",
+        ]
+        description = values.get("description")
+        if description:
+            fields.append(f"description={description}")
+        media_type = values.get("media_type")
+        if media_type:
+            fields.append(f"media_type={media_type}")
+        source = capability.source
+        if source:
+            fields.append(f"source={source}")
+        items.append("; ".join(fields))
+    return DetailSection(
+        title="Raw Camera Capabilities",
+        items=tuple(items) or ("No raw V4L2 camera capabilities discovered.",),
+    )
 
 
 def _format_mapping(mapping: dict[str, object]) -> Iterable[str]:

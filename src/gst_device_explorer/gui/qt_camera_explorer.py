@@ -5,7 +5,18 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from gst_device_explorer.gui.model import DetailPaneModel, DetailSection
-from gst_device_explorer.gui.qt_camera_controls import create_camera_controls_widget
+from gst_device_explorer.gui.qt_camera_controls import (
+    camera_control_accessible_lines,
+    create_camera_controls_widget,
+)
+from gst_device_explorer.gui.qt_camera_modes import (
+    camera_mode_tree,
+    camera_pipeline_for_selection,
+    camera_section,
+    format_labels,
+    initial_selected_mode,
+    selected_mode_text,
+)
 from gst_device_explorer.gui.qt_sections import (
     copy_to_clipboard,
     create_text_label,
@@ -18,13 +29,14 @@ CAMERA_EXPLORE_SECTION_TITLES = frozenset(
         "Camera Modes",
         "Frame Rates",
         "Generated Pipeline",
+        "Raw Camera Capabilities",
         "V4L2 Controls",
     }
 )
 
 
 def has_camera_explorer(detail: DetailPaneModel) -> bool:
-    return detail.kind == "video" and _camera_section(detail, "Generated Pipeline") is not None
+    return detail.kind == "video" and camera_section(detail, "Generated Pipeline") is not None
 
 
 def is_camera_explore_section(detail: DetailPaneModel, section: DetailSection) -> bool:
@@ -32,22 +44,28 @@ def is_camera_explore_section(detail: DetailPaneModel, section: DetailSection) -
 
 
 def camera_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
-    lines: list[str] = ["Camera Explorer", "Camera Summary"]
-    lines.extend(_camera_summary_lines(detail))
+    lines: list[str] = [_camera_header_text(detail)]
+    subheader = _camera_subheader_text(detail)
+    if subheader:
+        lines.append(subheader)
     lines.append("Camera Settings")
     lines.extend(("Pixel Format", "Image Size", "Frame Duration / FPS"))
+    labels = format_labels(detail)
+    lines.extend(labels.get(pixel_format, pixel_format) for pixel_format in camera_mode_tree(detail))
     for section in detail.sections:
         if section.title in {"Camera Modes", "Frame Rates"}:
             lines.extend(section.items)
+    selected = initial_selected_mode(detail)
+    if selected is not None:
+        lines.append("Selected")
+        lines.append(f"Selected: {selected_mode_text(*selected)}")
     lines.append("Generated Pipeline")
     pipeline = _pipeline_text(detail)
     if pipeline is not None:
         lines.append(pipeline)
     lines.append("Copy Pipeline")
     lines.append("Camera Controls")
-    control_section = _camera_section(detail, "V4L2 Controls")
-    if control_section is not None:
-        lines.extend(control_section.items)
+    lines.extend(camera_control_accessible_lines(detail))
     return tuple(lines)
 
 
@@ -56,23 +74,19 @@ def create_camera_explorer_widget(
     *,
     status_callback: Callable[[str], None] | None = None,
 ) -> object:
-    from PySide6.QtWidgets import (
-        QGroupBox,
-        QHBoxLayout,
-        QLineEdit,
-        QListWidget,
-        QPushButton,
-        QSizePolicy,
-        QVBoxLayout,
-    )
+    from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget
+    from PySide6.QtWidgets import QListWidgetItem, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+    from PySide6.QtCore import Qt
 
-    box = QGroupBox("Camera Explorer")
-    layout = QVBoxLayout(box)
+    pane = QWidget()
+    pane.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    layout = QVBoxLayout(pane)
+    layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(8)
 
-    layout.addWidget(_camera_summary_widget(detail))
+    layout.addWidget(_camera_header_widget(detail))
 
-    mode_tree = _camera_mode_tree(detail)
+    mode_tree = camera_mode_tree(detail)
 
     def _list_column(title: str) -> tuple[object, object]:
         col = QVBoxLayout()
@@ -82,21 +96,34 @@ def create_camera_explorer_widget(
         label = QLabel(title)
         col.addWidget(label)
         lst = QListWidget()
+        lst.setObjectName(
+            {
+                "Pixel Format": "cameraPixelFormatList",
+                "Image Size": "cameraImageSizeList",
+                "Frame Duration / FPS": "cameraFrameDurationList",
+            }[title]
+        )
         lst.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        lst.setMinimumHeight(100)
+        lst.setMinimumHeight(58)
+        lst.setMaximumHeight(104)
         col.addWidget(lst)
         return col, lst
 
     settings_box = QGroupBox("Camera Settings")
-    settings_layout = QHBoxLayout(settings_box)
+    settings_outer = QVBoxLayout(settings_box)
+    settings_outer.setSpacing(6)
+    settings_layout = QHBoxLayout()
     settings_layout.setSpacing(8)
 
     fmt_col, fmt_list = _list_column("Pixel Format")
     res_col, res_list = _list_column("Image Size")
     rate_col, rate_list = _list_column("Frame Duration / FPS")
 
+    labels = format_labels(detail)
     for fmt in mode_tree:
-        fmt_list.addItem(fmt)
+        item = QListWidgetItem(labels.get(fmt, fmt))
+        item.setData(Qt.UserRole, fmt)
+        fmt_list.addItem(item)
     if not mode_tree:
         fmt_list.addItem("Unavailable")
         fmt_list.setEnabled(False)
@@ -104,7 +131,15 @@ def create_camera_explorer_widget(
     settings_layout.addLayout(fmt_col, 1)
     settings_layout.addLayout(res_col, 1)
     settings_layout.addLayout(rate_col, 1)
-    layout.addWidget(settings_box)
+    settings_outer.addLayout(settings_layout)
+    initial_mode = initial_selected_mode(detail)
+    selected_mode_label = create_text_label(
+        "Selected: "
+        + (selected_mode_text(*initial_mode) if initial_mode else "No supported camera mode selected.")
+    )
+    selected_mode_label.setObjectName("cameraSelectedModeText")
+    settings_outer.addWidget(selected_mode_label)
+    layout.addWidget(settings_box, 0)
 
     pipeline = _pipeline_text(detail)
     pipeline_box = QGroupBox("Generated Pipeline")
@@ -113,6 +148,7 @@ def create_camera_explorer_widget(
     pipeline_edit = QLineEdit(pipeline or "Pipeline unavailable for this camera mode.")
     pipeline_edit.setReadOnly(True)
     pipeline_edit.setObjectName("cameraPipelineText")
+    pipeline_edit.setCursorPosition(0)
     pipeline_row.addWidget(pipeline_edit)
     copy_btn = _copy_dynamic_button(
         "Copy Pipeline",
@@ -122,26 +158,34 @@ def create_camera_explorer_widget(
     copy_btn.setEnabled(bool(pipeline))
     pipeline_row.addWidget(copy_btn)
     pipeline_box_layout.addLayout(pipeline_row)
-    layout.addWidget(pipeline_box)
+    layout.addWidget(pipeline_box, 0)
 
     def update_pipeline() -> None:
         rate_item = rate_list.currentItem()
         res_item = res_list.currentItem()
         fmt_item = fmt_list.currentItem()
-        generated = _camera_pipeline_for_selection(
+        fmt = fmt_item.data(Qt.UserRole) if fmt_item else "Unavailable"
+        resolution = res_item.text() if res_item else "Unavailable"
+        frame_rate = rate_item.text() if rate_item else "Unavailable"
+        generated = camera_pipeline_for_selection(
             detail,
-            fmt_item.text() if fmt_item else "Unavailable",
-            res_item.text() if res_item else "Unavailable",
-            rate_item.text() if rate_item else "Unavailable",
+            str(fmt),
+            resolution,
+            frame_rate,
         )
+        if generated:
+            selected_mode_label.setText(f"Selected: {selected_mode_text(str(fmt), resolution, frame_rate)}")
+        else:
+            selected_mode_label.setText("Selected: No supported camera mode selected.")
         pipeline_edit.setText(generated or "Pipeline unavailable for this camera mode.")
+        pipeline_edit.setCursorPosition(0)
         copy_btn.setEnabled(bool(generated))
 
     def update_rates() -> None:
         res_item = res_list.currentItem()
         fmt_item = fmt_list.currentItem()
         resolution = res_item.text() if res_item else ""
-        fmt = fmt_item.text() if fmt_item else ""
+        fmt = str(fmt_item.data(Qt.UserRole)) if fmt_item else ""
         rates = mode_tree.get(fmt, {}).get(resolution, ())
         rate_list.clear()
         for rate in rates:
@@ -156,7 +200,7 @@ def create_camera_explorer_widget(
 
     def update_resolutions() -> None:
         fmt_item = fmt_list.currentItem()
-        fmt = fmt_item.text() if fmt_item else ""
+        fmt = str(fmt_item.data(Qt.UserRole)) if fmt_item else ""
         resolutions = tuple(mode_tree.get(fmt, {}))
         res_list.clear()
         for res in resolutions:
@@ -176,22 +220,44 @@ def create_camera_explorer_widget(
     if fmt_list.count() > 0 and fmt_list.isEnabled():
         fmt_list.setCurrentRow(0)
 
-    layout.addWidget(create_camera_controls_widget(detail))
-    return box
+    layout.addWidget(create_camera_controls_widget(detail), 1)
+    return pane
 
 
-def _camera_summary_widget(detail: DetailPaneModel) -> object:
-    from PySide6.QtWidgets import QFormLayout, QGroupBox
+def _camera_header_widget(detail: DetailPaneModel) -> object:
+    from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
-    box = QGroupBox("Camera Summary")
-    layout = QFormLayout(box)
-    for line in _camera_summary_lines(detail):
-        if ": " in line:
-            label, value = line.split(": ", 1)
-            layout.addRow(label, create_text_label(value))
-        else:
-            layout.addRow("", create_text_label(line))
-    return box
+    header = QWidget()
+    layout = QVBoxLayout(header)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(2)
+    title = QLabel(_camera_header_text(detail))
+    title.setObjectName("cameraHeaderTitle")
+    layout.addWidget(title)
+    subheader = _camera_subheader_text(detail)
+    if subheader:
+        layout.addWidget(create_text_label(subheader))
+    return header
+
+
+def _camera_header_text(detail: DetailPaneModel) -> str:
+    device_path = target_from_summary(detail)
+    if device_path:
+        return f"{detail.title} - {device_path}"
+    return detail.title
+
+
+def _camera_subheader_text(detail: DetailPaneModel) -> str:
+    parts = []
+    metadata = _metadata_values(detail)
+    driver = metadata.get("driver")
+    if driver:
+        parts.append(f"Driver: {driver}")
+    groups = camera_section(detail, "Groups")
+    if groups is not None and groups.items:
+        group_label = groups.items[0].split(" (", 1)[0]
+        parts.append(f"Group: {group_label}")
+    return " - ".join(parts)
 
 
 def _camera_summary_lines(detail: DetailPaneModel) -> tuple[str, ...]:
@@ -206,14 +272,14 @@ def _camera_summary_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     bus = metadata.get("bus")
     if bus:
         rows.append(f"Bus: {bus}")
-    groups = _camera_section(detail, "Groups")
+    groups = camera_section(detail, "Groups")
     if groups is not None and groups.items:
         rows.append(f"Group: {groups.items[0]}")
     return tuple(rows)
 
 
 def _metadata_values(detail: DetailPaneModel) -> dict[str, str]:
-    section = _camera_section(detail, "Metadata")
+    section = camera_section(detail, "Metadata")
     if section is None:
         return {}
     result: dict[str, str] = {}
@@ -243,85 +309,9 @@ def _copy_dynamic_button(
     return button
 
 
-def _camera_section(detail: DetailPaneModel, title: str) -> DetailSection | None:
-    return next((section for section in detail.sections if section.title == title), None)
-
-
-def _camera_mode_tree(detail: DetailPaneModel) -> dict[str, dict[str, tuple[str, ...]]]:
-    modes = _camera_section(detail, "Camera Modes")
-    rates = _camera_section(detail, "Frame Rates")
-    result: dict[str, dict[str, tuple[str, ...]]] = {}
-    if modes is None:
-        return result
-
-    rate_by_resolution: dict[str, tuple[str, ...]] = {}
-    if rates is not None:
-        for item in rates.items:
-            if ":" not in item:
-                continue
-            key, values = item.split(":", 1)
-            rate_by_resolution[key.strip()] = tuple(
-                value.strip() for value in values.split(",") if value.strip()
-            )
-
-    for item in modes.items:
-        if ":" not in item:
-            continue
-        pixel_format, values = item.split(":", 1)
-        resolutions = tuple(value.strip() for value in values.split(",") if value.strip())
-        if not resolutions:
-            continue
-        fmt = pixel_format.strip()
-        result[fmt] = {
-            resolution: rate_by_resolution.get(
-                f"{fmt} {resolution}",
-                rate_by_resolution.get(resolution, ()),
-            )
-            for resolution in resolutions
-        }
-    return result
-
-
-def _camera_pipeline_for_selection(
-    detail: DetailPaneModel,
-    pixel_format: str,
-    resolution: str,
-    frame_rate: str,
-) -> str | None:
-    device_path = target_from_summary(detail)
-    if (
-        device_path is None
-        or not pixel_format
-        or pixel_format == "Unavailable"
-        or not resolution
-        or resolution == "Unavailable"
-        or "x" not in resolution
-    ):
-        return None
-    width, height = resolution.split("x", 1)
-    caps_type = "image/jpeg" if pixel_format == "MJPG" else "video/x-raw"
-    caps_parts = [caps_type, f"width={width}", f"height={height}"]
-    if caps_type == "video/x-raw":
-        caps_parts.append(f"format={pixel_format}")
-    if frame_rate and frame_rate != "Unavailable":
-        caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
-    return f"gst-launch-1.0 v4l2src device={device_path} ! {','.join(caps_parts)} ! autovideosink"
-
-
 def _pipeline_text(detail: DetailPaneModel) -> str | None:
-    section = _camera_section(detail, "Generated Pipeline")
+    section = camera_section(detail, "Generated Pipeline")
     if section is None or not section.items:
         return None
     value = section.items[0]
     return value if value.startswith("gst-launch-1.0 ") else None
-
-
-def _fps_fraction(label: str) -> str:
-    value = label.removesuffix(" fps").strip()
-    try:
-        fps = float(value)
-    except ValueError:
-        return value
-    if fps.is_integer():
-        return f"{int(fps)}/1"
-    return f"{round(fps * 1000)}/1000"
