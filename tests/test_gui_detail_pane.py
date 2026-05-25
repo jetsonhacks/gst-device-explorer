@@ -69,13 +69,26 @@ def test_camera_explore_tab_contains_camera_explorer_not_report_sections() -> No
 
     assert text.startswith("Explore\n")
     assert "Camera Explorer" in text
+    assert "Camera Summary" in text
+    assert "Name: Reachy-Style Camera" in text
+    assert "Device path: /dev/video0" in text
+    assert "Driver: uvcvideo" in text
+    assert "Camera Settings" in text
+    assert "Pixel Format" in text
+    assert "Image Size" in text
+    assert "Frame Duration / FPS" in text
     assert "Generated Pipeline" in text
     assert "gst-launch-1.0 v4l2src device=/dev/video0" in text
-    assert "Dynamic V4L2 Controls" in text
+    assert "Copy Pipeline" in text
+    assert "Camera Controls" in text
     assert "brightness: type=int" in text
+    assert text.index("Camera Summary") < text.index("Camera Settings")
+    assert text.index("Camera Settings") < text.index("Generated Pipeline")
+    assert text.index("Generated Pipeline") < text.index("Camera Controls")
     assert "Identity and Metadata" not in text
     assert "Candidate Pipelines" not in text
     assert "Safe Actions" not in text
+    assert "Preview Deferred" not in text
 
 
 def test_device_information_tab_contains_report_sections_not_camera_explorer() -> None:

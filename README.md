@@ -309,7 +309,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.26.1",
+  "tool_version": "0.27.0",
   "kind": "preset_list",
   "data": []
 }
@@ -326,7 +326,7 @@ Selected known error paths return a companion error envelope:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.26.1",
+  "tool_version": "0.27.0",
   "kind": "error",
   "error": {
     "code": "unknown_schema",

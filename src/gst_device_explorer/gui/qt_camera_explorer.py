@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from gst_device_explorer.gui.model import DetailPaneModel, DetailSection
+from gst_device_explorer.gui.qt_camera_controls import create_camera_controls_widget
 from gst_device_explorer.gui.qt_sections import (
     copy_to_clipboard,
     create_text_label,
-    split_display_row,
     target_from_summary,
 )
 
@@ -32,13 +32,22 @@ def is_camera_explore_section(detail: DetailPaneModel, section: DetailSection) -
 
 
 def camera_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
-    lines: list[str] = ["Camera Explorer"]
+    lines: list[str] = ["Camera Explorer", "Camera Summary"]
+    lines.extend(_camera_summary_lines(detail))
+    lines.append("Camera Settings")
+    lines.extend(("Pixel Format", "Image Size", "Frame Duration / FPS"))
     for section in detail.sections:
-        if is_camera_explore_section(detail, section):
-            from gst_device_explorer.gui.qt_sections import section_display_title
-
-            lines.append(section_display_title(section))
+        if section.title in {"Camera Modes", "Frame Rates"}:
             lines.extend(section.items)
+    lines.append("Generated Pipeline")
+    pipeline = _pipeline_text(detail)
+    if pipeline is not None:
+        lines.append(pipeline)
+    lines.append("Copy Pipeline")
+    lines.append("Camera Controls")
+    control_section = _camera_section(detail, "V4L2 Controls")
+    if control_section is not None:
+        lines.extend(control_section.items)
     return tuple(lines)
 
 
@@ -50,7 +59,6 @@ def create_camera_explorer_widget(
     from PySide6.QtWidgets import (
         QGroupBox,
         QHBoxLayout,
-        QLabel,
         QLineEdit,
         QListWidget,
         QPushButton,
@@ -62,19 +70,15 @@ def create_camera_explorer_widget(
     layout = QVBoxLayout(box)
     layout.setSpacing(8)
 
-    device_path = target_from_summary(detail)
-    if device_path:
-        identity_label = QLabel(f"Device: {device_path}")
-        from PySide6.QtCore import Qt
-
-        identity_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        layout.addWidget(identity_label)
+    layout.addWidget(_camera_summary_widget(detail))
 
     mode_tree = _camera_mode_tree(detail)
 
     def _list_column(title: str) -> tuple[object, object]:
         col = QVBoxLayout()
         col.setSpacing(4)
+        from PySide6.QtWidgets import QLabel
+
         label = QLabel(title)
         col.addWidget(label)
         lst = QListWidget()
@@ -83,9 +87,13 @@ def create_camera_explorer_widget(
         col.addWidget(lst)
         return col, lst
 
+    settings_box = QGroupBox("Camera Settings")
+    settings_layout = QHBoxLayout(settings_box)
+    settings_layout.setSpacing(8)
+
     fmt_col, fmt_list = _list_column("Pixel Format")
     res_col, res_list = _list_column("Image Size")
-    rate_col, rate_list = _list_column("Frame Duration")
+    rate_col, rate_list = _list_column("Frame Duration / FPS")
 
     for fmt in mode_tree:
         fmt_list.addItem(fmt)
@@ -93,14 +101,14 @@ def create_camera_explorer_widget(
         fmt_list.addItem("Unavailable")
         fmt_list.setEnabled(False)
 
-    mode_layout = QHBoxLayout()
-    mode_layout.setSpacing(8)
-    mode_layout.addLayout(fmt_col, 1)
-    mode_layout.addLayout(res_col, 1)
-    mode_layout.addLayout(rate_col, 1)
-    layout.addLayout(mode_layout, 2)
+    settings_layout.addLayout(fmt_col, 1)
+    settings_layout.addLayout(res_col, 1)
+    settings_layout.addLayout(rate_col, 1)
+    layout.addWidget(settings_box)
 
     pipeline = _pipeline_text(detail)
+    pipeline_box = QGroupBox("Generated Pipeline")
+    pipeline_box_layout = QVBoxLayout(pipeline_box)
     pipeline_row = QHBoxLayout()
     pipeline_edit = QLineEdit(pipeline or "Pipeline unavailable for this camera mode.")
     pipeline_edit.setReadOnly(True)
@@ -113,11 +121,8 @@ def create_camera_explorer_widget(
     )
     copy_btn.setEnabled(bool(pipeline))
     pipeline_row.addWidget(copy_btn)
-    preview = QPushButton("Preview Deferred")
-    preview.setEnabled(False)
-    preview.setToolTip("Preview is deferred; this milestone does not execute pipelines.")
-    pipeline_row.addWidget(preview)
-    layout.addLayout(pipeline_row)
+    pipeline_box_layout.addLayout(pipeline_row)
+    layout.addWidget(pipeline_box)
 
     def update_pipeline() -> None:
         rate_item = rate_list.currentItem()
@@ -171,71 +176,52 @@ def create_camera_explorer_widget(
     if fmt_list.count() > 0 and fmt_list.isEnabled():
         fmt_list.setCurrentRow(0)
 
-    controls_box = QGroupBox("Dynamic V4L2 Controls (Read-Only)")
-    controls_layout = QVBoxLayout(controls_box)
-    control_lines = _control_lines(detail)
-    if len(control_lines) == 1 and control_lines[0] == "No V4L2 controls advertised.":
-        controls_layout.addWidget(create_text_label("No V4L2 controls advertised for this device."))
-    else:
-        for line in control_lines:
-            controls_layout.addLayout(_control_row(line))
-    layout.addWidget(controls_box)
+    layout.addWidget(create_camera_controls_widget(detail))
     return box
 
 
-def _control_row(line: str) -> object:
-    from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QCheckBox, QComboBox, QHBoxLayout, QLabel, QSlider, QSpinBox
+def _camera_summary_widget(detail: DetailPaneModel) -> object:
+    from PySide6.QtWidgets import QFormLayout, QGroupBox
 
-    layout = QHBoxLayout()
-    name, value = split_display_row(line)
-    label = QLabel(name)
-    label.setMinimumWidth(160)
-    layout.addWidget(label)
-    fields = _control_fields(value)
-    control_type = fields.get("type", "unknown")
-    disabled = "inactive" in fields.get("flags", "").split(",")
-    if control_type in {"int", "int64"}:
-        slider = QSlider(Qt.Horizontal)
-        spin = QSpinBox()
-        minimum = _int_or_default(fields.get("range_min"), 0)
-        maximum = _int_or_default(fields.get("range_max"), 100)
-        current = _int_or_default(fields.get("value"), minimum)
-        step = max(1, _int_or_default(fields.get("step"), 1))
-        slider.setRange(minimum, maximum)
-        slider.setSingleStep(step)
-        slider.setValue(max(minimum, min(maximum, current)))
-        spin.setRange(minimum, maximum)
-        spin.setSingleStep(step)
-        spin.setValue(max(minimum, min(maximum, current)))
-        slider.setEnabled(False)
-        spin.setEnabled(False)
-        layout.addWidget(slider)
-        layout.addWidget(spin)
-    elif control_type == "bool":
-        checkbox = QCheckBox()
-        checkbox.setChecked(fields.get("value") == "1")
-        checkbox.setEnabled(False)
-        layout.addWidget(checkbox)
-    elif control_type in {"menu", "intmenu"}:
-        combo = QComboBox()
-        choices = _control_choices(fields.get("choices", ""))
-        for choice_value, choice_label in choices:
-            combo.addItem(choice_label, choice_value)
-        current = fields.get("value")
-        if current:
-            for index, (choice_value, _choice_label) in enumerate(choices):
-                if choice_value == current:
-                    combo.setCurrentIndex(index)
-                    break
-        combo.setEnabled(False)
-        layout.addWidget(combo)
-    else:
-        layout.addWidget(create_text_label(value))
-    if disabled:
-        label.setEnabled(False)
-    layout.addStretch(1)
-    return layout
+    box = QGroupBox("Camera Summary")
+    layout = QFormLayout(box)
+    for line in _camera_summary_lines(detail):
+        if ": " in line:
+            label, value = line.split(": ", 1)
+            layout.addRow(label, create_text_label(value))
+        else:
+            layout.addRow("", create_text_label(line))
+    return box
+
+
+def _camera_summary_lines(detail: DetailPaneModel) -> tuple[str, ...]:
+    rows = [f"Name: {detail.title}"]
+    device_path = target_from_summary(detail)
+    if device_path:
+        rows.append(f"Device path: {device_path}")
+    metadata = _metadata_values(detail)
+    driver = metadata.get("driver")
+    if driver:
+        rows.append(f"Driver: {driver}")
+    bus = metadata.get("bus")
+    if bus:
+        rows.append(f"Bus: {bus}")
+    groups = _camera_section(detail, "Groups")
+    if groups is not None and groups.items:
+        rows.append(f"Group: {groups.items[0]}")
+    return tuple(rows)
+
+
+def _metadata_values(detail: DetailPaneModel) -> dict[str, str]:
+    section = _camera_section(detail, "Metadata")
+    if section is None:
+        return {}
+    result: dict[str, str] = {}
+    for item in section.items:
+        if ": " in item:
+            key, value = item.split(": ", 1)
+            result[key] = value
+    return result
 
 
 def _copy_dynamic_button(
@@ -328,44 +314,6 @@ def _pipeline_text(detail: DetailPaneModel) -> str | None:
         return None
     value = section.items[0]
     return value if value.startswith("gst-launch-1.0 ") else None
-
-
-def _control_lines(detail: DetailPaneModel) -> tuple[str, ...]:
-    section = _camera_section(detail, "V4L2 Controls")
-    if section is None:
-        return ("No V4L2 controls advertised.",)
-    return section.items
-
-
-def _control_fields(value: str) -> dict[str, str]:
-    result: dict[str, str] = {}
-    for part in value.split(";"):
-        if "=" not in part:
-            continue
-        key, item_value = part.strip().split("=", 1)
-        if key == "range" and ".." in item_value:
-            minimum, maximum = item_value.split("..", 1)
-            result["range_min"] = minimum
-            result["range_max"] = maximum
-        else:
-            result[key] = item_value
-    return result
-
-
-def _control_choices(value: str) -> tuple[tuple[str, str], ...]:
-    result = []
-    for part in value.split("|"):
-        if "=" in part:
-            choice_value, label = part.split("=", 1)
-            result.append((choice_value, label))
-    return tuple(result)
-
-
-def _int_or_default(value: str | None, default: int) -> int:
-    try:
-        return int(value) if value is not None else default
-    except ValueError:
-        return default
 
 
 def _fps_fraction(label: str) -> str:

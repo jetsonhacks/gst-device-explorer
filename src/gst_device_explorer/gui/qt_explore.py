@@ -17,10 +17,10 @@ def explore_accessible_text(detail: DetailPaneModel) -> str:
     """Return the text intended for the default Explore tab."""
 
     lines = ["Explore", detail.title]
-    lines.extend(detail.summary)
     if has_camera_explorer(detail):
         lines.extend(camera_explore_lines(detail))
     else:
+        lines.extend(detail.summary)
         lines.extend(explore_placeholder_lines(detail))
     return "\n".join(lines)
 
