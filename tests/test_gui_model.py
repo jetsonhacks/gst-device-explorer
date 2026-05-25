@@ -94,6 +94,36 @@ def test_sidebar_nodes_represent_nested_groups_and_endpoints() -> None:
     assert [child.target for child in group.children] == ["hw:2,0", "hw:2,0", "/dev/video0"]
 
 
+def test_sidebar_nests_child_groups_under_physical_parent_group() -> None:
+    roots = build_sidebar_model(
+        video_devices=[_video_device(), _second_video_device()],
+        audio_inputs=[_audio_input_device()],
+        audio_outputs=[_audio_output_device()],
+        groups=[_reachy_audio_group(), _reachy_camera_group(), _reachy_parent_group()],
+    )
+
+    group_section = roots[0].children[0]
+    parent = group_section.children[0]
+
+    assert [group.label for group in group_section.children] == ["Reachy Mini"]
+    assert parent.id == "group:usb-family-1-4"
+    assert [child.label for child in parent.children] == [
+        "Reachy Mini Audio",
+        "Reachy Mini Camera",
+    ]
+    assert [child.id for child in parent.children] == [
+        "group:audio-device-alsa-card-0",
+        "group:usb-device-1-4-1-4",
+    ]
+    assert [
+        [endpoint.target for endpoint in child.children]
+        for child in parent.children
+    ] == [
+        ["hw:2,0", "hw:2,0"],
+        ["/dev/video0", "/dev/video1"],
+    ]
+
+
 def test_sidebar_node_ids_are_stable_and_deterministic() -> None:
     first = build_sidebar_model(
         video_devices=[_video_device()],
@@ -243,6 +273,21 @@ def _video_device() -> Device:
     )
 
 
+def _second_video_device() -> Device:
+    return Device(
+        id="/dev/video1",
+        kind="video_input",
+        name="Synthetic Camera 2",
+        capabilities=[
+            Capability(
+                name="format",
+                values={"pixel_format": "YUY2", "width": 1280, "height": 720, "fps": 30},
+            )
+        ],
+        metadata={"path": "/dev/video1", "driver": "uvcvideo", "bus": "usb-1-2.4"},
+    )
+
+
 def _audio_input_device() -> Device:
     return Device(
         id="hw:2,0",
@@ -277,6 +322,68 @@ def _group() -> CompositeDevice:
                 source="usb-topology",
                 description="devices share USB parent path 1-2.3",
                 strength=0.9,
+            )
+        ],
+    )
+
+
+def _reachy_audio_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="audio-device-alsa-card-0",
+        name="Reachy Mini Audio",
+        kind="audio-device",
+        confidence=0.9,
+        members=[
+            DeviceRef(role="audio-input", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+            DeviceRef(role="audio-output", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="alsa-card",
+                description="audio devices share ALSA card 0",
+                strength=0.9,
+            )
+        ],
+    )
+
+
+def _reachy_camera_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="usb-device-1-4-1-4",
+        name="Reachy Mini Camera",
+        kind="unknown",
+        confidence=0.9,
+        members=[
+            DeviceRef(role="camera", device_id="/dev/video0", path="/dev/video0", subsystem="v4l2"),
+            DeviceRef(role="camera", device_id="/dev/video1", path="/dev/video1", subsystem="v4l2"),
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="usb-topology",
+                description="devices share USB parent path 1-4.1.4",
+                strength=0.9,
+            )
+        ],
+    )
+
+
+def _reachy_parent_group() -> CompositeDevice:
+    return CompositeDevice(
+        id="usb-family-1-4",
+        name="Reachy Mini",
+        kind="unknown",
+        confidence=0.8,
+        members=[
+            DeviceRef(role="audio-input", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+            DeviceRef(role="audio-output", device_id="hw:2,0", path="hw:2,0", subsystem="alsa"),
+            DeviceRef(role="camera", device_id="/dev/video0", path="/dev/video0", subsystem="v4l2"),
+            DeviceRef(role="camera", device_id="/dev/video1", path="/dev/video1", subsystem="v4l2"),
+        ],
+        evidence=[
+            GroupingEvidence(
+                source="usb-topology",
+                description="composite groups share USB ancestor 1-4",
+                strength=0.8,
             )
         ],
     )

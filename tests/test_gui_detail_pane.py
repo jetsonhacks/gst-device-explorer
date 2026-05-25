@@ -37,6 +37,7 @@ from gst_device_explorer.gui.qt_detail import (
     section_display_title,
     section_kind,
 )
+from gst_device_explorer.gui.qt_explore import create_explore_widget, group_endpoint_cards
 
 
 def test_group_detail_pane_has_polished_group_text() -> None:
@@ -197,6 +198,62 @@ def test_camera_explore_header_uses_group_derived_display_name() -> None:
 
     assert pane.title == "Reachy Mini Camera"
     assert "Reachy Mini Camera - /dev/video0" in explore_accessible_text(pane)
+
+
+def test_group_explore_tab_is_dashboard_with_endpoint_cards() -> None:
+    pane = build_demo_gui_snapshot().detail_panes["group:demo-usb-device"]
+    text = explore_accessible_text(pane)
+    cards = group_endpoint_cards(pane)
+
+    assert text.startswith("Explore\n")
+    assert "Group Explore" in text
+    assert "Demo Composite USB Device" in text
+    assert "Group Summary" in text
+    assert "Group id: demo-usb-device" in text
+    assert "Members: 3" in text
+    assert "Evidence:" in text
+    assert "Endpoints" in text
+    assert [card.role_label for card in cards] == ["Microphone", "Speaker", "Camera"]
+    assert [card.action_label for card in cards] == [
+        "Explore Microphone",
+        "Explore Speaker",
+        "Explore Camera",
+    ]
+    assert "Group exploration dashboard is deferred." not in text
+    assert "Preview" not in text
+    assert "Capture" not in text
+    assert "Validate Group" not in text
+
+
+def test_group_explore_widget_endpoint_actions_are_navigation_only() -> None:
+    selected: list[str] = []
+    pane = build_demo_gui_snapshot().detail_panes["group:demo-usb-device"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, navigate_callback=selected.append)
+
+    try:
+        cards = widget.findChildren(QtWidgets.QFrame, "groupEndpointCard")
+        buttons = widget.findChildren(QtWidgets.QPushButton, "groupEndpointExploreButton")
+
+        assert [card.property("targetNodeId") for card in cards] == [
+            "group:demo-usb-device:audio_input:hw:2,0",
+            "group:demo-usb-device:audio_output:hw:2,0",
+            "group:demo-usb-device:video:/dev/video0",
+        ]
+        assert [button.text() for button in buttons] == [
+            "Explore Microphone",
+            "Explore Speaker",
+            "Explore Camera",
+        ]
+
+        buttons[2].click()
+
+        assert selected == ["group:demo-usb-device:video:/dev/video0"]
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
 
 
 def test_camera_mode_tree_contains_all_demo_modes_by_format_and_size() -> None:
@@ -445,8 +502,8 @@ def test_non_camera_explore_tabs_are_lightweight_placeholders() -> None:
     input_text = explore_accessible_text(demo.detail_panes["audio_input:hw:2,0"])
     output_text = explore_accessible_text(demo.detail_panes["audio_output:hw:2,0"])
 
-    assert "Group exploration dashboard is deferred." in group_text
-    assert "Select an endpoint in the sidebar to explore it directly." in group_text
+    assert "Group Explore" in group_text
+    assert "Explore Camera" in group_text
     assert "Audio input exploration controls are deferred." in input_text
     assert "Audio output exploration controls are deferred." in output_text
     assert "Candidate Pipelines" not in input_text

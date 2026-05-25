@@ -60,7 +60,7 @@ def build_sidebar_model(
             _section_node(
                 node_id="section:composite-groups",
                 label="Composite Groups",
-                children=tuple(_group_node(group) for group in sorted(groups, key=lambda g: g.id)),
+                children=_group_nodes(groups),
             ),
             _section_node(
                 node_id="section:cameras",
@@ -432,7 +432,27 @@ def _section_node(node_id: str, label: str, children: tuple[SidebarNode, ...]) -
     )
 
 
-def _group_node(group: CompositeDevice) -> SidebarNode:
+def _group_nodes(groups: Sequence[CompositeDevice]) -> tuple[SidebarNode, ...]:
+    children_by_group = _group_children_by_parent(groups)
+    child_ids = {child.id for children in children_by_group.values() for child in children}
+    return tuple(
+        _group_node(group, children_by_group=children_by_group)
+        for group in sorted(groups, key=lambda group: group.id)
+        if group.id not in child_ids
+    )
+
+
+def _group_node(
+    group: CompositeDevice,
+    *,
+    children_by_group: dict[str, tuple[CompositeDevice, ...]] | None = None,
+) -> SidebarNode:
+    group_children = () if children_by_group is None else children_by_group.get(group.id, ())
+    child_member_keys = {
+        key
+        for child in group_children
+        for key in _group_member_keys(child)
+    }
     return SidebarNode(
         id=_group_node_id(group.id),
         label=group.name,
@@ -441,11 +461,55 @@ def _group_node(group: CompositeDevice) -> SidebarNode:
         target_kind="group",
         target=group.id,
         summary=f"{len(group.members)} endpoint(s), confidence {group.confidence:.2f}",
-        children=tuple(
-            _group_member_node(group.id, member.role, member.device_id)
-            for member in sorted(group.members, key=lambda m: (m.role, m.device_id))
+        children=(
+            *(
+                _group_node(child, children_by_group=children_by_group)
+                for child in group_children
+            ),
+            *(
+                _group_member_node(group.id, member.role, member.device_id)
+                for member in sorted(group.members, key=lambda m: (m.role, m.device_id))
+                if _member_key(member.role, member.device_id) not in child_member_keys
+            ),
         ),
     )
+
+
+def _group_children_by_parent(
+    groups: Sequence[CompositeDevice],
+) -> dict[str, tuple[CompositeDevice, ...]]:
+    result: dict[str, tuple[CompositeDevice, ...]] = {}
+    for parent in groups:
+        candidates = [
+            child
+            for child in groups
+            if child.id != parent.id
+            and _group_member_keys(child) < _group_member_keys(parent)
+        ]
+        direct_children = [
+            child
+            for child in candidates
+            if not any(
+                child.id != other.id
+                and _group_member_keys(child) < _group_member_keys(other)
+                and _group_member_keys(other) < _group_member_keys(parent)
+                for other in candidates
+            )
+        ]
+        if direct_children:
+            result[parent.id] = tuple(sorted(direct_children, key=lambda group: group.id))
+    return result
+
+
+def _group_member_keys(group: CompositeDevice) -> set[tuple[str, str]]:
+    return {
+        _member_key(member.role, member.device_id)
+        for member in group.members
+    }
+
+
+def _member_key(role: str, device_id: str) -> tuple[str, str]:
+    return _node_kind_from_role(role), device_id
 
 
 def _group_member_node(group_id: str, role: str, device_id: str) -> SidebarNode:

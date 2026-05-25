@@ -1,6 +1,9 @@
+import os
 from pathlib import Path
 import subprocess
 import sys
+
+import pytest
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -94,6 +97,37 @@ def test_gui_demo_building_does_not_execute_subprocesses(monkeypatch) -> None:
     assert demo.snapshot.detail_pane.kind == "group"
 
 
+def test_group_endpoint_action_navigates_to_endpoint_detail() -> None:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtCore = pytest.importorskip("PySide6.QtCore")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_main_window import create_main_window
+
+    demo = build_demo_gui_snapshot()
+    window = create_main_window(demo.snapshot, demo.detail_panes)
+    window.show()
+    QtWidgets.QApplication.processEvents()
+
+    try:
+        buttons = window.findChildren(QtWidgets.QPushButton, "groupEndpointExploreButton")
+        camera_button = next(button for button in buttons if button.text() == "Explore Camera")
+
+        camera_button.click()
+        QtWidgets.QApplication.processEvents()
+
+        tree = window.findChild(QtWidgets.QTreeWidget, "sidebarTree")
+        assert tree is not None
+        item = tree.currentItem()
+        assert item is not None
+        assert item.data(0, QtCore.Qt.UserRole) == "group:demo-usb-device:video:/dev/video0"
+    finally:
+        window.close()
+        window.deleteLater()
+        _forget_pyside_modules()
+
+
 def test_non_qt_gui_imports_do_not_import_pyside6() -> None:
     assert "PySide6" not in sys.modules
 
@@ -104,3 +138,9 @@ def _flatten_sidebar_ids(nodes) -> list[str]:
         result.append(node.id)
         result.extend(_flatten_sidebar_ids(node.children))
     return result
+
+
+def _forget_pyside_modules() -> None:
+    for name in tuple(sys.modules):
+        if name == "PySide6" or name.startswith("PySide6."):
+            sys.modules.pop(name, None)

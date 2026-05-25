@@ -39,7 +39,8 @@ def create_main_window(
             self._tree.setMinimumWidth(280)
             self._tree.setMaximumWidth(420)
             self._detail = create_detail_pane_widget(
-                status_callback=lambda message: self.statusBar().showMessage(message, 2500)
+                status_callback=lambda message: self.statusBar().showMessage(message, 2500),
+                navigate_callback=lambda node_id: self.select_node(node_id),
             )
             splitter.addWidget(self._tree)
             splitter.addWidget(self._detail)
@@ -77,6 +78,12 @@ def create_main_window(
                     self._tree.setCurrentItem(item)
                     return
             self._detail.render_detail(initial_snapshot.detail_pane)
+
+        def select_node(self, node_id: str) -> None:
+            item = _find_item_by_node_id(self._tree, node_id, Qt.UserRole)
+            if item is None:
+                return
+            self._tree.setCurrentItem(item)
 
         def refresh_snapshot(self) -> None:
             if self._refresh_builder is None:

@@ -40,6 +40,7 @@ def detail_tab_titles(_detail: DetailPaneModel) -> tuple[str, str]:
 def create_detail_pane_widget(
     *,
     status_callback: Callable[[str], None] | None = None,
+    navigate_callback: Callable[[str], None] | None = None,
 ) -> object:
     """Create the concrete Qt detail widget.
 
@@ -62,7 +63,11 @@ def create_detail_pane_widget(
             self.setAccessibleDescription(detail_accessible_text(detail))
             _replace_scroll_widget(
                 self._explore,
-                create_explore_widget(detail, status_callback=status_callback),
+                create_explore_widget(
+                    detail,
+                    status_callback=status_callback,
+                    navigate_callback=navigate_callback,
+                ),
             )
             _replace_scroll_widget(
                 self._information,

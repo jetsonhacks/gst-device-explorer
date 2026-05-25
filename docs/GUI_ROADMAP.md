@@ -111,7 +111,48 @@ Possible sections:
 
 This preserves the existing discovery work without making it the default user experience.
 
-## Milestone 29 — Group Explore View
+## Roadmap Adjustment After Milestone 28
+
+Implementation learning from Milestones 27 and 28 intentionally paused the planned transition to group views.
+
+Before building the remaining endpoint and group pages, the camera Explore pane needed one more refinement pass so it could become the exemplar inspector surface for future device-specific Explore tabs.
+
+The corrected direction is inspector-first: a user plugs in a media-capable device, such as a 3D camera, multimedia device, or simple robot like Reachy Mini, and first understands available endpoints, modes, generated pipelines, controls, and diagnostics. Safe copy/run affordances come second and remain explicitly scoped.
+
+The camera Explore pane now establishes the pattern for later Explore tabs:
+
+- compact endpoint or device summary
+- mode or capability selection
+- generated command or GStreamer pipeline
+- compact code/copy surface
+- explicit safe-action affordances where scoped
+- read-only exposed device controls or properties
+- lower-level report and diagnostic details kept in Device Information or Reports areas
+
+This is an intentional design correction based on implementation learning, not accidental scope expansion.
+
+## Milestone 29 — Camera Pane Inspector Refinement
+
+Stabilize the camera Explore pane as the blueprint for future endpoint explorers.
+
+Slice 1 should clarify the camera mode and generated pipeline surface:
+
+- rename **Camera Settings** to **Camera Mode**
+- rename **Frame Duration / FPS** to **Frame Rate**
+- preserve existing frame-rate list behavior
+- render the generated pipeline as a compact read-only monospace code/copy surface
+- keep copy visible and provide transient `Copied` feedback
+
+Slice 2 should improve the camera-control area without changing V4L2 semantics:
+
+- add light, non-collapsible camera-control grouping
+- improve inactive camera-control row presentation
+- bound camera-control rows to a compact left-aligned working width
+- preserve read-only inspector semantics
+- do not add V4L2 write/reset behavior
+- do not add new GUI modules unless absolutely necessary
+
+## Milestone 30 — Group Explore View
 
 Make composite groups useful as physical-device dashboards.
 
@@ -126,7 +167,7 @@ Each card should summarize the endpoint and provide a clear action to explore th
 
 Group views should not imply group-based execution.
 
-## Milestone 30 — Group Device Information Tab
+## Milestone 31 — Group Device Information Tab
 
 Show why endpoints were grouped.
 
@@ -141,7 +182,7 @@ Possible sections:
 
 This should keep grouping evidence-based and explainable.
 
-## Milestone 31 — Audio Input Explore Tab
+## Milestone 32 — Audio Input Explore Tab
 
 Create a microphone-oriented explorer.
 
@@ -157,7 +198,7 @@ The page should include:
 
 The first version should avoid overbuilding audio controls until the interaction model is validated.
 
-## Milestone 32 — Audio Output Explore Tab
+## Milestone 33 — Audio Output Explore Tab
 
 Create a speaker-oriented explorer.
 
@@ -171,7 +212,7 @@ The page should include:
 - copy action
 - placeholder area for future speaker testing
 
-## Milestone 33 — Commands and Reproduce Sections
+## Milestone 34 — Commands and Reproduce Sections
 
 Add curated command sections in Device Information views.
 
@@ -184,7 +225,7 @@ Commands may include:
 
 These commands should teach the user how to reproduce GUI-derived discovery from the command line without cluttering the Explore tab.
 
-## Milestone 34 — Reports Area
+## Milestone 35 — Reports Area
 
 Add a dedicated Reports or Diagnostics area.
 
@@ -199,7 +240,7 @@ This area should contain:
 
 This keeps report functions available while removing them from the main exploration workflow.
 
-## Milestone 35 — Preview Policy and Dry-Run UX
+## Milestone 36 — Preview Policy and Dry-Run UX
 
 Define and implement the first safe GUI execution policy for preview behavior.
 
@@ -213,7 +254,7 @@ The policy should preserve existing safety boundaries:
 - clear stop behavior
 - process cleanup
 
-## Milestone 36 — Camera Preview Implementation
+## Milestone 37 — Camera Preview Implementation
 
 Allow the camera Explore tab to launch and stop a selected generated preview pipeline safely.
 
@@ -221,7 +262,7 @@ This milestone should focus on camera preview only.
 
 It should not introduce arbitrary pipeline editing, synchronized capture, recording workflows, or group-based execution.
 
-## Milestone 37 — Audio Test Policy and UX
+## Milestone 38 — Audio Test Policy and UX
 
 Define safe GUI behavior for audio input and output tests before implementing them.
 
@@ -233,7 +274,7 @@ The design should answer:
 - how the user starts and stops tests
 - what pipelines are allowed
 
-## Milestone 38 — Audio Test Implementation
+## Milestone 39 — Audio Test Implementation
 
 Add bounded audio input and output tests using generated pipelines only.
 
@@ -246,7 +287,7 @@ Possible scope:
 - dry-run visibility
 - safe process cleanup
 
-## Milestone 39 — Service-Layer Cleanup
+## Milestone 40 — Service-Layer Cleanup
 
 Introduce purpose-built GUI-facing services so widgets consume exploration models instead of raw CLI/report structures.
 
@@ -259,7 +300,7 @@ Possible services:
 
 The goal is to prevent the GUI from becoming a rendered version of CLI output.
 
-## Milestone 40 — Polish and HIL Validation
+## Milestone 41 — Polish and HIL Validation
 
 Validate the redesigned GUI on Jetson and Reachy Mini-style hardware.
 
@@ -291,6 +332,8 @@ Until deliberately changed by a scoped milestone, preserve these boundaries:
 ## Working Summary
 
 The GUI should be organized around exploration first.
+
+The camera Explore pane is now the exemplar inspector pattern for future device-specific Explore tabs: compact summary, capability selection, generated code/copy output, scoped safe actions, and read-only exposed controls, with lower-level reports and diagnostics kept out of the primary working surface.
 
 A useful distinction:
 
