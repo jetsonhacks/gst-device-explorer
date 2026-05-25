@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 from gst_device_explorer.gui.model import DetailPaneModel
@@ -21,7 +22,7 @@ def audio_input_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
         lines.extend((label, value))
     lines.append("Generated Input Pipeline")
     if target is not None:
-        lines.append(_generated_input_pipeline(target))
+        lines.append(_generated_input_pipeline(target, _audio_capability_values(detail)))
     lines.append("Copy Pipeline")
     lines.append("Future Input Test")
     lines.append("Input testing is deferred; this view does not record or start audio capture.")
@@ -60,7 +61,11 @@ def create_audio_input_explorer_widget(
     pipeline_box = QGroupBox("Generated Input Pipeline")
     pipeline_layout = QHBoxLayout(pipeline_box)
     pipeline_layout.setSpacing(6)
-    pipeline_text = _generated_input_pipeline(target) if target is not None else "Pipeline unavailable."
+    pipeline_text = (
+        _generated_input_pipeline(target, _audio_capability_values(detail))
+        if target is not None
+        else "Pipeline unavailable."
+    )
     pipeline_edit = QLineEdit(pipeline_text)
     pipeline_edit.setObjectName("audioInputPipelineText")
     pipeline_edit.setReadOnly(True)
@@ -103,7 +108,7 @@ def _mode_rows(detail: DetailPaneModel) -> tuple[tuple[str, str], ...]:
         ("Sample Format", values.get("sample_format") or values.get("format") or "No detailed format list available"),
         ("Sample Rate", values.get("sample_rate") or values.get("rate") or "No detailed sample rate list available"),
         ("Channels", values.get("channels") or "No detailed channel count available"),
-        ("Candidate", "Using default generated input candidate"),
+        ("GStreamer Caps", _gst_caps_text(values)),
     )
 
 
@@ -113,11 +118,17 @@ def _audio_capability_values(detail: DetailPaneModel) -> dict[str, str]:
         if ": " not in item:
             continue
         _name, raw_values = item.split(": ", 1)
-        for part in raw_values.split(", "):
-            if "=" not in part:
-                continue
-            key, value = part.split("=", 1)
-            result[key] = value
+        result.update(_parse_capability_value_mapping(raw_values))
+    return result
+
+
+def _parse_capability_value_mapping(raw_values: str) -> dict[str, str]:
+    result: dict[str, str] = {}
+    matches = list(re.finditer(r"(?:^|, )([A-Za-z_]+)=", raw_values))
+    for index, match in enumerate(matches):
+        value_start = match.end()
+        value_end = matches[index + 1].start() if index + 1 < len(matches) else len(raw_values)
+        result[match.group(1)] = raw_values[value_start:value_end].strip().removesuffix(",")
     return result
 
 
@@ -137,11 +148,32 @@ def _section_items(detail: DetailPaneModel, title: str) -> tuple[str, ...]:
     return () if section is None else section.items
 
 
-def _generated_input_pipeline(target: str) -> str:
+def _generated_input_pipeline(target: str, values: dict[str, str]) -> str:
     return (
         f"gst-launch-1.0 alsasrc device={target} ! "
-        "audioconvert ! audioresample ! level interval=1000000000 ! fakesink"
+        f"{_gst_caps_text(values)} ! audioconvert ! audioresample ! "
+        "level interval=1000000000 ! fakesink"
     )
+
+
+def _gst_caps_text(values: dict[str, str]) -> str:
+    caps_parts = ["audio/x-raw"]
+    format_value = values.get("sample_format") or values.get("format")
+    rate_value = values.get("sample_rate") or values.get("rate")
+    channels_value = values.get("channels")
+    if _is_exact_caps_value(format_value):
+        caps_parts.append(f"format={format_value}")
+    if _is_exact_caps_value(rate_value):
+        caps_parts.append(f"rate={rate_value}")
+    if _is_exact_caps_value(channels_value):
+        caps_parts.append(f"channels={channels_value}")
+    return ",".join(caps_parts)
+
+
+def _is_exact_caps_value(value: str | None) -> bool:
+    if value is None:
+        return False
+    return bool(re.fullmatch(r"[A-Za-z0-9_]+", value))
 
 
 def _copy_button(

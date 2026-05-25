@@ -46,6 +46,37 @@ card 2: Camera [USB Camera], device 0: USB Audio [USB Audio]
     assert device.metadata["alsa_device"] == "hw:2,0"
 
 
+def test_capture_device_includes_audio_hw_params(monkeypatch) -> None:
+    output = """
+**** List of CAPTURE Hardware Devices ****
+card 2: Camera [USB Camera], device 0: USB Audio [USB Audio]
+"""
+    hw_params = """
+ACCESS:  MMAP_INTERLEAVED RW_INTERLEAVED
+FORMAT:  S16_LE S24_LE
+CHANNELS: [1 2]
+RATE: [8000 48000]
+"""
+    _mock_alsa_command(
+        monkeypatch,
+        expected_command="arecord",
+        output=output,
+        hw_params={"hw:2,0": hw_params},
+    )
+
+    devices = discover_alsa_audio_inputs()
+
+    assert len(devices) == 1
+    capability = devices[0].capabilities[0]
+    assert capability.name == "audio_format"
+    assert capability.source == "arecord --dump-hw-params"
+    assert capability.values == {
+        "channels": "1-2",
+        "format": "S16LE, S24LE",
+        "rate": "8000-48000",
+    }
+
+
 def test_one_playback_device(monkeypatch) -> None:
     output = """
 **** List of PLAYBACK Hardware Devices ****
@@ -126,20 +157,28 @@ def _mock_alsa_command(
     expected_command: str,
     output: str,
     returncode: int = 0,
+    hw_params: dict[str, str] | None = None,
 ) -> None:
     monkeypatch.setattr("shutil.which", lambda command: f"/usr/bin/{command}")
+    hw_params = hw_params or {}
 
     def fake_run(command, check, capture_output, text, timeout):
-        assert command == [expected_command, "-l"]
         assert check is False
         assert capture_output is True
         assert text is True
         assert timeout == 5
-        return subprocess.CompletedProcess(
-            command,
-            returncode,
-            stdout=output,
-            stderr="",
-        )
+        if command == [expected_command, "-l"]:
+            return subprocess.CompletedProcess(
+                command,
+                returncode,
+                stdout=output,
+                stderr="",
+            )
+        if len(command) == 4 and command[:3] == [expected_command, "--dump-hw-params", "-D"]:
+            device = command[3]
+            if device in hw_params:
+                return subprocess.CompletedProcess(command, 0, stdout=hw_params[device], stderr="")
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="")
+        raise AssertionError(f"Unexpected ALSA command: {command!r}")
 
     monkeypatch.setattr("subprocess.run", fake_run)

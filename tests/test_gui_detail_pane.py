@@ -10,6 +10,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gst_device_explorer.gui.builders import build_unknown_detail_pane
+from gst_device_explorer.gui.builders import build_detail_pane_for_audio_input
 from gst_device_explorer.gui.builders import build_detail_pane_for_video
 from gst_device_explorer.core.models import (
     CameraControl,
@@ -586,9 +587,11 @@ def test_audio_input_explore_tab_is_inspector_with_generated_pipeline() -> None:
     assert "No detailed format list available" in text
     assert "Sample Rate" in text
     assert "Channels" in text
-    assert "Using default generated input candidate" in text
+    assert "GStreamer Caps" in text
+    assert "audio/x-raw" in text
+    assert "Using default generated input candidate" not in text
     assert "Generated Input Pipeline" in text
-    assert "gst-launch-1.0 alsasrc device=hw:2,0" in text
+    assert "gst-launch-1.0 alsasrc device=hw:2,0 ! audio/x-raw" in text
     assert "Copy Pipeline" in text
     assert "Future Input Test" in text
     assert "Input testing is deferred" in text
@@ -614,7 +617,7 @@ def test_audio_input_pipeline_widget_is_read_only_code_and_copyable() -> None:
         assert pipeline.isReadOnly()
         assert pipeline.property("presentation") == "code"
         assert pipeline.font().fixedPitch()
-        assert pipeline.text().startswith("gst-launch-1.0 alsasrc device=hw:2,0")
+        assert pipeline.text().startswith("gst-launch-1.0 alsasrc device=hw:2,0 ! audio/x-raw")
         assert copy_button.text() == "Copy Pipeline"
 
         copy_button.click()
@@ -624,6 +627,57 @@ def test_audio_input_pipeline_widget_is_read_only_code_and_copyable() -> None:
     finally:
         widget.deleteLater()
         _forget_pyside_modules()
+
+
+def test_audio_input_explore_uses_known_audio_caps_in_gst_caps() -> None:
+    pane = build_detail_pane_for_audio_input(
+        Device(
+            id="hw:9,0",
+            kind="audio_input",
+            name="Caps Microphone",
+            capabilities=[
+                Capability(
+                    name="audio_format",
+                    values={"format": "S16LE", "rate": "48000", "channels": "2"},
+                )
+            ],
+            metadata={"alsa_device": "hw:9,0"},
+        )
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Sample Format\nS16LE" in text
+    assert "Sample Rate\n48000" in text
+    assert "Channels\n2" in text
+    assert "GStreamer Caps\naudio/x-raw,format=S16LE,rate=48000,channels=2" in text
+    assert (
+        "gst-launch-1.0 alsasrc device=hw:9,0 ! "
+        "audio/x-raw,format=S16LE,rate=48000,channels=2"
+    ) in text
+
+
+def test_audio_input_explore_shows_alsa_hw_param_ranges_without_forcing_caps() -> None:
+    pane = build_detail_pane_for_audio_input(
+        Device(
+            id="hw:9,1",
+            kind="audio_input",
+            name="Range Microphone",
+            capabilities=[
+                Capability(
+                    name="audio_format",
+                    values={"format": "S16LE, S24LE", "rate": "8000-48000", "channels": "1-2"},
+                )
+            ],
+            metadata={"alsa_device": "hw:9,1"},
+        )
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Sample Format\nS16LE, S24LE" in text
+    assert "Sample Rate\n8000-48000" in text
+    assert "Channels\n1-2" in text
+    assert "GStreamer Caps\naudio/x-raw" in text
+    assert "audio/x-raw,format=S16LE, S24LE" not in text
 
 
 def test_audio_input_output_panes_have_audio_specific_text() -> None:

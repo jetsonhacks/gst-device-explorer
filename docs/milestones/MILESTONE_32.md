@@ -117,7 +117,6 @@ Avoid overly technical labels when a clearer user-facing label exists.
 If the backend currently has limited audio capability detail, the GUI should gracefully show what is known and avoid pretending unknown values are available. Use safe fallback text such as:
 
 - `No detailed format list available`
-- `Using default generated input candidate`
 - `Inspect Device Information for lower-level details`
 
 ## Implementation Guidance
@@ -164,8 +163,10 @@ Implemented:
 - Added an Audio Input Explore surface for audio input endpoints.
 - The page shows a compact endpoint summary with audio-input kind and stable endpoint id.
 - The page shows an **Audio Input Mode** section with sample format, sample rate, and channel count rows.
+- ALSA audio input discovery now carries read-only hardware-parameter capability details when available, so the Explore pane can show discovered sample formats, sample rates, and channel counts.
 - When detailed audio capability lists are not available, the page shows safe fallback text rather than fabricating capabilities.
-- The page shows a generated ALSA/GStreamer input pipeline in a compact read-only monospace code/copy surface.
+- The page shows generated ALSA/GStreamer input pipeline text in a compact read-only monospace code/copy surface.
+- Generated input pipeline text includes exact GStreamer caps values when they are known; broader ranges remain visible in the mode rows without being forced into an invalid caps filter.
 - Copy feedback uses the same transient `Copied` behavior established for camera generated pipelines.
 - Added a non-executing **Future Input Test** placeholder.
 - Preserved Milestone 29 camera Explore behavior.
@@ -174,8 +175,10 @@ Implemented:
 
 Files changed:
 
+- `src/gst_device_explorer/probes/alsa.py`
 - `src/gst_device_explorer/gui/qt_audio_input_explorer.py`
 - `src/gst_device_explorer/gui/qt_explore.py`
+- `tests/test_alsa_probe.py`
 - `tests/test_gui_detail_pane.py`
 - `docs/milestones/MILESTONE_32.md`
 
@@ -185,6 +188,7 @@ Structure note:
 
 Tests added or updated:
 
+- ALSA input capability parsing from hardware-parameter output.
 - Audio input Explore accessible-text coverage.
 - Audio input generated-pipeline read-only code/copy widget coverage.
 - Existing camera, group Explore, group Device Information, and shell tests were rerun.
