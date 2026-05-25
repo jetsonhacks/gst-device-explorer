@@ -111,11 +111,13 @@ sections and safe copy buttons for displayed identifiers and suggested commands.
 Action controls are metadata/copy only; they do not run pipelines, capture
 media, spawn subprocesses, or execute suggested commands.
 
-For selected cameras, the GUI now opens with a camera explorer pane. It shows
-pixel format, resolution, and frame-rate selectors, generated pipeline text,
-copy pipeline controls, and dynamic V4L2 controls discovered from the selected
-device. The controls are read-only in Milestone 23. The GUI does not write
-camera settings, reset controls, or call `v4l2-ctl --set-ctrl`.
+For selected cameras, the GUI opens a camera explorer pane. It shows pixel
+format, image size, and frame-duration selectors as expanding list panels
+(aligned with the camera-caps reference), generated pipeline text, a copy
+pipeline button, and dynamic V4L2 controls discovered from the selected device.
+Controls are read-only. The GUI does not write camera settings, reset controls,
+or call `v4l2-ctl --set-ctrl`. The camera explorer has been HIL-validated
+against the Reachy Mini Camera on Jetson (Milestone 24).
 
 Useful pipeline candidate variants:
 

@@ -352,6 +352,12 @@ and dynamically discovered V4L2 controls. Controls are discovered per camera
 from advertised V4L2 metadata and rendered read-only; applying values, resetting
 values, previewing, dry-running, and capture remain deferred.
 
+Milestone 24 validates the camera explorer against real hardware and aligns the
+layout with the `camera-caps` reference. Mode selectors use expanding list panels
+(QListWidget) instead of dropdowns so all available formats, resolutions, and
+frame rates are visible without interaction. The GUI has been HIL-validated
+against the Reachy Mini Camera (uvcvideo, MJPG + YUYV, 14 V4L2 controls).
+
 PySide6 is kept out of core probe/discovery modules. CLI-only behavior should
 continue to work without importing Qt unless the GUI command is launched.
 
@@ -379,7 +385,7 @@ The following are deferred until the GUI becomes tangible:
 21. Sidebar Device/Group Tree
 22. Endpoint Detail Panes
 23. Camera Explorer Pane and Dynamic V4L2 Controls
-24. Safe GUI Actions
+24. Camera Explorer HIL Validation and UX Alignment
 25. Camera Preview and Audio Test UX
 26. Reachy Mini-Style Composite Device Validation
 27. Packaging and Demo Documentation

@@ -285,6 +285,12 @@ selected mode. The Qt detail pane renders this adapter ahead of generic
 diagnostic/report sections so selecting a camera feels like a camera explorer
 rather than a report page.
 
+Milestone 24 aligns the Qt camera explorer layout with the `camera-caps`
+reference. Mode selectors (Pixel Format, Image Size, Frame Duration) are rendered
+as expanding `QListWidget` columns so all available options are visible at once.
+The layout has been HIL-validated against real V4L2 hardware (Reachy Mini Camera,
+uvcvideo driver, MJPG and YUYV formats, 14 dynamic controls).
+
 Dynamic camera controls are modeled in core with immutable `CameraControl`,
 `CameraControlChoice`, and `CameraControlSet` values. The V4L2 probe layer reads
 advertised controls with `v4l2-ctl --list-ctrls-menus` and normalizes integer,

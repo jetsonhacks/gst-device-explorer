@@ -305,3 +305,93 @@ def _mock_v4l2_controls(
         )
 
     monkeypatch.setattr("subprocess.run", fake_run)
+
+
+def test_menu_control_with_current_value_annotation(monkeypatch) -> None:
+    """Real v4l2-ctl annotates current menu value as 'value=2 (60 Hz)'. Parser must ignore the annotation."""
+    output = """
+User Controls
+
+           power_line_frequency 0x00980918 (menu)   : min=0 max=2 default=1 value=2 (60 Hz)
+				0: Disabled
+				1: 50 Hz
+				2: 60 Hz
+"""
+    _mock_v4l2_controls(monkeypatch, output=output)
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    assert len(controls.controls) == 1
+    control = controls.controls[0]
+    assert control.name == "power_line_frequency"
+    assert control.control_type == "menu"
+    assert control.current_value == "2"
+    assert control.default_value == "1"
+    assert [(c.value, c.label) for c in control.choices] == [
+        ("0", "Disabled"),
+        ("1", "50 Hz"),
+        ("2", "60 Hz"),
+    ]
+
+
+def test_inactive_int_control_flags_from_real_format(monkeypatch) -> None:
+    """white_balance_temperature appears inactive when auto WB is on."""
+    output = """
+User Controls
+
+      white_balance_temperature 0x0098091a (int)    : min=2800 max=6500 step=1 default=4600 value=4600 flags=inactive
+"""
+    _mock_v4l2_controls(monkeypatch, output=output)
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    control = controls.controls[0]
+    assert control.name == "white_balance_temperature"
+    assert control.control_type == "int"
+    assert control.current_value == "4600"
+    assert "inactive" in control.flags
+
+
+def test_real_camera_style_full_control_block(monkeypatch) -> None:
+    """Smoke test matching the Reachy Mini Camera v4l2-ctl output format."""
+    output = """
+User Controls
+
+                     brightness 0x00980900 (int)    : min=-64 max=64 step=1 default=0 value=4
+        white_balance_automatic 0x0098090c (bool)   : default=1 value=1
+           power_line_frequency 0x00980918 (menu)   : min=0 max=2 default=1 value=2 (60 Hz)
+				0: Disabled
+				1: 50 Hz
+				2: 60 Hz
+      white_balance_temperature 0x0098091a (int)    : min=2800 max=6500 step=1 default=4600 value=4600 flags=inactive
+
+Camera Controls
+
+                  auto_exposure 0x009a0901 (menu)   : min=0 max=3 default=3 value=3 (Aperture Priority Mode)
+				1: Manual Mode
+				3: Aperture Priority Mode
+         exposure_time_absolute 0x009a0902 (int)    : min=3 max=2047 step=1 default=166 value=127 flags=inactive
+     exposure_dynamic_framerate 0x009a0903 (bool)   : default=0 value=0
+"""
+    _mock_v4l2_controls(monkeypatch, output=output)
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    names = [c.name for c in controls.controls]
+    assert "brightness" in names
+    assert "white_balance_automatic" in names
+    assert "power_line_frequency" in names
+    assert "white_balance_temperature" in names
+    assert "auto_exposure" in names
+    assert "exposure_time_absolute" in names
+    assert "exposure_dynamic_framerate" in names
+
+    wb_temp = next(c for c in controls.controls if c.name == "white_balance_temperature")
+    assert "inactive" in wb_temp.flags
+
+    exposure_abs = next(c for c in controls.controls if c.name == "exposure_time_absolute")
+    assert "inactive" in exposure_abs.flags
+
+    plf = next(c for c in controls.controls if c.name == "power_line_frequency")
+    assert plf.current_value == "2"
+    assert len(plf.choices) == 3

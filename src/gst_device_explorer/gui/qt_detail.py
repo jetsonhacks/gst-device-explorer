@@ -182,6 +182,7 @@ def create_detail_pane_widget(
         QHBoxLayout,
         QLabel,
         QLineEdit,
+        QListWidget,
         QPushButton,
         QScrollArea,
         QSizePolicy,
@@ -295,15 +296,43 @@ def create_detail_pane_widget(
     def _camera_explorer_widget(detail: DetailPaneModel) -> object:
         box = QGroupBox("Camera Explorer")
         layout = QVBoxLayout(box)
+        layout.setSpacing(8)
+
+        device_path = _target_from_summary(detail)
+        if device_path:
+            identity_label = QLabel(f"Device: {device_path}")
+            identity_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            layout.addWidget(identity_label)
+
         mode_tree = _camera_mode_tree(detail)
+
+        def _list_column(title: str) -> tuple[object, object]:
+            col = QVBoxLayout()
+            col.setSpacing(4)
+            label = QLabel(title)
+            col.addWidget(label)
+            lst = QListWidget()
+            lst.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            lst.setMinimumHeight(100)
+            col.addWidget(lst)
+            return col, lst
+
+        fmt_col, fmt_list = _list_column("Pixel Format")
+        res_col, res_list = _list_column("Image Size")
+        rate_col, rate_list = _list_column("Frame Duration")
+
+        for fmt in mode_tree:
+            fmt_list.addItem(fmt)
+        if not mode_tree:
+            fmt_list.addItem("Unavailable")
+            fmt_list.setEnabled(False)
+
         mode_layout = QHBoxLayout()
-        format_group, format_combo = _combo_group("Pixel Format", tuple(mode_tree) or ("Unavailable",))
-        resolution_group, resolution_combo = _combo_group("Resolution", ())
-        rate_group, rate_combo = _combo_group("Frame Duration", ())
-        mode_layout.addWidget(format_group)
-        mode_layout.addWidget(resolution_group)
-        mode_layout.addWidget(rate_group)
-        layout.addLayout(mode_layout)
+        mode_layout.setSpacing(8)
+        mode_layout.addLayout(fmt_col, 1)
+        mode_layout.addLayout(res_col, 1)
+        mode_layout.addLayout(rate_col, 1)
+        layout.addLayout(mode_layout, 2)
 
         pipeline = _pipeline_text(detail)
         pipeline_row = QHBoxLayout()
@@ -311,8 +340,9 @@ def create_detail_pane_widget(
         pipeline_edit.setReadOnly(True)
         pipeline_edit.setObjectName("cameraPipelineText")
         pipeline_row.addWidget(pipeline_edit)
-        if pipeline:
-            pipeline_row.addWidget(_copy_dynamic_button("Copy Pipeline", pipeline_edit.text))
+        copy_btn = _copy_dynamic_button("Copy Pipeline", pipeline_edit.text)
+        copy_btn.setEnabled(bool(pipeline))
+        pipeline_row.addWidget(copy_btn)
         preview = QPushButton("Preview Deferred")
         preview.setEnabled(False)
         preview.setToolTip("Preview is deferred; this milestone does not execute pipelines.")
@@ -320,53 +350,67 @@ def create_detail_pane_widget(
         layout.addLayout(pipeline_row)
 
         def update_pipeline() -> None:
+            rate_item = rate_list.currentItem()
+            res_item = res_list.currentItem()
+            fmt_item = fmt_list.currentItem()
             generated = _camera_pipeline_for_selection(
                 detail,
-                format_combo.currentText(),
-                resolution_combo.currentText(),
-                rate_combo.currentText(),
+                fmt_item.text() if fmt_item else "Unavailable",
+                res_item.text() if res_item else "Unavailable",
+                rate_item.text() if rate_item else "Unavailable",
             )
             pipeline_edit.setText(generated or "Pipeline unavailable for this camera mode.")
+            copy_btn.setEnabled(bool(generated))
 
         def update_rates() -> None:
-            resolution = resolution_combo.currentText()
-            rates = mode_tree.get(format_combo.currentText(), {}).get(resolution, ())
-            rate_combo.blockSignals(True)
-            rate_combo.clear()
-            rate_combo.addItems(list(rates) or ["Unavailable"])
-            rate_combo.blockSignals(False)
-            rate_combo.setEnabled(bool(rates))
+            res_item = res_list.currentItem()
+            fmt_item = fmt_list.currentItem()
+            resolution = res_item.text() if res_item else ""
+            fmt = fmt_item.text() if fmt_item else ""
+            rates = mode_tree.get(fmt, {}).get(resolution, ())
+            rate_list.clear()
+            for rate in rates:
+                rate_list.addItem(rate)
+            if not rates:
+                rate_list.addItem("Unavailable")
+                rate_list.setEnabled(False)
+            else:
+                rate_list.setEnabled(True)
+                rate_list.setCurrentRow(0)
             update_pipeline()
 
         def update_resolutions() -> None:
-            resolutions = tuple(mode_tree.get(format_combo.currentText(), {}))
-            resolution_combo.blockSignals(True)
-            resolution_combo.clear()
-            resolution_combo.addItems(list(resolutions) or ["Unavailable"])
-            resolution_combo.blockSignals(False)
-            resolution_combo.setEnabled(bool(resolutions))
+            fmt_item = fmt_list.currentItem()
+            fmt = fmt_item.text() if fmt_item else ""
+            resolutions = tuple(mode_tree.get(fmt, {}))
+            res_list.clear()
+            for res in resolutions:
+                res_list.addItem(res)
+            if not resolutions:
+                res_list.addItem("Unavailable")
+                res_list.setEnabled(False)
+            else:
+                res_list.setEnabled(True)
+                res_list.setCurrentRow(0)
             update_rates()
 
-        format_combo.currentTextChanged.connect(lambda _value: update_resolutions())
-        resolution_combo.currentTextChanged.connect(lambda _value: update_rates())
-        rate_combo.currentTextChanged.connect(lambda _value: update_pipeline())
-        format_combo.setEnabled(bool(mode_tree))
-        update_resolutions()
+        fmt_list.currentItemChanged.connect(lambda _cur, _prev: update_resolutions())
+        res_list.currentItemChanged.connect(lambda _cur, _prev: update_rates())
+        rate_list.currentItemChanged.connect(lambda _cur, _prev: update_pipeline())
+
+        if fmt_list.count() > 0 and fmt_list.isEnabled():
+            fmt_list.setCurrentRow(0)
 
         controls_box = QGroupBox("Dynamic V4L2 Controls (Read-Only)")
         controls_layout = QVBoxLayout(controls_box)
-        for line in _control_lines(detail):
-            controls_layout.addLayout(_control_row(line))
+        control_lines = _control_lines(detail)
+        if len(control_lines) == 1 and control_lines[0] == "No V4L2 controls advertised.":
+            controls_layout.addWidget(_text_label("No V4L2 controls advertised for this device."))
+        else:
+            for line in control_lines:
+                controls_layout.addLayout(_control_row(line))
         layout.addWidget(controls_box)
         return box
-
-    def _combo_group(title: str, values: tuple[str, ...]) -> object:
-        group = QGroupBox(title)
-        layout = QVBoxLayout(group)
-        combo = QComboBox()
-        combo.addItems(list(values) or ["Unavailable"])
-        layout.addWidget(combo)
-        return group, combo
 
     def _control_row(line: str) -> object:
         layout = QHBoxLayout()
