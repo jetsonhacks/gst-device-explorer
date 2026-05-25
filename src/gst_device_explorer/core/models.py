@@ -22,6 +22,48 @@ class Capability:
 
 
 @dataclass(frozen=True)
+class CameraControlChoice:
+    """One advertised menu choice for a camera control."""
+
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class CameraControl:
+    """One read-only V4L2 camera control advertised by a device."""
+
+    name: str
+    label: str
+    control_type: str
+    device_path: str
+    control_id: str | None = None
+    current_value: str | None = None
+    default_value: str | None = None
+    minimum: str | None = None
+    maximum: str | None = None
+    step: str | None = None
+    choices: tuple[CameraControlChoice, ...] = ()
+    flags: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "choices", tuple(self.choices))
+        object.__setattr__(self, "flags", tuple(self.flags))
+
+
+@dataclass(frozen=True)
+class CameraControlSet:
+    """Read-only V4L2 controls advertised by one camera device."""
+
+    device_path: str
+    controls: tuple[CameraControl, ...] = ()
+    source: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "controls", tuple(self.controls))
+
+
+@dataclass(frozen=True)
 class Device:
     """A discovered thing attached to or exposed by the system."""
 
@@ -276,4 +318,3 @@ class CompositeDevice:
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between 0.0 and 1.0")
-

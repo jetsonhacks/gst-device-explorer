@@ -6,7 +6,10 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gst_device_explorer.probes import discover_v4l2_video_devices
-from gst_device_explorer.probes.v4l2 import discover_v4l2_capabilities
+from gst_device_explorer.probes.v4l2 import (
+    discover_v4l2_capabilities,
+    discover_v4l2_controls,
+)
 
 
 def test_no_devices_found(tmp_path) -> None:
@@ -160,6 +163,101 @@ def test_empty_or_unrecognized_v4l2_output_returns_empty_list(monkeypatch) -> No
     assert capabilities == []
 
 
+def test_v4l2_integer_control_parsing(monkeypatch) -> None:
+    output = """
+User Controls
+
+    brightness 0x00980900 (int)    : min=0 max=255 step=1 default=128 value=140
+"""
+    commands: list[list[str]] = []
+    _mock_v4l2_controls(monkeypatch, output=output, commands=commands)
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    assert controls.device_path == "/dev/video0"
+    assert controls.source == "v4l2-ctl"
+    assert len(controls.controls) == 1
+    control = controls.controls[0]
+    assert control.name == "brightness"
+    assert control.label == "Brightness"
+    assert control.control_type == "int"
+    assert control.control_id == "0x00980900"
+    assert control.minimum == "0"
+    assert control.maximum == "255"
+    assert control.step == "1"
+    assert control.default_value == "128"
+    assert control.current_value == "140"
+    assert "--list-ctrls-menus" in commands[0]
+    assert "--set-ctrl" not in commands[0]
+
+
+def test_v4l2_boolean_and_inactive_control_parsing(monkeypatch) -> None:
+    output = """
+User Controls
+
+    led1_mode 0x0a046d05 (bool)   : default=0 value=1 flags=inactive
+"""
+    _mock_v4l2_controls(monkeypatch, output=output)
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    control = controls.controls[0]
+    assert control.name == "led1_mode"
+    assert control.control_type == "bool"
+    assert control.default_value == "0"
+    assert control.current_value == "1"
+    assert control.flags == ("inactive",)
+
+
+def test_v4l2_menu_control_parsing(monkeypatch) -> None:
+    output = """
+Camera Controls
+
+    exposure_auto 0x009a0901 (menu) : min=0 max=3 default=3 value=1
+        1: Manual Mode
+        3: Aperture Priority Mode
+"""
+    _mock_v4l2_controls(monkeypatch, output=output)
+
+    controls = discover_v4l2_controls("/dev/video2")
+
+    control = controls.controls[0]
+    assert control.name == "exposure_auto"
+    assert control.control_type == "menu"
+    assert control.current_value == "1"
+    assert [(choice.value, choice.label) for choice in control.choices] == [
+        ("1", "Manual Mode"),
+        ("3", "Aperture Priority Mode"),
+    ]
+
+
+def test_v4l2_controls_handle_empty_or_malformed_output(monkeypatch) -> None:
+    _mock_v4l2_controls(monkeypatch, output="this is not control output")
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    assert controls.device_path == "/dev/video0"
+    assert controls.controls == ()
+
+
+def test_missing_v4l2_ctl_returns_empty_control_set(monkeypatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda command: None)
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    assert controls.device_path == "/dev/video0"
+    assert controls.controls == ()
+
+
+def test_v4l2_control_command_failure_returns_empty_control_set(monkeypatch) -> None:
+    _mock_v4l2_controls(monkeypatch, output="", returncode=1)
+
+    controls = discover_v4l2_controls("/dev/video0")
+
+    assert controls.device_path == "/dev/video0"
+    assert controls.controls == ()
+
+
 def _mock_v4l2_ctl(monkeypatch, output: str, returncode: int = 0) -> None:
     monkeypatch.setattr("shutil.which", lambda command: f"/usr/bin/{command}")
 
@@ -167,6 +265,34 @@ def _mock_v4l2_ctl(monkeypatch, output: str, returncode: int = 0) -> None:
         assert command[0] == "v4l2-ctl"
         assert command[1] == "--device"
         assert command[3] == "--list-formats-ext"
+        assert check is False
+        assert capture_output is True
+        assert text is True
+        assert timeout == 5
+        return subprocess.CompletedProcess(
+            command,
+            returncode,
+            stdout=output,
+            stderr="",
+        )
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+
+def _mock_v4l2_controls(
+    monkeypatch,
+    output: str,
+    returncode: int = 0,
+    commands: list[list[str]] | None = None,
+) -> None:
+    monkeypatch.setattr("shutil.which", lambda command: f"/usr/bin/{command}")
+
+    def fake_run(command, check, capture_output, text, timeout):
+        if commands is not None:
+            commands.append(command)
+        assert command[0] == "v4l2-ctl"
+        assert command[1] == "--device"
+        assert command[3] == "--list-ctrls-menus"
         assert check is False
         assert capture_output is True
         assert text is True

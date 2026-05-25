@@ -38,6 +38,16 @@ def test_video_detail_pane_has_camera_specific_text() -> None:
 
     assert "Reachy-Style Camera" in text
     assert "Endpoint: /dev/video0" in text
+    assert "Camera Explorer" in text
+    assert "Selected format: MJPG" in text
+    assert "Camera Modes" in text
+    assert "Frame Rates" in text
+    assert "Generated Pipeline" in text
+    assert "gst-launch-1.0 v4l2src device=/dev/video0" in text
+    assert "Dynamic V4L2 Controls" in text
+    assert "brightness: type=int" in text
+    assert "exposure_auto: type=menu" in text
+    assert "Manual Mode" in text
     assert "Identity and Metadata" in text
     assert "Capabilities" in text
     assert "Candidate Pipelines" in text
@@ -62,6 +72,7 @@ def test_copyable_texts_include_endpoint_and_suggested_commands() -> None:
     copyables = dict(copyable_texts(pane))
 
     assert "/dev/video0" in copyables.values()
+    assert any("gst-launch-1.0 v4l2src device=/dev/video0" in value for value in copyables.values())
     assert any("gst-device-explorer" in value for value in copyables.values())
 
 
@@ -69,9 +80,11 @@ def test_action_copy_text_uses_suggested_command_only() -> None:
     pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
     dry_run = next(action for action in pane.actions if action.kind == "dry_run")
     preview = next(action for action in pane.actions if action.kind == "preview")
+    copy_pipeline = next(action for action in pane.actions if action.kind == "copy_pipeline")
 
     assert action_copy_text(dry_run) == "gst-device-explorer run video /dev/video0 --dry-run"
     assert action_copy_text(preview) is None
+    assert action_copy_text(copy_pipeline).startswith("gst-launch-1.0 v4l2src device=/dev/video0")
 
 
 def test_copy_display_text_uses_clipboard_abstraction() -> None:

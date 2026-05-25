@@ -10,6 +10,7 @@ from gst_device_explorer.probes.gst import (
 )
 from gst_device_explorer.probes.v4l2 import (
     discover_v4l2_capabilities,
+    discover_v4l2_controls,
     discover_v4l2_video_devices,
 )
 
@@ -18,6 +19,7 @@ __all__ = [
     "discover_alsa_audio_inputs",
     "discover_alsa_audio_outputs",
     "discover_v4l2_capabilities",
+    "discover_v4l2_controls",
     "discover_v4l2_video_devices",
     "inspect_gstreamer_environment",
 ]

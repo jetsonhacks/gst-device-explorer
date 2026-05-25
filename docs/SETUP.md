@@ -108,8 +108,14 @@ The live GUI renders discovered cameras, audio inputs, audio outputs, and
 composite groups. The Refresh control rebuilds the read-only discovery snapshot.
 Demo mode does not probe real hardware. The detail pane includes organized
 sections and safe copy buttons for displayed identifiers and suggested commands.
-Action controls are metadata/copy only in Milestone 22; they do not run
-pipelines, capture media, spawn subprocesses, or execute suggested commands.
+Action controls are metadata/copy only; they do not run pipelines, capture
+media, spawn subprocesses, or execute suggested commands.
+
+For selected cameras, the GUI now opens with a camera explorer pane. It shows
+pixel format, resolution, and frame-rate selectors, generated pipeline text,
+copy pipeline controls, and dynamic V4L2 controls discovered from the selected
+device. The controls are read-only in Milestone 23. The GUI does not write
+camera settings, reset controls, or call `v4l2-ctl --set-ctrl`.
 
 Useful pipeline candidate variants:
 
@@ -566,7 +572,9 @@ capture, or execution behavior; those controls are intentionally display-only.
 
 - The GUI is a minimal shell over live read-only discovery and deterministic demo data.
 - GUI action controls only display/copy metadata and do not execute commands yet.
+- The camera pane shows generated pipeline text and dynamic read-only V4L2 controls.
 - Camera preview in the GUI is not implemented.
+- Applying V4L2 control changes is not implemented.
 - Audio loopback is not implemented.
 - Group-based pipeline generation is not implemented.
 - Group-based pipeline execution is not implemented.

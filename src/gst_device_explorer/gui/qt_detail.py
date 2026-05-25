@@ -9,6 +9,7 @@ from gst_device_explorer.gui.model import DetailPaneModel, DetailSection, GuiAct
 COPYABLE_ACTION_KINDS = frozenset(
     {
         "copy_command",
+        "copy_pipeline",
         "dry_run",
         "show_diagnostics",
         "validate_group",
@@ -82,6 +83,7 @@ def section_display_title(section: DetailSection) -> str:
         "Refresh": "Refresh",
         "Discovery": "Discovery",
         "Selection": "Selection",
+        "V4L2 Controls": "Dynamic V4L2 Controls (Read-Only)",
     }
     return mapping.get(title, title)
 
@@ -117,7 +119,8 @@ def copyable_texts(detail: DetailPaneModel) -> tuple[tuple[str, str], ...]:
     for action in detail.actions:
         command = action_copy_text(action)
         if command is not None:
-            values.append((f"Copy {action.label}", command))
+            label = action.label if action.label.startswith("Copy ") else f"Copy {action.label}"
+            values.append((label, command))
     return tuple(dict(values).items())
 
 
@@ -171,14 +174,19 @@ def create_detail_pane_widget(
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
         QAbstractItemView,
+        QCheckBox,
+        QComboBox,
         QFrame,
         QFormLayout,
         QGroupBox,
         QHBoxLayout,
         QLabel,
+        QLineEdit,
         QPushButton,
         QScrollArea,
         QSizePolicy,
+        QSlider,
+        QSpinBox,
         QTableWidget,
         QTableWidgetItem,
         QVBoxLayout,
@@ -214,7 +222,18 @@ def create_detail_pane_widget(
                     summary_layout.addWidget(_text_label(line))
                 self._layout.addWidget(summary_box)
 
+            if detail.kind == "video" and _camera_section(detail, "Generated Pipeline") is not None:
+                self._layout.addWidget(_camera_explorer_widget(detail))
+
             for section in detail.sections:
+                if detail.kind == "video" and section.title in {
+                    "Camera Explorer",
+                    "Camera Modes",
+                    "Frame Rates",
+                    "Generated Pipeline",
+                    "V4L2 Controls",
+                }:
+                    continue
                 section_box = QGroupBox(section_display_title(section))
                 section_layout = QVBoxLayout(section_box)
                 if section_kind(section) in {"candidate", "capability", "identity", "group"}:
@@ -273,6 +292,133 @@ def create_detail_pane_widget(
         label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         return label
 
+    def _camera_explorer_widget(detail: DetailPaneModel) -> object:
+        box = QGroupBox("Camera Explorer")
+        layout = QVBoxLayout(box)
+        mode_tree = _camera_mode_tree(detail)
+        mode_layout = QHBoxLayout()
+        format_group, format_combo = _combo_group("Pixel Format", tuple(mode_tree) or ("Unavailable",))
+        resolution_group, resolution_combo = _combo_group("Resolution", ())
+        rate_group, rate_combo = _combo_group("Frame Duration", ())
+        mode_layout.addWidget(format_group)
+        mode_layout.addWidget(resolution_group)
+        mode_layout.addWidget(rate_group)
+        layout.addLayout(mode_layout)
+
+        pipeline = _pipeline_text(detail)
+        pipeline_row = QHBoxLayout()
+        pipeline_edit = QLineEdit(pipeline or "Pipeline unavailable for this camera mode.")
+        pipeline_edit.setReadOnly(True)
+        pipeline_edit.setObjectName("cameraPipelineText")
+        pipeline_row.addWidget(pipeline_edit)
+        if pipeline:
+            pipeline_row.addWidget(_copy_dynamic_button("Copy Pipeline", pipeline_edit.text))
+        preview = QPushButton("Preview Deferred")
+        preview.setEnabled(False)
+        preview.setToolTip("Preview is deferred; this milestone does not execute pipelines.")
+        pipeline_row.addWidget(preview)
+        layout.addLayout(pipeline_row)
+
+        def update_pipeline() -> None:
+            generated = _camera_pipeline_for_selection(
+                detail,
+                format_combo.currentText(),
+                resolution_combo.currentText(),
+                rate_combo.currentText(),
+            )
+            pipeline_edit.setText(generated or "Pipeline unavailable for this camera mode.")
+
+        def update_rates() -> None:
+            resolution = resolution_combo.currentText()
+            rates = mode_tree.get(format_combo.currentText(), {}).get(resolution, ())
+            rate_combo.blockSignals(True)
+            rate_combo.clear()
+            rate_combo.addItems(list(rates) or ["Unavailable"])
+            rate_combo.blockSignals(False)
+            rate_combo.setEnabled(bool(rates))
+            update_pipeline()
+
+        def update_resolutions() -> None:
+            resolutions = tuple(mode_tree.get(format_combo.currentText(), {}))
+            resolution_combo.blockSignals(True)
+            resolution_combo.clear()
+            resolution_combo.addItems(list(resolutions) or ["Unavailable"])
+            resolution_combo.blockSignals(False)
+            resolution_combo.setEnabled(bool(resolutions))
+            update_rates()
+
+        format_combo.currentTextChanged.connect(lambda _value: update_resolutions())
+        resolution_combo.currentTextChanged.connect(lambda _value: update_rates())
+        rate_combo.currentTextChanged.connect(lambda _value: update_pipeline())
+        format_combo.setEnabled(bool(mode_tree))
+        update_resolutions()
+
+        controls_box = QGroupBox("Dynamic V4L2 Controls (Read-Only)")
+        controls_layout = QVBoxLayout(controls_box)
+        for line in _control_lines(detail):
+            controls_layout.addLayout(_control_row(line))
+        layout.addWidget(controls_box)
+        return box
+
+    def _combo_group(title: str, values: tuple[str, ...]) -> object:
+        group = QGroupBox(title)
+        layout = QVBoxLayout(group)
+        combo = QComboBox()
+        combo.addItems(list(values) or ["Unavailable"])
+        layout.addWidget(combo)
+        return group, combo
+
+    def _control_row(line: str) -> object:
+        layout = QHBoxLayout()
+        name, value = _split_display_row(line)
+        label = QLabel(name)
+        label.setMinimumWidth(160)
+        layout.addWidget(label)
+        fields = _control_fields(value)
+        control_type = fields.get("type", "unknown")
+        disabled = "inactive" in fields.get("flags", "").split(",")
+        if control_type in {"int", "int64"}:
+            slider = QSlider(Qt.Horizontal)
+            spin = QSpinBox()
+            minimum = _int_or_default(fields.get("range_min"), 0)
+            maximum = _int_or_default(fields.get("range_max"), 100)
+            current = _int_or_default(fields.get("value"), minimum)
+            step = max(1, _int_or_default(fields.get("step"), 1))
+            slider.setRange(minimum, maximum)
+            slider.setSingleStep(step)
+            slider.setValue(max(minimum, min(maximum, current)))
+            spin.setRange(minimum, maximum)
+            spin.setSingleStep(step)
+            spin.setValue(max(minimum, min(maximum, current)))
+            slider.setEnabled(False)
+            spin.setEnabled(False)
+            layout.addWidget(slider)
+            layout.addWidget(spin)
+        elif control_type == "bool":
+            checkbox = QCheckBox()
+            checkbox.setChecked(fields.get("value") == "1")
+            checkbox.setEnabled(False)
+            layout.addWidget(checkbox)
+        elif control_type in {"menu", "intmenu"}:
+            combo = QComboBox()
+            choices = _control_choices(fields.get("choices", ""))
+            for choice_value, choice_label in choices:
+                combo.addItem(choice_label, choice_value)
+            current = fields.get("value")
+            if current:
+                for index, (choice_value, _choice_label) in enumerate(choices):
+                    if choice_value == current:
+                        combo.setCurrentIndex(index)
+                        break
+            combo.setEnabled(False)
+            layout.addWidget(combo)
+        else:
+            layout.addWidget(_text_label(value))
+        if disabled:
+            label.setEnabled(False)
+        layout.addStretch(1)
+        return layout
+
     def _copyable_row(text: str) -> object:
         row = QWidget()
         layout = QHBoxLayout(row)
@@ -286,6 +432,12 @@ def create_detail_pane_widget(
         button = QPushButton(label)
         button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         button.clicked.connect(lambda _checked=False, value=text: _copy_to_clipboard(value))
+        return button
+
+    def _copy_dynamic_button(label: str, text_getter: Callable[[], str]) -> object:
+        button = QPushButton(label)
+        button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        button.clicked.connect(lambda _checked=False: _copy_to_clipboard(text_getter()))
         return button
 
     def _copy_to_clipboard(text: str) -> None:
@@ -322,6 +474,161 @@ def create_detail_pane_widget(
                 widget.deleteLater()
 
     return DetailScrollArea()
+
+
+def _camera_section(detail: DetailPaneModel, title: str) -> DetailSection | None:
+    return next((section for section in detail.sections if section.title == title), None)
+
+
+def _camera_formats(detail: DetailPaneModel) -> tuple[str, ...]:
+    section = _camera_section(detail, "Camera Modes")
+    if section is None:
+        return ()
+    return tuple(item.split(":", 1)[0] for item in section.items if ":" in item)
+
+
+def _camera_resolutions(detail: DetailPaneModel) -> tuple[str, ...]:
+    section = _camera_section(detail, "Camera Modes")
+    if section is None:
+        return ()
+    result: list[str] = []
+    for item in section.items:
+        if ":" not in item:
+            continue
+        _fmt, values = item.split(":", 1)
+        result.extend(value.strip() for value in values.split(",") if value.strip())
+    return tuple(dict.fromkeys(result))
+
+
+def _camera_frame_rates(detail: DetailPaneModel) -> tuple[str, ...]:
+    section = _camera_section(detail, "Frame Rates")
+    if section is None:
+        return ()
+    result: list[str] = []
+    for item in section.items:
+        if ":" not in item:
+            continue
+        _resolution, values = item.split(":", 1)
+        result.extend(value.strip() for value in values.split(",") if value.strip())
+    return tuple(dict.fromkeys(result))
+
+
+def _camera_mode_tree(detail: DetailPaneModel) -> dict[str, dict[str, tuple[str, ...]]]:
+    modes = _camera_section(detail, "Camera Modes")
+    rates = _camera_section(detail, "Frame Rates")
+    result: dict[str, dict[str, tuple[str, ...]]] = {}
+    if modes is None:
+        return result
+
+    rate_by_resolution: dict[str, tuple[str, ...]] = {}
+    if rates is not None:
+        for item in rates.items:
+            if ":" not in item:
+                continue
+            key, values = item.split(":", 1)
+            rate_by_resolution[key.strip()] = tuple(
+                value.strip() for value in values.split(",") if value.strip()
+            )
+
+    for item in modes.items:
+        if ":" not in item:
+            continue
+        pixel_format, values = item.split(":", 1)
+        resolutions = tuple(value.strip() for value in values.split(",") if value.strip())
+        if not resolutions:
+            continue
+        fmt = pixel_format.strip()
+        result[fmt] = {
+            resolution: rate_by_resolution.get(
+                f"{fmt} {resolution}",
+                rate_by_resolution.get(resolution, ()),
+            )
+            for resolution in resolutions
+        }
+    return result
+
+
+def _camera_pipeline_for_selection(
+    detail: DetailPaneModel,
+    pixel_format: str,
+    resolution: str,
+    frame_rate: str,
+) -> str | None:
+    device_path = _target_from_summary(detail)
+    if (
+        device_path is None
+        or not pixel_format
+        or pixel_format == "Unavailable"
+        or not resolution
+        or resolution == "Unavailable"
+        or "x" not in resolution
+    ):
+        return None
+    width, height = resolution.split("x", 1)
+    caps_type = "image/jpeg" if pixel_format == "MJPG" else "video/x-raw"
+    caps_parts = [caps_type, f"width={width}", f"height={height}"]
+    if caps_type == "video/x-raw":
+        caps_parts.append(f"format={pixel_format}")
+    if frame_rate and frame_rate != "Unavailable":
+        caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
+    return f"gst-launch-1.0 v4l2src device={device_path} ! {','.join(caps_parts)} ! autovideosink"
+
+
+def _pipeline_text(detail: DetailPaneModel) -> str | None:
+    section = _camera_section(detail, "Generated Pipeline")
+    if section is None or not section.items:
+        return None
+    value = section.items[0]
+    return value if value.startswith("gst-launch-1.0 ") else None
+
+
+def _control_lines(detail: DetailPaneModel) -> tuple[str, ...]:
+    section = _camera_section(detail, "V4L2 Controls")
+    if section is None:
+        return ("No V4L2 controls advertised.",)
+    return section.items
+
+
+def _control_fields(value: str) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for part in value.split(";"):
+        if "=" not in part:
+            continue
+        key, item_value = part.strip().split("=", 1)
+        if key == "range" and ".." in item_value:
+            minimum, maximum = item_value.split("..", 1)
+            result["range_min"] = minimum
+            result["range_max"] = maximum
+        else:
+            result[key] = item_value
+    return result
+
+
+def _control_choices(value: str) -> tuple[tuple[str, str], ...]:
+    result = []
+    for part in value.split("|"):
+        if "=" in part:
+            choice_value, label = part.split("=", 1)
+            result.append((choice_value, label))
+    return tuple(result)
+
+
+def _int_or_default(value: str | None, default: int) -> int:
+    try:
+        return int(value) if value is not None else default
+    except ValueError:
+        return default
+
+
+def _fps_fraction(label: str) -> str:
+    value = label.removesuffix(" fps").strip()
+    try:
+        fps = float(value)
+    except ValueError:
+        return value
+    if fps.is_integer():
+        return f"{int(fps)}/1"
+    return f"{round(fps * 1000)}/1000"
 
 
 def _target_from_summary(detail: DetailPaneModel) -> str | None:

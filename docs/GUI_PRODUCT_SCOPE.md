@@ -345,6 +345,13 @@ summary, capability, candidate, diagnostic, safe-action, and notes sections.
 Copy buttons are allowed only for already-displayed text such as endpoint IDs,
 group IDs, and suggested command strings. Copying text does not run commands.
 
+Milestone 23 makes the camera detail pane task-oriented. When a camera is
+selected, the first visible content should be camera exploration: pixel format,
+resolution, frame-rate choices, generated pipeline text, copy pipeline controls,
+and dynamically discovered V4L2 controls. Controls are discovered per camera
+from advertised V4L2 metadata and rendered read-only; applying values, resetting
+values, previewing, dry-running, and capture remain deferred.
+
 PySide6 is kept out of core probe/discovery modules. CLI-only behavior should
 continue to work without importing Qt unless the GUI command is launched.
 
@@ -371,10 +378,11 @@ The following are deferred until the GUI becomes tangible:
 20. Minimal GUI Shell
 21. Sidebar Device/Group Tree
 22. Endpoint Detail Panes
-23. Safe GUI Actions
-24. Camera Preview and Audio Test UX
-25. Reachy Mini-Style Composite Device Validation
-26. Packaging and Demo Documentation
+23. Camera Explorer Pane and Dynamic V4L2 Controls
+24. Safe GUI Actions
+25. Camera Preview and Audio Test UX
+26. Reachy Mini-Style Composite Device Validation
+27. Packaging and Demo Documentation
 ```
 
 ## Success Criteria

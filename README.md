@@ -33,9 +33,10 @@ probing models, CLI renderers, video and audio pipeline candidate generation,
 and safe execution for selected video preview and ALSA audio test candidates. It
 can also create short, explicit, bounded capture files from generated video and
 audio-input candidates. Composite device groups are computed from discovered
-device metadata. Milestone 22 improves the PySide6 detail pane with organized
-identity, capability, candidate, diagnostic, action, and copy sections while
-keeping the GUI read-only. Editing, audio loopback, group-based execution, and
+device metadata. Milestone 23 makes selected camera details feel like a camera
+explorer: pixel format, resolution, and frame-rate choices lead into prominent
+generated pipeline text, copy affordances, and dynamically discovered read-only
+V4L2 controls. Editing, audio loopback, group-based execution, and
 preview-window lifecycle management are not implemented yet.
 
 ## Minimal GUI Shell
@@ -56,6 +57,13 @@ the read-only GUI snapshot. The detail pane includes safe copy affordances for
 displayed identifiers and suggested commands. Action buttons show labels, safety
 metadata, suggested commands, and disabled reasons, but they do not run
 pipelines, capture media, spawn subprocesses, or execute suggested commands.
+
+When a camera is selected, the GUI prioritizes camera exploration over generic
+report text. It shows available pixel formats, resolutions, frame rates, a
+display-only GStreamer pipeline string, a copy pipeline button, and the V4L2
+controls advertised by that specific camera. Controls are rendered dynamically
+from read-only `v4l2-ctl --list-ctrls-menus` data and are disabled in this
+milestone; the GUI does not write controls or call `v4l2-ctl --set-ctrl`.
 
 ## System Report
 
@@ -301,7 +309,7 @@ Selected JSON outputs use a stable envelope for scripts and future interfaces:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.22.0",
+  "tool_version": "0.23.0",
   "kind": "preset_list",
   "data": []
 }
@@ -318,7 +326,7 @@ Selected known error paths return a companion error envelope:
 ```json
 {
   "schema_version": "1.0",
-  "tool_version": "0.22.0",
+  "tool_version": "0.23.0",
   "kind": "error",
   "error": {
     "code": "unknown_schema",

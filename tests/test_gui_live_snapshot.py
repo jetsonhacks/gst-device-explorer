@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from gst_device_explorer.core.models import (
     CandidateRanking,
     CandidateRecommendation,
+    CameraControlSet,
     Capability,
     CompositeDevice,
     Device,
@@ -182,6 +183,11 @@ def _patch_live_inputs(monkeypatch) -> None:
     monkeypatch.setattr(live, "build_groupable_devices", lambda devices: ["groupable"])
     monkeypatch.setattr(live, "build_composite_devices", lambda groupable: [group])
     monkeypatch.setattr(live.v4l2_probe, "discover_v4l2_capabilities", lambda target: video.capabilities)
+    monkeypatch.setattr(
+        live.v4l2_probe,
+        "discover_v4l2_controls",
+        lambda target: CameraControlSet(device_path=target, source="v4l2-ctl"),
+    )
     monkeypatch.setattr(
         live.gst_probe,
         "inspect_gstreamer_environment",

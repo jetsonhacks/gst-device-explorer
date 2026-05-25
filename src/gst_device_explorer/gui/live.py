@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 from gst_device_explorer.core.grouping import build_composite_devices
 from gst_device_explorer.core.grouping_metadata import build_groupable_devices
 from gst_device_explorer.core.models import (
+    CameraControlSet,
     CandidateRanking,
     CompositeDevice,
     Device,
@@ -70,6 +71,10 @@ def build_live_gui_snapshot(selected_id: str | None = None) -> GuiSnapshotBundle
 
     video_capabilities = {
         _device_target(device): v4l2_probe.discover_v4l2_capabilities(_device_target(device))
+        for device in video_devices
+    }
+    video_controls = {
+        _device_target(device): v4l2_probe.discover_v4l2_controls(_device_target(device))
         for device in video_devices
     }
     video_devices = [
@@ -161,6 +166,7 @@ def build_live_gui_snapshot(selected_id: str | None = None) -> GuiSnapshotBundle
         profiles=profiles,
         validations=validations,
         recommendations=recommendations,
+        video_controls=video_controls,
     )
     return GuiSnapshotBundle(snapshot=snapshot, detail_panes=detail_panes)
 
@@ -192,6 +198,7 @@ def build_detail_pane_map(
     profiles: list[DeviceProfile],
     validations,
     recommendations: list[CandidateRanking],
+    video_controls: dict[str, CameraControlSet] | None = None,
 ) -> dict[str, DetailPaneModel]:
     """Build detail panes for all stable sidebar node ids in a snapshot."""
 
@@ -221,6 +228,7 @@ def build_detail_pane_map(
             device,
             profile=profiles_by_key.get(("video", target)),
             recommendation=rankings_by_key.get(("video", target)),
+            control_set=(video_controls or {}).get(target),
         )
         result[pane.selected_id] = pane
     for device in audio_inputs:

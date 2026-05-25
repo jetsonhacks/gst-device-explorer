@@ -8,7 +8,13 @@ import shutil
 import stat
 import subprocess
 
-from gst_device_explorer.core.models import Capability, Device
+from gst_device_explorer.core.models import (
+    CameraControl,
+    CameraControlChoice,
+    CameraControlSet,
+    Capability,
+    Device,
+)
 
 
 V4L2_CTL = "v4l2-ctl"
@@ -58,6 +64,26 @@ def discover_v4l2_capabilities(device_path: str | Path) -> list[Capability]:
         return []
 
     return _parse_v4l2_formats(result.stdout, device_path=str(path))
+
+
+def discover_v4l2_controls(device_path: str | Path) -> CameraControlSet:
+    """Discover advertised V4L2 controls for one video device.
+
+    This is read-only. It calls `v4l2-ctl --list-ctrls-menus` and never writes
+    controls or invokes `--set-ctrl`.
+    """
+
+    path = Path(device_path)
+    if shutil.which(V4L2_CTL) is None:
+        return CameraControlSet(device_path=str(path), source=V4L2_CTL)
+
+    result = _run_v4l2_ctl(
+        [V4L2_CTL, "--device", str(path), "--list-ctrls-menus"]
+    )
+    if result is None or result.returncode != 0:
+        return CameraControlSet(device_path=str(path), source=V4L2_CTL)
+
+    return _parse_v4l2_controls(result.stdout, device_path=str(path))
 
 
 def _is_char_device(path: Path) -> bool:
@@ -129,6 +155,120 @@ def _parse_v4l2_formats(output: str, device_path: str) -> list[Capability]:
         current_size=current_size,
     )
     return capabilities
+
+
+def _parse_v4l2_controls(output: str, device_path: str) -> CameraControlSet:
+    controls: list[CameraControl] = []
+    current: dict[str, object] | None = None
+
+    for raw_line in output.splitlines():
+        if not raw_line.strip():
+            continue
+        stripped = raw_line.strip()
+        if stripped.endswith("Controls") or stripped.endswith("Controls:"):
+            continue
+
+        menu_match = re.match(r"^\s*(\d+)\s*:\s*(.+)$", raw_line)
+        if menu_match is not None and current is not None:
+            choices = current.setdefault("choices", [])
+            if isinstance(choices, list):
+                choices.append(
+                    CameraControlChoice(
+                        value=menu_match.group(1),
+                        label=menu_match.group(2).strip(),
+                    )
+                )
+            continue
+
+        control = _finish_control(current, device_path)
+        if control is not None:
+            controls.append(control)
+        current = _parse_control_line(stripped)
+
+    control = _finish_control(current, device_path)
+    if control is not None:
+        controls.append(control)
+
+    return CameraControlSet(
+        device_path=device_path,
+        controls=tuple(controls),
+        source=V4L2_CTL,
+    )
+
+
+def _parse_control_line(line: str) -> dict[str, object] | None:
+    match = re.match(
+        r"^(?P<name>\S+)\s+"
+        r"(?P<id>0x[0-9a-fA-F]+)\s+"
+        r"\((?P<type>[^)]+)\)\s*:\s*"
+        r"(?P<body>.*)$",
+        line,
+    )
+    if match is None:
+        return None
+
+    body = match.group("body")
+    values = dict(re.findall(r"([A-Za-z0-9_-]+)=([^\s,]+)", body))
+    flags = _parse_control_flags(body, values)
+    return {
+        "name": match.group("name"),
+        "control_id": match.group("id"),
+        "control_type": match.group("type"),
+        "values": values,
+        "flags": flags,
+        "choices": [],
+    }
+
+
+def _finish_control(
+    parsed: dict[str, object] | None,
+    device_path: str,
+) -> CameraControl | None:
+    if parsed is None:
+        return None
+    values = parsed.get("values", {})
+    if not isinstance(values, dict):
+        values = {}
+    choices = parsed.get("choices", [])
+    if not isinstance(choices, list):
+        choices = []
+    flags = parsed.get("flags", [])
+    if not isinstance(flags, list):
+        flags = []
+    name = str(parsed["name"])
+    return CameraControl(
+        name=name,
+        label=name.replace("_", " ").replace("-", " ").title(),
+        control_type=str(parsed["control_type"]),
+        device_path=device_path,
+        control_id=str(parsed["control_id"]),
+        current_value=_string_or_none(values.get("value")),
+        default_value=_string_or_none(values.get("default")),
+        minimum=_string_or_none(values.get("min")),
+        maximum=_string_or_none(values.get("max")),
+        step=_string_or_none(values.get("step")),
+        choices=tuple(choices),
+        flags=tuple(flags),
+    )
+
+
+def _parse_control_flags(body: str, values: dict[str, str]) -> list[str]:
+    result: list[str] = []
+    flag_value = values.get("flags")
+    if flag_value:
+        result.extend(part.strip() for part in flag_value.split(",") if part.strip())
+
+    segments = [segment.strip() for segment in body.split(",")]
+    for segment in segments[1:]:
+        if segment and "=" not in segment:
+            result.append(segment)
+    return sorted(set(result))
+
+
+def _string_or_none(value: object) -> str | None:
+    if value is None:
+        return None
+    return str(value)
 
 
 def _append_video_capability(

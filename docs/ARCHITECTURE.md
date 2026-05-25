@@ -278,6 +278,20 @@ copy, and notes sections. Copy buttons write already-displayed identifiers or
 suggested command strings to the local clipboard and update the window status
 bar; they do not execute commands. Action controls remain display metadata only.
 
+Milestone 23 adds a camera-specific adapter under `gst_device_explorer.gui.camera`.
+It reshapes normalized V4L2 capability data into pixel format, resolution, and
+frame-rate choices, then builds display-only GStreamer pipeline text for the
+selected mode. The Qt detail pane renders this adapter ahead of generic
+diagnostic/report sections so selecting a camera feels like a camera explorer
+rather than a report page.
+
+Dynamic camera controls are modeled in core with immutable `CameraControl`,
+`CameraControlChoice`, and `CameraControlSet` values. The V4L2 probe layer reads
+advertised controls with `v4l2-ctl --list-ctrls-menus` and normalizes integer,
+boolean, menu, inactive/disabled, and unknown control metadata. This path is
+read-only: it does not call `v4l2-ctl --set-ctrl`, reset controls, preview media,
+capture media, or execute generated pipelines.
+
 ## TUI Review Mode
 
 The TUI is a read-only renderer over existing report, preset, configuration, and

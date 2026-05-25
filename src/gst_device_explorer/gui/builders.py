@@ -5,11 +5,17 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 
 from gst_device_explorer.core.models import (
+    CameraControlSet,
     CandidateRanking,
     CompositeDevice,
     Device,
     DeviceProfile,
     GroupValidation,
+)
+from gst_device_explorer.gui.camera import (
+    build_camera_explorer_state,
+    camera_copy_actions,
+    camera_explorer_sections,
 )
 from gst_device_explorer.core.suggestions import (
     SAFETY_BOUNDED_CAPTURE,
@@ -212,10 +218,12 @@ def build_detail_pane_for_video(
     *,
     profile: DeviceProfile | None = None,
     recommendation: CandidateRanking | None = None,
+    control_set: CameraControlSet | None = None,
 ) -> DetailPaneModel:
     """Build a camera detail pane from already-built endpoint models."""
 
     target = _device_target(device)
+    state = build_camera_explorer_state(device, control_set=control_set)
     return _endpoint_detail(
         selected_id=_endpoint_node_id("video", target),
         title=_display_name(device, profile, fallback=f"Camera {target}"),
@@ -224,8 +232,12 @@ def build_detail_pane_for_video(
         target_kind="video",
         target=target,
         summary=_device_summary(device, profile),
-        sections=_endpoint_sections(device, profile, recommendation),
+        sections=(
+            *camera_explorer_sections(state),
+            *_endpoint_sections(device, profile, recommendation),
+        ),
         actions=(
+            *camera_copy_actions(state),
             _refresh_action(),
             _diagnostics_action("video", target),
             _dry_run_action("video", target),

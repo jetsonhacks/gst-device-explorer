@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from gst_device_explorer.core.models import (
+    CameraControl,
+    CameraControlChoice,
+    CameraControlSet,
     CandidateRanking,
     CandidateRecommendation,
     Capability,
@@ -47,6 +50,10 @@ def build_demo_gui_snapshot() -> DemoGuiSnapshot:
     audio_outputs = [_demo_audio_output()]
     group = _demo_group()
     validation = _demo_group_validation()
+    controls = {
+        "/dev/video0": _demo_control_set("/dev/video0"),
+        "/dev/video2": _demo_control_set("/dev/video2", inactive=True),
+    }
     profiles = [
         _profile(
             device_kind="video",
@@ -126,6 +133,7 @@ def build_demo_gui_snapshot() -> DemoGuiSnapshot:
         audio_outputs=audio_outputs,
         profiles=profiles,
         recommendations=recommendations,
+        controls=controls,
     )
     return DemoGuiSnapshot(snapshot=snapshot, detail_panes=detail_panes)
 
@@ -140,6 +148,7 @@ def _build_demo_detail_panes(
     audio_outputs: list[Device],
     profiles: list[DeviceProfile],
     recommendations: list[CandidateRanking],
+    controls: dict[str, CameraControlSet],
 ) -> dict[str, DetailPaneModel]:
     by_profile = {(profile.device_kind, profile.device): profile for profile in profiles}
     by_ranking = {(ranking.endpoint_kind, ranking.endpoint): ranking for ranking in recommendations}
@@ -156,6 +165,7 @@ def _build_demo_detail_panes(
             device,
             profile=by_profile.get(("video", _device_target(device))),
             recommendation=by_ranking.get(("video", _device_target(device))),
+            control_set=controls.get(_device_target(device)),
         )
         result[pane.selected_id] = pane
     for device in audio_inputs:
@@ -200,10 +210,31 @@ def _demo_camera() -> Device:
         name="Reachy-Style Camera",
         capabilities=[
             Capability(
-                name="format",
-                values={"pixel_format": "YUY2", "width": 1280, "height": 720, "fps": 30},
+                name="video_format",
+                values={
+                    "media_type": "video",
+                    "pixel_format": "MJPG",
+                    "description": "Motion-JPEG, compressed",
+                    "width": 640,
+                    "height": 480,
+                    "fps": [30.0, 15.0],
+                    "device_path": "/dev/video0",
+                },
                 source="demo",
-            )
+            ),
+            Capability(
+                name="video_format",
+                values={
+                    "media_type": "video",
+                    "pixel_format": "YUYV",
+                    "description": "YUYV 4:2:2",
+                    "width": 1280,
+                    "height": 720,
+                    "fps": [30.0],
+                    "device_path": "/dev/video0",
+                },
+                source="demo",
+            ),
         ],
         metadata={"path": "/dev/video0", "driver": "uvcvideo", "bus": "usb-1-4.1"},
     )
@@ -216,8 +247,16 @@ def _standalone_camera() -> Device:
         name="Standalone Camera",
         capabilities=[
             Capability(
-                name="format",
-                values={"pixel_format": "MJPG", "width": 1920, "height": 1080, "fps": 30},
+                name="video_format",
+                values={
+                    "media_type": "video",
+                    "pixel_format": "MJPG",
+                    "description": "Motion-JPEG, compressed",
+                    "width": 1920,
+                    "height": 1080,
+                    "fps": [30.0],
+                    "device_path": "/dev/video2",
+                },
                 source="demo",
             )
         ],
@@ -274,6 +313,54 @@ def _demo_group_validation() -> GroupValidation:
         endpoint_counts=GroupValidationEndpointCounts(video=1, audio_inputs=1, audio_outputs=1),
         diagnostics=GroupValidationDiagnostics(missing_elements=["autovideosink"]),
         warnings=["Standalone camera preview is disabled in this demo."],
+    )
+
+
+def _demo_control_set(device_path: str, *, inactive: bool = False) -> CameraControlSet:
+    flags = ("inactive",) if inactive else ()
+    return CameraControlSet(
+        device_path=device_path,
+        source="demo",
+        controls=(
+            CameraControl(
+                name="brightness",
+                label="Brightness",
+                control_type="int",
+                control_id="0x00980900",
+                device_path=device_path,
+                minimum="0",
+                maximum="255",
+                step="1",
+                default_value="128",
+                current_value="140",
+                flags=flags,
+            ),
+            CameraControl(
+                name="exposure_auto",
+                label="Exposure Auto",
+                control_type="menu",
+                control_id="0x009a0901",
+                device_path=device_path,
+                minimum="0",
+                maximum="3",
+                default_value="3",
+                current_value="1",
+                choices=(
+                    CameraControlChoice(value="1", label="Manual Mode"),
+                    CameraControlChoice(value="3", label="Aperture Priority Mode"),
+                ),
+                flags=flags,
+            ),
+            CameraControl(
+                name="led1_mode",
+                label="Led1 Mode",
+                control_type="bool",
+                control_id="0x0a046d05",
+                device_path=device_path,
+                default_value="0",
+                current_value="1",
+            ),
+        ),
     )
 
 
