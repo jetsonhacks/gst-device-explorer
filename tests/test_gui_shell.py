@@ -12,6 +12,7 @@ from gst_device_explorer.cli.main import main
 from gst_device_explorer.cli.parser import build_parser
 from gst_device_explorer.gui.demo import DEMO_GENERATED_AT, build_demo_gui_snapshot
 from gst_device_explorer.gui.qt_detail import action_display_lines
+from gst_device_explorer.gui.preview_runner import PreviewState
 import gst_device_explorer.gui.qt_app as qt_app
 
 
@@ -128,6 +129,31 @@ def test_group_endpoint_action_navigates_to_endpoint_detail() -> None:
         _forget_pyside_modules()
 
 
+def test_main_window_close_cleans_up_preview_runner() -> None:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_main_window import create_main_window
+
+    runner = _FakePreviewRunner()
+    runner.state = PreviewState.RUNNING
+    demo = build_demo_gui_snapshot()
+    window = create_main_window(demo.snapshot, demo.detail_panes, preview_runner=runner)
+    window.show()
+    QtWidgets.QApplication.processEvents()
+
+    try:
+        window.close()
+        QtWidgets.QApplication.processEvents()
+
+        assert runner.cleanup_calls >= 1
+        assert runner.state == PreviewState.EXITED
+    finally:
+        window.deleteLater()
+        _forget_pyside_modules()
+
+
 def test_non_qt_gui_imports_do_not_import_pyside6() -> None:
     assert "PySide6" not in sys.modules
 
@@ -144,3 +170,18 @@ def _forget_pyside_modules() -> None:
     for name in tuple(sys.modules):
         if name == "PySide6" or name.startswith("PySide6."):
             sys.modules.pop(name, None)
+
+
+class _FakePreviewRunner:
+    def __init__(self) -> None:
+        self.state = PreviewState.IDLE
+        self.failure_text = None
+        self.cleanup_calls = 0
+
+    def poll(self):
+        return self.state
+
+    def cleanup(self):
+        self.cleanup_calls += 1
+        self.state = PreviewState.EXITED
+        return self.state

@@ -10,6 +10,7 @@ from gst_device_explorer.gui.qt_camera_controls import (
     create_camera_controls_widget,
 )
 from gst_device_explorer.gui.qt_camera_modes import (
+    camera_pipeline_argv_for_selection,
     camera_mode_tree,
     camera_pipeline_for_selection,
     camera_section,
@@ -17,11 +18,13 @@ from gst_device_explorer.gui.qt_camera_modes import (
     initial_selected_mode,
     selected_mode_text,
 )
+from gst_device_explorer.gui.qt_camera_preview import create_camera_preview_widget
 from gst_device_explorer.gui.qt_sections import (
     copy_to_clipboard,
     create_text_label,
     target_from_summary,
 )
+from gst_device_explorer.gui.preview_runner import PreviewCommand
 
 CAMERA_MODE_SECTION_TITLE = "Camera Mode"
 CAMERA_FRAME_RATE_LABEL = "Frame Rate"
@@ -67,6 +70,11 @@ def camera_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     if pipeline is not None:
         lines.append(pipeline)
     lines.append("Copy Pipeline")
+    lines.append("Preview")
+    if _preview_available(detail) and initial_selected_mode(detail) is not None:
+        lines.extend(("State: Ready", "Start Preview", "Stop Preview"))
+    else:
+        lines.extend(("State: Unavailable", "Preview unavailable: no eligible generated camera preview candidate."))
     lines.append("Camera Controls")
     lines.extend(camera_control_accessible_lines(detail))
     return tuple(lines)
@@ -76,6 +84,7 @@ def create_camera_explorer_widget(
     detail: DetailPaneModel,
     *,
     status_callback: Callable[[str], None] | None = None,
+    preview_runner: object | None = None,
 ) -> object:
     from PySide6.QtGui import QFont, QFontDatabase
     from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget
@@ -178,6 +187,31 @@ def create_camera_explorer_widget(
     pipeline_box_layout.addLayout(pipeline_row)
     layout.addWidget(pipeline_box, 0)
 
+    def current_preview_command() -> PreviewCommand | None:
+        if not _preview_available(detail):
+            return None
+        rate_item = rate_list.currentItem()
+        res_item = res_list.currentItem()
+        fmt_item = fmt_list.currentItem()
+        fmt = fmt_item.data(Qt.UserRole) if fmt_item else "Unavailable"
+        resolution = res_item.text() if res_item else "Unavailable"
+        frame_rate = rate_item.text() if rate_item else "Unavailable"
+        argv = camera_pipeline_argv_for_selection(detail, str(fmt), resolution, frame_rate)
+        target = target_from_summary(detail)
+        if argv is None or target is None:
+            return None
+        return PreviewCommand(
+            argv,
+            target=target,
+            description=f"Preview {selected_mode_text(str(fmt), resolution, frame_rate)}",
+        )
+
+    preview_widget, update_preview_state = create_camera_preview_widget(
+        current_preview_command,
+        preview_runner=preview_runner,
+    )
+    layout.addWidget(preview_widget, 0)
+
     def update_pipeline() -> None:
         rate_item = rate_list.currentItem()
         res_item = res_list.currentItem()
@@ -198,6 +232,7 @@ def create_camera_explorer_widget(
         pipeline_edit.setText(generated or "Pipeline unavailable for this camera mode.")
         pipeline_edit.setCursorPosition(0)
         copy_btn.setEnabled(bool(generated))
+        update_preview_state()
 
     def update_rates() -> None:
         res_item = res_list.currentItem()
@@ -237,6 +272,7 @@ def create_camera_explorer_widget(
 
     if fmt_list.count() > 0 and fmt_list.isEnabled():
         fmt_list.setCurrentRow(0)
+    update_preview_state()
 
     layout.addWidget(create_camera_controls_widget(detail), 1)
     return pane
@@ -350,3 +386,8 @@ def _pipeline_text(detail: DetailPaneModel) -> str | None:
         return None
     value = section.items[0]
     return value if value.startswith("gst-launch-1.0 ") else None
+
+
+def _preview_available(detail: DetailPaneModel) -> bool:
+    action = next((action for action in detail.actions if action.kind == "preview"), None)
+    return bool(action and action.enabled)

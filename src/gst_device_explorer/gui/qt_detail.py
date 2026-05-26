@@ -41,6 +41,7 @@ def create_detail_pane_widget(
     *,
     status_callback: Callable[[str], None] | None = None,
     navigate_callback: Callable[[str], None] | None = None,
+    preview_runner: object | None = None,
 ) -> object:
     """Create the concrete Qt detail widget.
 
@@ -55,10 +56,14 @@ def create_detail_pane_widget(
             self.setObjectName("detailTabs")
             self._explore = _scroll_area()
             self._information = _scroll_area()
+            self._selected_id: str | None = None
             self.addTab(self._explore, DETAIL_TAB_TITLES[0])
             self.addTab(self._information, DETAIL_TAB_TITLES[1])
 
         def render_detail(self, detail: DetailPaneModel) -> None:
+            if self._selected_id is not None and self._selected_id != detail.selected_id:
+                _cleanup_preview_runner(preview_runner)
+            self._selected_id = detail.selected_id
             self.setAccessibleName(detail.title)
             self.setAccessibleDescription(detail_accessible_text(detail))
             _replace_scroll_widget(
@@ -67,6 +72,7 @@ def create_detail_pane_widget(
                     detail,
                     status_callback=status_callback,
                     navigate_callback=navigate_callback,
+                    preview_runner=preview_runner,
                 ),
             )
             _replace_scroll_widget(
@@ -86,5 +92,12 @@ def create_detail_pane_widget(
         if old is not None:
             old.deleteLater()
         scroll.setWidget(widget)
+
+    def _cleanup_preview_runner(runner: object | None) -> None:
+        if runner is None:
+            return
+        cleanup = getattr(runner, "cleanup", None)
+        if cleanup is not None:
+            cleanup()
 
     return DetailTabbedWidget()

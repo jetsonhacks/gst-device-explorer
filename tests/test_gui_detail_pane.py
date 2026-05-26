@@ -45,6 +45,7 @@ from gst_device_explorer.gui.qt_detail import (
     section_kind,
 )
 from gst_device_explorer.gui.qt_explore import create_explore_widget, group_endpoint_cards
+from gst_device_explorer.gui.preview_runner import PreviewState
 
 
 def test_group_detail_pane_has_polished_group_text() -> None:
@@ -104,11 +105,16 @@ def test_camera_explore_tab_contains_camera_explorer_not_report_sections() -> No
     assert "Generated Pipeline" in text
     assert "gst-launch-1.0 v4l2src device=/dev/video0" in text
     assert "Copy Pipeline" in text
+    assert "Preview" in text
+    assert "State: Ready" in text
+    assert "Start Preview" in text
     assert "Camera Controls" in text
     assert "Brightness" in text
     assert "Current: 140" in text
     assert text.index("Camera Mode") < text.index("Generated Pipeline")
     assert text.index("Selected: MJPG, 640x480, 30 fps") < text.index("Generated Pipeline")
+    assert text.index("Generated Pipeline") < text.index("Preview")
+    assert text.index("Preview") < text.index("Camera Controls")
     assert text.index("Generated Pipeline") < text.index("Camera Controls")
     assert "Camera Explorer" not in text
     assert "Camera Summary" not in text
@@ -152,6 +158,63 @@ def test_camera_pipeline_widget_is_read_only_code_and_copyable() -> None:
 
         assert statuses == ["Copied to clipboard."]
         assert copy_button.text() == "Copied"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_camera_preview_widget_uses_structured_command_runner() -> None:
+    runner = _FakePreviewRunner()
+    widget, QtWidgets = _camera_explorer_widget(preview_runner=runner)
+
+    try:
+        pipeline = widget.findChild(QtWidgets.QLineEdit, "cameraPipelineText")
+        start_button = widget.findChild(QtWidgets.QPushButton, "cameraPreviewStartButton")
+        stop_button = widget.findChild(QtWidgets.QPushButton, "cameraPreviewStopButton")
+        state_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewStateText")
+
+        assert pipeline is not None
+        assert start_button is not None
+        assert stop_button is not None
+        assert state_label is not None
+        assert state_label.text() == "State: Ready"
+        assert widget.layout().indexOf(pipeline.parentWidget()) < widget.layout().indexOf(start_button.parentWidget())
+
+        start_button.click()
+
+        assert len(runner.started) == 1
+        command = runner.started[0]
+        assert command.target == "/dev/video0"
+        assert isinstance(command.argv, tuple)
+        assert command.argv[:3] == ("gst-launch-1.0", "v4l2src", "device=/dev/video0")
+        assert " ".join(command.argv) == pipeline.text()
+        assert runner.state == PreviewState.RUNNING
+        assert state_label.text() == "State: Running"
+
+        stop_button.click()
+
+        assert runner.stop_calls == 1
+        assert runner.state == PreviewState.EXITED
+        assert state_label.text() == "State: Exited"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_camera_preview_unavailable_without_eligible_candidate() -> None:
+    widget, QtWidgets = _camera_explorer_widget(pane=build_demo_gui_snapshot().detail_panes["video:/dev/video2"])
+
+    try:
+        start_button = widget.findChild(QtWidgets.QPushButton, "cameraPreviewStartButton")
+        state_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewStateText")
+        message_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewMessageText")
+
+        assert start_button is not None
+        assert state_label is not None
+        assert message_label is not None
+        assert state_label.text() == "State: Unavailable"
+        assert "Preview unavailable" in message_label.text()
+        assert not start_button.isEnabled()
     finally:
         widget.deleteLater()
         _forget_pyside_modules()
@@ -593,6 +656,8 @@ def test_group_and_audio_output_explore_tabs_have_expected_surfaces() -> None:
     assert "Recommended Candidate" not in output_text
     assert "Play" not in output_text
     assert "Start" not in output_text
+    assert "Start Preview" not in output_text
+    assert "Stop Preview" not in output_text
     assert "Test Output" not in output_text
 
 
@@ -619,6 +684,8 @@ def test_audio_input_explore_tab_is_inspector_with_generated_pipeline() -> None:
     assert "Future Input Test" in text
     assert "Input testing is deferred" in text
     assert "Audio input exploration controls are deferred." not in text
+    assert "Start Preview" not in text
+    assert "Stop Preview" not in text
     assert "Capture" not in text
     assert "Record" not in text
 
@@ -799,6 +866,31 @@ def test_audio_input_output_panes_have_audio_specific_text() -> None:
     assert "Recommended Candidate" in output_text
 
 
+def test_detail_pane_render_stops_preview_on_endpoint_change() -> None:
+    runner = _FakePreviewRunner()
+    runner.state = PreviewState.RUNNING
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_detail import create_detail_pane_widget
+
+    demo = build_demo_gui_snapshot()
+    widget = create_detail_pane_widget(preview_runner=runner)
+
+    try:
+        widget.render_detail(demo.detail_panes["video:/dev/video0"])
+        assert runner.cleanup_calls == 0
+
+        widget.render_detail(demo.detail_panes["audio_input:hw:2,0"])
+
+        assert runner.cleanup_calls == 1
+        assert runner.state == PreviewState.EXITED
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
 def test_copyable_texts_include_endpoint_and_suggested_commands() -> None:
     pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
     copyables = dict(copyable_texts(pane))
@@ -876,7 +968,7 @@ def test_detail_helpers_do_not_execute_subprocesses(monkeypatch) -> None:
     assert "Reachy-Style Camera" in detail_accessible_text(pane)
 
 
-def _camera_explorer_widget(*, pane=None, status_callback=None):
+def _camera_explorer_widget(*, pane=None, status_callback=None, preview_runner=None):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     QtWidgets = pytest.importorskip("PySide6.QtWidgets")
     QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
@@ -884,7 +976,41 @@ def _camera_explorer_widget(*, pane=None, status_callback=None):
     from gst_device_explorer.gui.qt_camera_explorer import create_camera_explorer_widget
 
     detail = pane or build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
-    return create_camera_explorer_widget(detail, status_callback=status_callback), QtWidgets
+    return (
+        create_camera_explorer_widget(
+            detail,
+            status_callback=status_callback,
+            preview_runner=preview_runner,
+        ),
+        QtWidgets,
+    )
+
+
+class _FakePreviewRunner:
+    def __init__(self) -> None:
+        self.state = PreviewState.IDLE
+        self.failure_text = None
+        self.started = []
+        self.stop_calls = 0
+        self.cleanup_calls = 0
+
+    def poll(self):
+        return self.state
+
+    def start(self, command):
+        self.started.append(command)
+        self.state = PreviewState.RUNNING
+        return True
+
+    def stop(self):
+        self.stop_calls += 1
+        self.state = PreviewState.EXITED
+        return self.state
+
+    def cleanup(self):
+        self.cleanup_calls += 1
+        self.state = PreviewState.EXITED
+        return self.state
 
 
 def _detail_with_long_pipeline():

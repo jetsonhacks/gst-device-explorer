@@ -365,6 +365,8 @@ Implemented as documentation-only policy:
 
 ## Milestone 36 — Camera Preview Implementation
 
+Status: Implemented
+
 Allow the camera Explore tab to launch and stop a selected generated preview pipeline safely.
 
 This milestone should focus on camera preview only.
@@ -380,6 +382,16 @@ It should not introduce:
 - V4L2 control writes
 
 If Milestone 35 identifies the need for a small GUI process runner or service seam, introduce only the minimal boundary needed for safe preview lifecycle management.
+
+Implemented:
+
+- added a small GUI-facing preview runner/service that accepts structured argv data only
+- added Camera Explore preview controls after the generated pipeline/code-copy surface
+- limited preview to eligible generated camera preview commands for the selected endpoint/mode
+- delegated Start Preview and Stop Preview to the runner/service
+- added cleanup on endpoint change, refresh, and window close
+- preserved audio input/output and group views as non-executing inspector/navigation surfaces
+- kept Commands/Reproduce and Reports deferred
 
 ## Milestone 37 — Audio Test Policy and UX
 

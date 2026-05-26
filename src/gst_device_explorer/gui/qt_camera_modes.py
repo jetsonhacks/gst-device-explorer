@@ -104,6 +104,18 @@ def camera_pipeline_for_selection(
     resolution: str,
     frame_rate: str,
 ) -> str | None:
+    argv = camera_pipeline_argv_for_selection(detail, pixel_format, resolution, frame_rate)
+    if argv is None:
+        return None
+    return " ".join(argv)
+
+
+def camera_pipeline_argv_for_selection(
+    detail: DetailPaneModel,
+    pixel_format: str,
+    resolution: str,
+    frame_rate: str,
+) -> list[str] | None:
     device_path = target_from_summary(detail)
     if (
         device_path is None
@@ -121,7 +133,15 @@ def camera_pipeline_for_selection(
         caps_parts.append(f"format={pixel_format}")
     if frame_rate and frame_rate != "Unavailable":
         caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
-    return f"gst-launch-1.0 v4l2src device={device_path} ! {','.join(caps_parts)} ! autovideosink"
+    return [
+        "gst-launch-1.0",
+        "v4l2src",
+        f"device={device_path}",
+        "!",
+        ",".join(caps_parts),
+        "!",
+        "autovideosink",
+    ]
 
 
 def _capability_values(item: str) -> dict[str, str]:

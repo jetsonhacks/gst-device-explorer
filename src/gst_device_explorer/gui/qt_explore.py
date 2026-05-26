@@ -61,6 +61,7 @@ def create_explore_widget(
     *,
     status_callback: Callable[[str], None] | None = None,
     navigate_callback: Callable[[str], None] | None = None,
+    preview_runner: object | None = None,
 ) -> object:
     from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QWidget
 
@@ -71,7 +72,14 @@ def create_explore_widget(
     pane.setAccessibleName(detail.title)
     pane.setAccessibleDescription(explore_accessible_text(detail))
     if has_camera_explorer(detail):
-        layout.addWidget(create_camera_explorer_widget(detail, status_callback=status_callback), 1)
+        layout.addWidget(
+            create_camera_explorer_widget(
+                detail,
+                status_callback=status_callback,
+                preview_runner=preview_runner,
+            ),
+            1,
+        )
     elif has_audio_input_explorer(detail):
         layout.addWidget(create_audio_input_explorer_widget(detail, status_callback=status_callback), 1)
     elif has_audio_output_explorer(detail):

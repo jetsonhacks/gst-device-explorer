@@ -12,6 +12,7 @@ def create_main_window(
     snapshot: MediaExplorerSnapshot,
     detail_panes: Mapping[str, DetailPaneModel] | None = None,
     refresh_builder: Callable[..., object] | None = None,
+    preview_runner: object | None = None,
 ) -> object:
     """Create the main Qt window for a GUI snapshot."""
 
@@ -21,6 +22,7 @@ def create_main_window(
 
     from gst_device_explorer.gui.builders import build_unknown_detail_pane
     from gst_device_explorer.gui.live import build_loading_detail_pane
+    from gst_device_explorer.gui.preview_runner import PreviewRunner
     from gst_device_explorer.gui.qt_detail import create_detail_pane_widget
     from gst_device_explorer.gui.qt_sidebar import populate_sidebar
 
@@ -32,6 +34,7 @@ def create_main_window(
             self._snapshot = snapshot
             self._detail_panes = dict(detail_panes or {})
             self._refresh_builder = refresh_builder
+            self._preview_runner = preview_runner or PreviewRunner()
 
             splitter = QSplitter(Qt.Horizontal)
             self._tree = QTreeWidget()
@@ -41,6 +44,7 @@ def create_main_window(
             self._detail = create_detail_pane_widget(
                 status_callback=lambda message: self.statusBar().showMessage(message, 2500),
                 navigate_callback=lambda node_id: self.select_node(node_id),
+                preview_runner=self._preview_runner,
             )
             splitter.addWidget(self._tree)
             splitter.addWidget(self._detail)
@@ -88,6 +92,7 @@ def create_main_window(
         def refresh_snapshot(self) -> None:
             if self._refresh_builder is None:
                 return
+            self._preview_runner.cleanup()
             previous_selection = self._current_node_id()
             self._detail.render_detail(build_loading_detail_pane())
             QApplication.processEvents()
@@ -104,6 +109,10 @@ def create_main_window(
             if not items:
                 return self._snapshot.selected_node_id
             return str(items[0].data(0, Qt.UserRole))
+
+        def closeEvent(self, event: object) -> None:
+            self._preview_runner.cleanup()
+            super().closeEvent(event)
 
     return MediaExplorerMainWindow()
 
