@@ -672,15 +672,23 @@ def test_group_and_audio_output_explore_tabs_have_expected_surfaces() -> None:
     assert "audio/x-raw" in output_text
     assert "Generated Output Pipeline" in output_text
     assert "Using default generated output candidate" in output_text
-    assert "gst-launch-1.0 audiotestsrc wave=sine freq=440 samplesperbuffer=2400 num-buffers=20 ! audio/x-raw" in output_text
+    assert "gst-launch-1.0 audiotestsrc wave=sine freq=440 volume=0.2 samplesperbuffer=2400 num-buffers=20 ! audio/x-raw" in output_text
     assert "alsasink device=hw:2,0" in output_text
     assert "Copy Pipeline" in output_text
     assert "Speaker Test" in output_text
+    assert "Test Level" in output_text
     assert "State: Ready" in output_text
     assert "Start Test" in output_text
     assert "Stop Test" in output_text
-    assert "Plays a short generated tone on this selected endpoint" in output_text
-    assert "Does not change volume, mixer, or system audio routing" in output_text
+    assert "Plays a short generated tone through the selected output endpoint" in output_text
+    assert "Test Level adjusts only this generated pipeline" in output_text
+    assert "does not change system volume, mixer settings, or audio routing" in output_text
+    assert "Local File Playback" in output_text
+    assert "No file selected." in output_text
+    assert "Playback Level" in output_text
+    assert "Start Playback" in output_text
+    assert "Stop Playback" in output_text
+    assert "Playback routes through the selected output endpoint" in output_text
     assert "Audio output exploration controls are deferred." not in output_text
     assert "Recommended Candidate" not in output_text
     assert "Start Preview" not in output_text
@@ -862,11 +870,17 @@ def test_audio_output_pipeline_widget_is_read_only_code_and_copyable() -> None:
         assert pipeline.property("presentation") == "code"
         assert pipeline.font().fixedPitch()
         assert pipeline.text().startswith(
-            "gst-launch-1.0 audiotestsrc wave=sine freq=440 samplesperbuffer=2400 num-buffers=20 ! audio/x-raw"
+            "gst-launch-1.0 audiotestsrc wave=sine freq=440 volume=0.2 samplesperbuffer=2400 num-buffers=20 ! audio/x-raw"
         )
         assert pipeline.text().endswith("alsasink device=hw:2,0")
         assert copy_button.text() == "Copy Pipeline"
-        assert [button.text() for button in buttons] == ["Copy Pipeline", "Start Test", "Stop Test"]
+        button_texts = [button.text() for button in buttons]
+        assert "Copy Pipeline" in button_texts
+        assert "Start Test" in button_texts
+        assert "Stop Test" in button_texts
+        assert "Start Playback" in button_texts
+        assert "Stop Playback" in button_texts
+        assert "Select Audio File" in button_texts
 
         copy_button.click()
 
@@ -898,7 +912,8 @@ def test_audio_output_speaker_test_widget_uses_structured_command_runner() -> No
         assert state_label is not None
         assert note_label is not None
         assert state_label.text() == "State: Ready"
-        assert "Does not change volume" in note_label.text()
+        assert "Test Level adjusts only this generated pipeline" in note_label.text()
+        assert "does not change system volume, mixer settings, or audio routing" in note_label.text()
         audio_pane = pipeline.parentWidget().parentWidget()
         assert audio_pane.layout().indexOf(pipeline.parentWidget()) < audio_pane.layout().indexOf(
             start_button.parentWidget()
@@ -910,11 +925,12 @@ def test_audio_output_speaker_test_widget_uses_structured_command_runner() -> No
         command = runner.started[0]
         assert command.target == "hw:2,0"
         assert isinstance(command.argv, tuple)
-        assert command.argv[:6] == (
+        assert command.argv[:7] == (
             "gst-launch-1.0",
             "audiotestsrc",
             "wave=sine",
             "freq=440",
+            "volume=0.2",
             "samplesperbuffer=2400",
             "num-buffers=20",
         )
@@ -988,7 +1004,7 @@ def test_audio_output_explore_uses_known_audio_caps_in_gst_caps() -> None:
     assert "Channels\n2" in text
     assert "GStreamer Caps\naudio/x-raw,format=S16LE,rate=48000,channels=2" in text
     assert (
-        "gst-launch-1.0 audiotestsrc wave=sine freq=440 samplesperbuffer=2400 num-buffers=20 ! "
+        "gst-launch-1.0 audiotestsrc wave=sine freq=440 volume=0.2 samplesperbuffer=2400 num-buffers=20 ! "
         "audio/x-raw,format=S16LE,rate=48000,channels=2"
     ) in text
 
@@ -1081,7 +1097,282 @@ def test_audio_input_output_panes_have_audio_specific_text() -> None:
     assert "Recommended Candidate" in output_text
 
 
-def test_detail_pane_render_stops_preview_on_endpoint_change() -> None:
+def test_audio_output_tone_level_defaults_to_quiet() -> None:
+    runner = _FakePreviewRunner()
+    pane = build_demo_gui_snapshot().detail_panes["audio_output:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, preview_runner=runner)
+
+    try:
+        level_combo = widget.findChild(QtWidgets.QComboBox, "audioOutputTestLevelCombo")
+
+        assert level_combo is not None
+        assert level_combo.currentText() == "Quiet"
+        assert level_combo.count() == 3
+        assert [level_combo.itemText(i) for i in range(3)] == ["Quiet", "Normal", "Loud"]
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_tone_level_changes_update_pipeline_and_argv() -> None:
+    runner = _FakePreviewRunner()
+    pane = build_demo_gui_snapshot().detail_panes["audio_output:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, preview_runner=runner)
+
+    try:
+        pipeline = widget.findChild(QtWidgets.QLineEdit, "audioOutputPipelineText")
+        level_combo = widget.findChild(QtWidgets.QComboBox, "audioOutputTestLevelCombo")
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioOutputTestStartButton")
+
+        assert "volume=0.2" in pipeline.text()
+
+        level_combo.setCurrentText("Normal")
+        QtWidgets.QApplication.processEvents()
+
+        assert "volume=0.5" in pipeline.text()
+        assert "volume=0.2" not in pipeline.text()
+
+        start_button.click()
+
+        assert len(runner.started) == 1
+        command = runner.started[0]
+        assert "volume=0.5" in command.argv
+        assert " ".join(command.argv) == pipeline.text()
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_tone_level_loud_uses_expected_volume() -> None:
+    runner = _FakePreviewRunner()
+    pane = build_demo_gui_snapshot().detail_panes["audio_output:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, preview_runner=runner)
+
+    try:
+        pipeline = widget.findChild(QtWidgets.QLineEdit, "audioOutputPipelineText")
+        level_combo = widget.findChild(QtWidgets.QComboBox, "audioOutputTestLevelCombo")
+
+        level_combo.setCurrentText("Loud")
+        QtWidgets.QApplication.processEvents()
+
+        assert "volume=0.8" in pipeline.text()
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_file_playback_section_visible_with_correct_initial_state() -> None:
+    pane = build_demo_gui_snapshot().detail_panes["audio_output:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane)
+
+    try:
+        select_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackSelectButton")
+        file_label = widget.findChild(QtWidgets.QLabel, "audioOutputPlaybackFileLabel")
+        level_combo = widget.findChild(QtWidgets.QComboBox, "audioOutputPlaybackLevelCombo")
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackStartButton")
+        stop_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackStopButton")
+        state_label = widget.findChild(QtWidgets.QLabel, "audioOutputPlaybackStateText")
+
+        assert select_button is not None
+        assert file_label is not None
+        assert level_combo is not None
+        assert start_button is not None
+        assert stop_button is not None
+        assert state_label is not None
+        assert file_label.text() == "No file selected."
+        assert level_combo.currentText() == "Quiet"
+        assert level_combo.count() == 3
+        assert state_label.text() == "State: Unavailable"
+        assert not start_button.isEnabled()
+        assert not stop_button.isEnabled()
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_file_playback_start_unavailable_until_file_selected() -> None:
+    runner = _FakePreviewRunner()
+    pane = build_demo_gui_snapshot().detail_panes["audio_output:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_audio_output_file_playback import (
+        create_audio_output_file_playback_widget,
+    )
+
+    widget, _refresh = create_audio_output_file_playback_widget(
+        "hw:2,0",
+        preview_runner=runner,
+        _select_file=lambda: "/tmp/test.wav",
+    )
+
+    try:
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackStartButton")
+        select_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackSelectButton")
+        state_label = widget.findChild(QtWidgets.QLabel, "audioOutputPlaybackStateText")
+
+        assert not start_button.isEnabled()
+        assert state_label.text() == "State: Unavailable"
+
+        select_button.click()
+        QtWidgets.QApplication.processEvents()
+
+        assert start_button.isEnabled()
+        assert state_label.text() == "State: Ready"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_file_playback_uses_structured_argv_with_file_and_endpoint() -> None:
+    runner = _FakePreviewRunner()
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_audio_output_file_playback import (
+        create_audio_output_file_playback_widget,
+    )
+
+    widget, _refresh = create_audio_output_file_playback_widget(
+        "hw:2,0",
+        preview_runner=runner,
+        _select_file=lambda: "/home/user/music/test.wav",
+    )
+
+    try:
+        select_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackSelectButton")
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackStartButton")
+        file_label = widget.findChild(QtWidgets.QLabel, "audioOutputPlaybackFileLabel")
+
+        select_button.click()
+        QtWidgets.QApplication.processEvents()
+
+        assert file_label.text() == "test.wav"
+        assert file_label.toolTip() == "/home/user/music/test.wav"
+        assert start_button.isEnabled()
+
+        start_button.click()
+
+        assert len(runner.started) == 1
+        command = runner.started[0]
+        assert command.target == "hw:2,0"
+        assert isinstance(command.argv, tuple)
+        assert command.argv[0] == "gst-launch-1.0"
+        assert "filesrc" in command.argv
+        assert "location=/home/user/music/test.wav" in command.argv
+        assert "decodebin" in command.argv
+        assert "volume" in command.argv
+        assert "volume=0.2" in command.argv
+        assert "alsasink" in command.argv
+        assert "device=hw:2,0" in command.argv
+        assert runner.state == PreviewState.RUNNING
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_file_playback_level_changes_update_argv() -> None:
+    runner = _FakePreviewRunner()
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_audio_output_file_playback import (
+        create_audio_output_file_playback_widget,
+    )
+
+    widget, _refresh = create_audio_output_file_playback_widget(
+        "hw:2,0",
+        preview_runner=runner,
+        _select_file=lambda: "/tmp/tone.flac",
+    )
+
+    try:
+        select_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackSelectButton")
+        level_combo = widget.findChild(QtWidgets.QComboBox, "audioOutputPlaybackLevelCombo")
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackStartButton")
+
+        select_button.click()
+        level_combo.setCurrentText("Loud")
+        QtWidgets.QApplication.processEvents()
+
+        start_button.click()
+
+        assert len(runner.started) == 1
+        command = runner.started[0]
+        assert "volume=0.8" in command.argv
+        assert "volume=0.2" not in command.argv
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_file_playback_rejects_url_paths() -> None:
+    from gst_device_explorer.gui.qt_audio_output_file_playback import is_safe_local_file
+
+    assert not is_safe_local_file("http://example.com/audio.wav")
+    assert not is_safe_local_file("https://example.com/audio.wav")
+    assert not is_safe_local_file("ftp://example.com/audio.wav")
+    assert not is_safe_local_file("rtsp://192.168.1.1/stream")
+    assert not is_safe_local_file("file:///home/user/audio.wav")
+    assert not is_safe_local_file("")
+    assert is_safe_local_file("/home/user/music/test.wav")
+    assert is_safe_local_file("/tmp/tone.flac")
+
+
+def test_audio_output_file_playback_stop_and_cleanup_use_runner() -> None:
+    runner = _FakePreviewRunner()
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_audio_output_file_playback import (
+        create_audio_output_file_playback_widget,
+    )
+
+    widget, _refresh = create_audio_output_file_playback_widget(
+        "hw:2,0",
+        preview_runner=runner,
+        _select_file=lambda: "/tmp/test.wav",
+    )
+
+    try:
+        select_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackSelectButton")
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackStartButton")
+        stop_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPlaybackStopButton")
+        state_label = widget.findChild(QtWidgets.QLabel, "audioOutputPlaybackStateText")
+
+        select_button.click()
+        start_button.click()
+
+        assert runner.state == PreviewState.RUNNING
+        assert state_label.text() == "State: Running"
+
+        stop_button.click()
+
+        assert runner.stop_calls == 1
+        assert runner.state == PreviewState.EXITED
+        assert state_label.text() == "State: Exited"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_detail_pane_render_preserves_preview_on_sidebar_navigation() -> None:
     runner = _FakePreviewRunner()
     runner.state = PreviewState.RUNNING
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -1099,8 +1390,8 @@ def test_detail_pane_render_stops_preview_on_endpoint_change() -> None:
 
         widget.render_detail(demo.detail_panes["audio_input:hw:2,0"])
 
-        assert runner.cleanup_calls == 1
-        assert runner.state == PreviewState.EXITED
+        assert runner.cleanup_calls == 0
+        assert runner.state == PreviewState.RUNNING
     finally:
         widget.deleteLater()
         _forget_pyside_modules()

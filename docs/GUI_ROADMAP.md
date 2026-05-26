@@ -277,10 +277,12 @@ Milestone 37 — Audio Test Policy and UX
 Milestone 38 — Safe Audio Output Test Implementation
 Milestone 39 — Safe Audio Input Activity Test Implementation
 Milestone 40 — Hardware Interface / HIL Validation Pass
-Milestone 41 — Commands and Reproduce Sections
-Milestone 42 — Reports Area
-Milestone 43 — Service-Layer Cleanup
-Milestone 44 — Polish and HIL Validation
+Milestone 41 — Audio Output Quality Test Policy and UX
+Milestone 42 — Audio Output Quality Test Implementation
+Milestone 43 — Commands and Reproduce Sections
+Milestone 44 — Reports Area
+Milestone 45 — Service-Layer Cleanup
+Milestone 46 — Polish and HIL Validation
 ```
 
 A small process-boundary milestone may be inserted before camera preview if Milestone 35 shows that subprocess handling should not live directly in Qt widgets.
@@ -482,22 +484,61 @@ This milestone should not introduce:
 
 ## Milestone 40 — Hardware Interface / HIL Validation Pass
 
+Status: Implemented
+
 Validate the first GUI hardware-interaction behavior on Jetson and Reachy Mini-style hardware.
 
-This milestone should test the hardware interaction model before expanding command/report surfaces.
+Validated on HIL host `jetsonhacks` (Linux 6.8.12-tegra, GStreamer 1.24.2):
 
-Possible scope:
-
-- camera preview on Jetson
-- camera preview on Reachy Mini-style USB camera endpoint
-- audio input test behavior on real microphone endpoints
-- audio output test behavior on real speaker endpoints
+- camera preview on `/dev/video0` (HD Pro Webcam C920)
+- audio output tone test on `hw:0,0` (Reachy Mini Audio)
+- audio input activity test on `hw:0,0` (Reachy Mini Audio)
 - process cleanup under normal stop, failure, and window-close paths
-- fallback behavior when required GStreamer elements are missing
-- layout and usability on embedded/laptop displays
-- confirmation that safety boundaries remain intact
+- command provenance corrected for camera mode selection and MJPG candidate path
+- safety boundaries confirmed intact
 
-## Milestone 41 — Commands and Reproduce Sections
+## Milestone 41 — Audio Output Quality Test Policy and UX
+
+Status: Implemented
+
+Define how Audio Output Explore should support a casual user's audio quality investigation.
+
+This is a documentation-only policy milestone. Milestone 42 implements the approved design.
+
+Implemented:
+
+- distinguished Generated Tone Test (endpoint can produce sound) from Local File Playback Quality Test (user judges real-world fidelity)
+- defined Test Level and Playback Level as pipeline-local controls that do not mutate system volume
+- recommended level presets: Quiet, Normal, Loud
+- defined local-file-only playback policy: no remote URLs, no playlists, no arbitrary pipelines, no shell strings
+- recommended conservative initial file type handling
+- defined bounded playback as the preferred first implementation
+- defined command provenance requirements for file playback
+- defined cleanup requirements matching Milestones 36, 38, and 39 patterns
+- deferred `PreviewCommand` rename to a later service-layer cleanup milestone
+- confirmed all safety boundaries intact
+- no implementation behavior added
+
+## Milestone 42 — Audio Output Quality Test Implementation
+
+Status: Implemented
+
+Implement the local file playback quality test approved in Milestone 41.
+
+Implemented:
+
+- Test Level presets (Quiet / Normal / Loud) on the existing Generated Tone speaker test; displayed pipeline text updates dynamically with level; runner argv and display text share the same generated source
+- Local File Playback section: native file dialog, basename display, full path as tooltip, Playback Level presets, Start Playback / Stop Playback controls
+- `filesrc location=<path>` pipeline (not URI) ensures remote URLs are structurally impossible
+- Any locally selected file accepted; GStreamer failure surfaced through runner FAILED state
+- Natural EOS ends playback; manual Stop available; cleanup on Stop, endpoint change, refresh, and close
+- `is_safe_local_file()` rejects URLs, empty strings, and directories
+- New module `qt_audio_output_file_playback.py` with injectable file selector for testing
+- 9 new tests; 4 existing tests updated; 615 total passing
+
+HIL validated on `jetsonhacks` with `hw:0,0`: `.wav`, `.flac`, `.mp3` play correctly; unsupported file reported as Failed; no system audio mutation observed.
+
+## Milestone 43 — Commands and Reproduce Sections
 
 Add curated command sections in Device Information views after preview/audio-test workflows have matured.
 
@@ -511,7 +552,7 @@ Commands may include:
 
 These commands should teach the user how to reproduce GUI-derived discovery from the command line without cluttering the Explore tab.
 
-## Milestone 42 — Reports Area
+## Milestone 44 — Reports Area
 
 Add a dedicated Reports or Diagnostics area after hardware interaction workflows have been validated.
 
@@ -527,7 +568,7 @@ This area should contain:
 
 This keeps report functions available while removing them from the main exploration workflow.
 
-## Milestone 43 — Service-Layer Cleanup
+## Milestone 45 — Service-Layer Cleanup
 
 Introduce purpose-built GUI-facing services so widgets consume exploration models instead of raw CLI/report structures.
 
@@ -543,7 +584,7 @@ The goal is to prevent the GUI from becoming a rendered version of CLI output or
 
 This milestone may move earlier if preview/audio-test work exposes a concrete architectural seam that must be addressed before safe implementation can continue.
 
-## Milestone 44 — Polish and HIL Validation
+## Milestone 46 — Polish and HIL Validation
 
 Validate the redesigned GUI on Jetson and Reachy Mini-style hardware.
 
@@ -587,4 +628,10 @@ A useful distinction:
 - **Reports** means creating a full accounting for support, debugging, or documentation.
 - **Commands** means teaching how to reproduce a mature investigation outside the GUI.
 
-The next development path should prove safe hardware interaction before expanding command/reproduction or report presentation.
+Through Milestone 41, the GUI has established:
+
+- inspector-first Explore pages for camera, audio input, audio output, and groups
+- safe camera preview, audio output speaker tone, and audio input activity test on real HIL hardware
+- a policy for audio output quality testing that distinguishes generated tone verification from local file playback fidelity
+
+Through Milestone 42, Audio Output Explore supports both Generated Tone testing (with pipeline-local Test Level presets) and Local File Playback (with file selection, Playback Level presets, and clean Stop/cleanup). Commands/Reproduce and Reports remain deferred at Milestones 43–44.

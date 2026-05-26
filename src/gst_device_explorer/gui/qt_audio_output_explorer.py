@@ -7,8 +7,17 @@ from collections.abc import Callable
 
 from gst_device_explorer.gui.model import DetailPaneModel
 from gst_device_explorer.gui.preview_runner import PreviewCommand
+from gst_device_explorer.gui.qt_audio_output_file_playback import (
+    DEFAULT_LEVEL as _DEFAULT_FILE_LEVEL,
+    LEVEL_PRESETS as _FILE_LEVEL_PRESETS,
+    create_audio_output_file_playback_widget,
+    file_playback_argv,
+)
 from gst_device_explorer.gui.qt_audio_output_test import create_audio_output_test_widget
 from gst_device_explorer.gui.qt_sections import copy_to_clipboard, create_text_label, target_from_summary
+
+_TONE_LEVEL_VOLUMES: dict[str, float] = {"Quiet": 0.2, "Normal": 0.5, "Loud": 0.8}
+_DEFAULT_TONE_LEVEL = "Quiet"
 
 
 def has_audio_output_explorer(detail: DetailPaneModel) -> bool:
@@ -25,25 +34,38 @@ def audio_output_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     lines.append("Generated Output Pipeline")
     lines.append("Using default generated output candidate")
     if target is not None:
-        lines.append(_generated_output_pipeline(target, _audio_capability_values(detail)))
+        lines.append(_generated_tone_pipeline(target, _audio_capability_values(detail), _DEFAULT_TONE_LEVEL))
     lines.append("Copy Pipeline")
     lines.append("Speaker Test")
+    lines.extend(("Test Level", _DEFAULT_TONE_LEVEL))
     if _speaker_test_available(detail) and target is not None:
-        lines.extend(
-            (
-                "State: Ready",
-                "Start Test",
-                "Stop Test",
-                "Plays a short generated tone on this selected endpoint. Does not change volume, mixer, or system audio routing.",
-            )
-        )
+        lines.extend((
+            "State: Ready",
+            "Start Test",
+            "Stop Test",
+            "Plays a short generated tone through the selected output endpoint. "
+            "Test Level adjusts only this generated pipeline and does not change "
+            "system volume, mixer settings, or audio routing.",
+        ))
     else:
-        lines.extend(
-            (
-                "State: Unavailable",
-                "No safe generated speaker-test command is available for this endpoint.",
-            )
-        )
+        lines.extend((
+            "State: Unavailable",
+            "No safe generated speaker-test command is available for this endpoint.",
+        ))
+    lines.append("Local File Playback")
+    if target is not None:
+        lines.extend((
+            "No file selected.",
+            "Playback Level",
+            _DEFAULT_FILE_LEVEL,
+            "Start Playback",
+            "Stop Playback",
+            "Playback routes through the selected output endpoint. "
+            "Playback Level adjusts only this playback pipeline and does not change "
+            "system volume, mixer settings, or audio routing.",
+        ))
+    else:
+        lines.append("No output endpoint is available.")
     return tuple(lines)
 
 
@@ -52,12 +74,14 @@ def create_audio_output_explorer_widget(
     *,
     status_callback: Callable[[str], None] | None = None,
     preview_runner: object | None = None,
+    file_playback_runner: object | None = None,
 ) -> object:
     from PySide6.QtGui import QFont, QFontDatabase
     from PySide6.QtWidgets import QFormLayout, QGroupBox, QHBoxLayout, QLineEdit
     from PySide6.QtWidgets import QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
     target = _endpoint_target(detail)
+    values = _audio_capability_values(detail)
     pane = QWidget()
     layout = QVBoxLayout(pane)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -80,8 +104,9 @@ def create_audio_output_explorer_widget(
     pipeline_box = QGroupBox("Generated Output Pipeline")
     pipeline_layout = QHBoxLayout(pipeline_box)
     pipeline_layout.setSpacing(6)
+    _tone_level: list[str] = [_DEFAULT_TONE_LEVEL]
     pipeline_text = (
-        _generated_output_pipeline(target, _audio_capability_values(detail))
+        _generated_tone_pipeline(target, values, _tone_level[0])
         if target is not None
         else "Pipeline unavailable."
     )
@@ -102,11 +127,17 @@ def create_audio_output_explorer_widget(
     pipeline_layout.addWidget(copy_button)
     layout.addWidget(pipeline_box, 0)
 
+    def _on_tone_level_change(level: str) -> None:
+        _tone_level[0] = level
+        if target is not None:
+            pipeline_edit.setText(_generated_tone_pipeline(target, values, level))
+            pipeline_edit.setCursorPosition(0)
+
     def current_test_command() -> PreviewCommand | None:
         if target is None or not _speaker_test_available(detail):
             return None
         return PreviewCommand(
-            _generated_output_pipeline_argv(target, _audio_capability_values(detail)),
+            _generated_tone_argv(target, values, _tone_level[0]),
             target=target,
             description="Short generated speaker tone test",
         )
@@ -114,8 +145,16 @@ def create_audio_output_explorer_widget(
     speaker_test_widget, _refresh_speaker_test = create_audio_output_test_widget(
         current_test_command,
         preview_runner=preview_runner,
+        on_level_change=_on_tone_level_change,
     )
     layout.addWidget(speaker_test_widget, 0)
+
+    file_playback_widget, _refresh_file_playback = create_audio_output_file_playback_widget(
+        target,
+        preview_runner=file_playback_runner,
+    )
+    layout.addWidget(file_playback_widget, 0)
+
     layout.addStretch(1)
     return pane
 
@@ -177,16 +216,18 @@ def _section_items(detail: DetailPaneModel, title: str) -> tuple[str, ...]:
     return () if section is None else section.items
 
 
-def _generated_output_pipeline(target: str, values: dict[str, str]) -> str:
-    return " ".join(_generated_output_pipeline_argv(target, values))
+def _generated_tone_pipeline(target: str, values: dict[str, str], level: str) -> str:
+    return " ".join(_generated_tone_argv(target, values, level))
 
 
-def _generated_output_pipeline_argv(target: str, values: dict[str, str]) -> tuple[str, ...]:
+def _generated_tone_argv(target: str, values: dict[str, str], level: str) -> tuple[str, ...]:
+    volume = _TONE_LEVEL_VOLUMES.get(level, _TONE_LEVEL_VOLUMES[_DEFAULT_TONE_LEVEL])
     return (
         "gst-launch-1.0",
         "audiotestsrc",
         "wave=sine",
         "freq=440",
+        f"volume={volume}",
         "samplesperbuffer=2400",
         "num-buffers=20",
         "!",

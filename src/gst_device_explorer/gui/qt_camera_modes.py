@@ -110,7 +110,15 @@ def camera_pipeline_for_selection(
     argv = camera_pipeline_argv_for_selection(detail, pixel_format, resolution, frame_rate)
     if argv is None:
         return None
-    return " ".join(argv)
+    return _render_pipeline_display(argv)
+
+
+def _render_pipeline_display(argv: list[str]) -> str:
+    """Join argv into a shell-pasteable display string, quoting args that contain parentheses."""
+    return " ".join(
+        f"'{arg}'" if "(" in arg else arg
+        for arg in argv
+    )
 
 
 def camera_pipeline_argv_for_selection(

@@ -7,24 +7,49 @@ from collections.abc import Callable
 from gst_device_explorer.gui.preview_runner import PreviewCommand, PreviewRunner, PreviewState
 from gst_device_explorer.gui.qt_sections import create_text_label
 
+_LEVEL_PRESETS: tuple[str, ...] = ("Quiet", "Normal", "Loud")
+_DEFAULT_LEVEL = "Quiet"
+
 
 def create_audio_output_test_widget(
     command_getter: Callable[[], PreviewCommand | None],
     *,
     preview_runner: object | None = None,
+    on_level_change: Callable[[str], None] | None = None,
 ) -> tuple[object, Callable[[], None]]:
     from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QPushButton, QSizePolicy, QVBoxLayout
+    from PySide6.QtWidgets import (
+        QComboBox,
+        QFormLayout,
+        QGroupBox,
+        QHBoxLayout,
+        QPushButton,
+        QSizePolicy,
+        QVBoxLayout,
+    )
 
+    _runner_owned = preview_runner is None
     runner = preview_runner or PreviewRunner()
     test_box = QGroupBox("Speaker Test")
     layout = QVBoxLayout(test_box)
+
+    level_form = QFormLayout()
+    level_combo = QComboBox()
+    level_combo.setObjectName("audioOutputTestLevelCombo")
+    for preset in _LEVEL_PRESETS:
+        level_combo.addItem(preset)
+    level_combo.setCurrentText(_DEFAULT_LEVEL)
+    level_form.addRow("Test Level:", level_combo)
+    layout.addLayout(level_form)
+
     state_label = create_text_label("State: Unavailable")
     state_label.setObjectName("audioOutputTestStateText")
     message_label = create_text_label("")
     message_label.setObjectName("audioOutputTestMessageText")
     note_label = create_text_label(
-        "Plays a short generated tone on this selected endpoint. Does not change volume, mixer, or system audio routing."
+        "Plays a short generated tone through the selected output endpoint. "
+        "Test Level adjusts only this generated pipeline and does not change "
+        "system volume, mixer settings, or audio routing."
     )
     note_label.setObjectName("audioOutputTestSafetyText")
     layout.addWidget(state_label)
@@ -74,6 +99,11 @@ def create_audio_output_test_widget(
         elif not active and poll_timer.isActive():
             poll_timer.stop()
 
+    def _on_level_changed(text: str) -> None:
+        if on_level_change is not None:
+            on_level_change(text)
+        refresh()
+
     def start_test() -> None:
         command = command_getter()
         if command is None:
@@ -86,9 +116,11 @@ def create_audio_output_test_widget(
         runner.stop()
         refresh()
 
+    level_combo.currentTextChanged.connect(_on_level_changed)
     start_button.clicked.connect(lambda _checked=False: start_test())
     stop_button.clicked.connect(lambda _checked=False: stop_test())
     poll_timer.timeout.connect(refresh)
-    test_box.destroyed.connect(lambda _obj=None: runner.cleanup())
+    if _runner_owned:
+        test_box.destroyed.connect(lambda _obj=None: runner.cleanup())
     refresh()
     return test_box, refresh

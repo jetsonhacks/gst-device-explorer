@@ -34,7 +34,9 @@ def create_main_window(
             self._snapshot = snapshot
             self._detail_panes = dict(detail_panes or {})
             self._refresh_builder = refresh_builder
-            self._preview_runner = preview_runner or PreviewRunner()
+            self._preview_runners: dict[str, PreviewRunner] = {}
+            if preview_runner is not None:
+                self._preview_runners["__injected__"] = preview_runner
 
             splitter = QSplitter(Qt.Horizontal)
             self._tree = QTreeWidget()
@@ -44,7 +46,6 @@ def create_main_window(
             self._detail = create_detail_pane_widget(
                 status_callback=lambda message: self.statusBar().showMessage(message, 2500),
                 navigate_callback=lambda node_id: self.select_node(node_id),
-                preview_runner=self._preview_runner,
             )
             splitter.addWidget(self._tree)
             splitter.addWidget(self._detail)
@@ -65,6 +66,12 @@ def create_main_window(
             self._tree.itemSelectionChanged.connect(self._selection_changed)
             self._select_initial(self._snapshot)
 
+        def _runner_for(self, detail: DetailPaneModel) -> PreviewRunner:
+            key = detail.selected_id or ""
+            if key not in self._preview_runners:
+                self._preview_runners[key] = PreviewRunner()
+            return self._preview_runners[key]
+
         def _selection_changed(self) -> None:
             items = self._tree.selectedItems()
             if not items:
@@ -72,7 +79,7 @@ def create_main_window(
                 return
             node_id = items[0].data(0, Qt.UserRole)
             detail = self._detail_panes.get(str(node_id), build_unknown_detail_pane(str(node_id)))
-            self._detail.render_detail(detail)
+            self._detail.render_detail(detail, preview_runner=self._runner_for(detail))
 
         def _select_initial(self, initial_snapshot: MediaExplorerSnapshot) -> None:
             selected = initial_snapshot.selected_node_id
@@ -92,7 +99,9 @@ def create_main_window(
         def refresh_snapshot(self) -> None:
             if self._refresh_builder is None:
                 return
-            self._preview_runner.cleanup()
+            for runner in self._preview_runners.values():
+                runner.cleanup()
+            self._preview_runners.clear()
             previous_selection = self._current_node_id()
             self._detail.render_detail(build_loading_detail_pane())
             QApplication.processEvents()
@@ -111,7 +120,8 @@ def create_main_window(
             return str(items[0].data(0, Qt.UserRole))
 
         def closeEvent(self, event: object) -> None:
-            self._preview_runner.cleanup()
+            for runner in self._preview_runners.values():
+                runner.cleanup()
             super().closeEvent(event)
 
     return MediaExplorerMainWindow()

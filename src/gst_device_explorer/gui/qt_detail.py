@@ -27,7 +27,7 @@ DETAIL_TAB_TITLES = ("Explore", "Device Information")
 class DetailPaneWidgetMixin:
     """Mixin containing renderer logic shared by the concrete QWidget."""
 
-    def render_detail(self, detail: DetailPaneModel) -> None:
+    def render_detail(self, detail: DetailPaneModel, *, preview_runner: object | None = None) -> None:
         raise NotImplementedError
 
 
@@ -56,14 +56,12 @@ def create_detail_pane_widget(
             self.setObjectName("detailTabs")
             self._explore = _scroll_area()
             self._information = _scroll_area()
-            self._selected_id: str | None = None
+            self._fallback_runner = preview_runner
             self.addTab(self._explore, DETAIL_TAB_TITLES[0])
             self.addTab(self._information, DETAIL_TAB_TITLES[1])
 
-        def render_detail(self, detail: DetailPaneModel) -> None:
-            if self._selected_id is not None and self._selected_id != detail.selected_id:
-                _cleanup_preview_runner(preview_runner)
-            self._selected_id = detail.selected_id
+        def render_detail(self, detail: DetailPaneModel, *, preview_runner: object | None = None) -> None:
+            _runner = preview_runner if preview_runner is not None else self._fallback_runner
             self.setAccessibleName(detail.title)
             self.setAccessibleDescription(detail_accessible_text(detail))
             _replace_scroll_widget(
@@ -72,7 +70,7 @@ def create_detail_pane_widget(
                     detail,
                     status_callback=status_callback,
                     navigate_callback=navigate_callback,
-                    preview_runner=preview_runner,
+                    preview_runner=_runner,
                 ),
             )
             _replace_scroll_widget(
@@ -92,12 +90,5 @@ def create_detail_pane_widget(
         if old is not None:
             old.deleteLater()
         scroll.setWidget(widget)
-
-    def _cleanup_preview_runner(runner: object | None) -> None:
-        if runner is None:
-            return
-        cleanup = getattr(runner, "cleanup", None)
-        if cleanup is not None:
-            cleanup()
 
     return DetailTabbedWidget()

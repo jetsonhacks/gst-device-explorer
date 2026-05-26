@@ -16,6 +16,7 @@ def create_camera_preview_widget(
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QPushButton, QSizePolicy, QVBoxLayout
 
+    _runner_owned = preview_runner is None
     runner = preview_runner or PreviewRunner()
     preview_box = QGroupBox("Preview")
     preview_layout = QVBoxLayout(preview_box)
@@ -84,6 +85,7 @@ def create_camera_preview_widget(
     start_button.clicked.connect(lambda _checked=False: start_preview())
     stop_button.clicked.connect(lambda _checked=False: stop_preview())
     poll_timer.timeout.connect(refresh)
-    preview_box.destroyed.connect(lambda _obj=None: runner.cleanup())
+    if _runner_owned:
+        preview_box.destroyed.connect(lambda _obj=None: runner.cleanup())
     refresh()
     return preview_box, refresh

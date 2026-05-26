@@ -16,6 +16,7 @@ def create_audio_input_test_widget(
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QPushButton, QSizePolicy, QVBoxLayout
 
+    _runner_owned = preview_runner is None
     runner = preview_runner or PreviewRunner()
     test_box = QGroupBox("Audio Input Activity Test")
     layout = QVBoxLayout(test_box)
@@ -89,6 +90,7 @@ def create_audio_input_test_widget(
     start_button.clicked.connect(lambda _checked=False: start_test())
     stop_button.clicked.connect(lambda _checked=False: stop_test())
     poll_timer.timeout.connect(refresh)
-    test_box.destroyed.connect(lambda _obj=None: runner.cleanup())
+    if _runner_owned:
+        test_box.destroyed.connect(lambda _obj=None: runner.cleanup())
     refresh()
     return test_box, refresh
