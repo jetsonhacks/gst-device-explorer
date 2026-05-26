@@ -274,12 +274,13 @@ Milestone 34 — GUI Roadmap Consolidation and Hardware Interaction Readiness
 Milestone 35 — Preview Policy and Dry-Run UX
 Milestone 36 — Camera Preview Implementation
 Milestone 37 — Audio Test Policy and UX
-Milestone 38 — Safe Audio Test Implementation
-Milestone 39 — Hardware Interface / HIL Validation Pass
-Milestone 40 — Commands and Reproduce Sections
-Milestone 41 — Reports Area
-Milestone 42 — Service-Layer Cleanup
-Milestone 43 — Polish and HIL Validation
+Milestone 38 — Safe Audio Output Test Implementation
+Milestone 39 — Safe Audio Input Activity Test Implementation
+Milestone 40 — Hardware Interface / HIL Validation Pass
+Milestone 41 — Commands and Reproduce Sections
+Milestone 42 — Reports Area
+Milestone 43 — Service-Layer Cleanup
+Milestone 44 — Polish and HIL Validation
 ```
 
 A small process-boundary milestone may be inserted before camera preview if Milestone 35 shows that subprocess handling should not live directly in Qt widgets.
@@ -426,29 +427,19 @@ Implemented as documentation-only policy:
 - cleanup is required on Stop, endpoint change, mode change, refresh, close, partial start failure, unexpected exit, and endpoint unavailability
 - no audio execution was added in this milestone
 
-## Milestone 38 — Safe Audio Test Implementation
+## Milestone 38 — Safe Audio Output Test Implementation
 
-Status: Partially Implemented
+Status: Implemented
 
-Add bounded audio input and output tests using generated pipelines only.
+Add a bounded audio output speaker test using generated pipelines only.
 
-Possible scope:
+Implemented:
 
-- short microphone capture
-- input level test
-- speaker test tone
-- explicit start/stop behavior
-- dry-run visibility
-- safe process cleanup
-
-Implemented so far:
-
-- safe audio output speaker test
 - short bounded generated tone command
 - structured argv execution through the existing GUI-facing runner/service
 - Speaker Test controls after the generated output pipeline/code-copy surface
 - cleanup through existing endpoint-change, refresh, and window-close runner paths
-- no audio input test yet
+- no microphone/audio-input execution
 
 This milestone should not introduce:
 
@@ -461,7 +452,35 @@ This milestone should not introduce:
 - synchronized audio/video capture
 - group-based execution
 
-## Milestone 39 — Hardware Interface / HIL Validation Pass
+## Milestone 39 — Safe Audio Input Activity Test Implementation
+
+Status: Implemented
+
+Add a bounded, non-recording audio input activity test using generated pipelines only.
+
+Implemented:
+
+- Audio Input Activity Test controls after the generated input pipeline/code-copy surface
+- bounded generated input command using the selected endpoint and `fakesink sync=false`
+- structured argv execution through the existing GUI-facing runner/service
+- explicit UI text that microphone audio is not recorded, saved, or retained
+- Start Test and Stop Test state feedback using the shared process state vocabulary
+- cleanup through existing endpoint-change, refresh, and window-close runner paths
+- no recording, file capture, volume change, mixer mutation, route mutation, system audio mutation, or group-based execution
+
+This milestone should not introduce:
+
+- graphical level meter or waveform display
+- audio recording
+- file capture
+- arbitrary pipeline editing
+- arbitrary user-authored pipeline execution
+- shell-string execution
+- mixer, volume, route, ALSA, PulseAudio, or PipeWire mutation
+- synchronized audio/video behavior
+- group-based execution
+
+## Milestone 40 — Hardware Interface / HIL Validation Pass
 
 Validate the first GUI hardware-interaction behavior on Jetson and Reachy Mini-style hardware.
 
@@ -478,7 +497,7 @@ Possible scope:
 - layout and usability on embedded/laptop displays
 - confirmation that safety boundaries remain intact
 
-## Milestone 40 — Commands and Reproduce Sections
+## Milestone 41 — Commands and Reproduce Sections
 
 Add curated command sections in Device Information views after preview/audio-test workflows have matured.
 
@@ -492,7 +511,7 @@ Commands may include:
 
 These commands should teach the user how to reproduce GUI-derived discovery from the command line without cluttering the Explore tab.
 
-## Milestone 41 — Reports Area
+## Milestone 42 — Reports Area
 
 Add a dedicated Reports or Diagnostics area after hardware interaction workflows have been validated.
 
@@ -508,7 +527,7 @@ This area should contain:
 
 This keeps report functions available while removing them from the main exploration workflow.
 
-## Milestone 42 — Service-Layer Cleanup
+## Milestone 43 — Service-Layer Cleanup
 
 Introduce purpose-built GUI-facing services so widgets consume exploration models instead of raw CLI/report structures.
 
@@ -524,7 +543,7 @@ The goal is to prevent the GUI from becoming a rendered version of CLI output or
 
 This milestone may move earlier if preview/audio-test work exposes a concrete architectural seam that must be addressed before safe implementation can continue.
 
-## Milestone 43 — Polish and HIL Validation
+## Milestone 44 — Polish and HIL Validation
 
 Validate the redesigned GUI on Jetson and Reachy Mini-style hardware.
 

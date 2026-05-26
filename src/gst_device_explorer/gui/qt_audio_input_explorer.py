@@ -6,6 +6,8 @@ import re
 from collections.abc import Callable
 
 from gst_device_explorer.gui.model import DetailPaneModel
+from gst_device_explorer.gui.preview_runner import PreviewCommand
+from gst_device_explorer.gui.qt_audio_input_test import create_audio_input_test_widget
 from gst_device_explorer.gui.qt_sections import copy_to_clipboard, create_text_label, target_from_summary
 
 
@@ -24,8 +26,23 @@ def audio_input_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     if target is not None:
         lines.append(_generated_input_pipeline(target, _audio_capability_values(detail)))
     lines.append("Copy Pipeline")
-    lines.append("Future Input Test")
-    lines.append("Input testing is deferred; this view does not record or start audio capture.")
+    lines.append("Audio Input Activity Test")
+    if _input_activity_test_available(detail) and target is not None:
+        lines.extend(
+            (
+                "State: Ready",
+                "Start Test",
+                "Stop Test",
+                "Opens the selected microphone with a generated pipeline. Does not record, save, or retain microphone audio.",
+            )
+        )
+    else:
+        lines.extend(
+            (
+                "State: Unavailable",
+                "No safe generated audio-input activity command is available for this endpoint.",
+            )
+        )
     return tuple(lines)
 
 
@@ -33,6 +50,7 @@ def create_audio_input_explorer_widget(
     detail: DetailPaneModel,
     *,
     status_callback: Callable[[str], None] | None = None,
+    preview_runner: object | None = None,
 ) -> object:
     from PySide6.QtGui import QFont, QFontDatabase
     from PySide6.QtWidgets import QFormLayout, QGroupBox, QHBoxLayout, QLineEdit
@@ -83,10 +101,20 @@ def create_audio_input_explorer_widget(
     pipeline_layout.addWidget(copy_button)
     layout.addWidget(pipeline_box, 0)
 
-    future_box = QGroupBox("Future Input Test")
-    future_layout = QVBoxLayout(future_box)
-    future_layout.addWidget(create_text_label("Input testing is deferred; this view does not record or start audio capture."))
-    layout.addWidget(future_box, 0)
+    def current_test_command() -> PreviewCommand | None:
+        if target is None or not _input_activity_test_available(detail):
+            return None
+        return PreviewCommand(
+            _generated_input_pipeline_argv(target, _audio_capability_values(detail)),
+            target=target,
+            description="Non-recording audio input activity test",
+        )
+
+    activity_test_widget, _refresh_activity_test = create_audio_input_test_widget(
+        current_test_command,
+        preview_runner=preview_runner,
+    )
+    layout.addWidget(activity_test_widget, 0)
     layout.addStretch(1)
     return pane
 
@@ -149,10 +177,27 @@ def _section_items(detail: DetailPaneModel, title: str) -> tuple[str, ...]:
 
 
 def _generated_input_pipeline(target: str, values: dict[str, str]) -> str:
+    return " ".join(_generated_input_pipeline_argv(target, values))
+
+
+def _generated_input_pipeline_argv(target: str, values: dict[str, str]) -> tuple[str, ...]:
     return (
-        f"gst-launch-1.0 alsasrc device={target} ! "
-        f"{_gst_caps_text(values)} ! audioconvert ! audioresample ! "
-        "level interval=1000000000 ! fakesink"
+        "gst-launch-1.0",
+        "alsasrc",
+        f"device={target}",
+        "num-buffers=20",
+        "!",
+        _gst_caps_text(values),
+        "!",
+        "audioconvert",
+        "!",
+        "audioresample",
+        "!",
+        "level",
+        "interval=1000000000",
+        "!",
+        "fakesink",
+        "sync=false",
     )
 
 
@@ -206,3 +251,8 @@ def _reset_copy_button(button: object, label: str) -> None:
         button.setToolTip(label)
     except RuntimeError:
         pass
+
+
+def _input_activity_test_available(detail: DetailPaneModel) -> bool:
+    action = next((action for action in detail.actions if action.kind == "test_audio_input"), None)
+    return bool(action and action.enabled)

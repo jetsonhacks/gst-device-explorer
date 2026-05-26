@@ -681,15 +681,17 @@ def test_audio_input_explore_tab_is_inspector_with_generated_pipeline() -> None:
     assert "audio/x-raw" in text
     assert "Using default generated input candidate" not in text
     assert "Generated Input Pipeline" in text
-    assert "gst-launch-1.0 alsasrc device=hw:2,0 ! audio/x-raw" in text
+    assert "gst-launch-1.0 alsasrc device=hw:2,0 num-buffers=20 ! audio/x-raw" in text
+    assert "fakesink sync=false" in text
     assert "Copy Pipeline" in text
-    assert "Future Input Test" in text
-    assert "Input testing is deferred" in text
+    assert "Audio Input Activity Test" in text
+    assert "State: Ready" in text
+    assert "Start Test" in text
+    assert "Stop Test" in text
+    assert "Does not record, save, or retain microphone audio" in text
     assert "Audio input exploration controls are deferred." not in text
     assert "Start Preview" not in text
     assert "Stop Preview" not in text
-    assert "Start Test" not in text
-    assert "Stop Test" not in text
     assert "Capture" not in text
     assert "Record" not in text
 
@@ -705,19 +707,112 @@ def test_audio_input_pipeline_widget_is_read_only_code_and_copyable() -> None:
     try:
         pipeline = widget.findChild(QtWidgets.QLineEdit, "audioInputPipelineText")
         copy_button = widget.findChild(QtWidgets.QPushButton, "audioInputPipelineCopyButton")
+        buttons = widget.findChildren(QtWidgets.QPushButton)
 
         assert pipeline is not None
         assert copy_button is not None
         assert pipeline.isReadOnly()
         assert pipeline.property("presentation") == "code"
         assert pipeline.font().fixedPitch()
-        assert pipeline.text().startswith("gst-launch-1.0 alsasrc device=hw:2,0 ! audio/x-raw")
+        assert pipeline.text().startswith("gst-launch-1.0 alsasrc device=hw:2,0 num-buffers=20 ! audio/x-raw")
+        assert pipeline.text().endswith("fakesink sync=false")
         assert copy_button.text() == "Copy Pipeline"
+        assert [button.text() for button in buttons] == ["Copy Pipeline", "Start Test", "Stop Test"]
 
         copy_button.click()
 
         assert statuses == ["Copied to clipboard."]
         assert copy_button.text() == "Copied"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_input_activity_test_widget_uses_structured_command_runner() -> None:
+    runner = _FakePreviewRunner()
+    pane = build_demo_gui_snapshot().detail_panes["audio_input:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, preview_runner=runner)
+
+    try:
+        pipeline = widget.findChild(QtWidgets.QLineEdit, "audioInputPipelineText")
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioInputTestStartButton")
+        stop_button = widget.findChild(QtWidgets.QPushButton, "audioInputTestStopButton")
+        state_label = widget.findChild(QtWidgets.QLabel, "audioInputTestStateText")
+        note_label = widget.findChild(QtWidgets.QLabel, "audioInputTestSafetyText")
+
+        assert pipeline is not None
+        assert start_button is not None
+        assert stop_button is not None
+        assert state_label is not None
+        assert note_label is not None
+        assert state_label.text() == "State: Ready"
+        assert "Does not record, save, or retain microphone audio" in note_label.text()
+        audio_pane = pipeline.parentWidget().parentWidget()
+        assert audio_pane.layout().indexOf(pipeline.parentWidget()) < audio_pane.layout().indexOf(
+            start_button.parentWidget()
+        )
+
+        start_button.click()
+
+        assert len(runner.started) == 1
+        command = runner.started[0]
+        assert command.target == "hw:2,0"
+        assert isinstance(command.argv, tuple)
+        assert command.argv[:4] == (
+            "gst-launch-1.0",
+            "alsasrc",
+            "device=hw:2,0",
+            "num-buffers=20",
+        )
+        assert "fakesink" in command.argv
+        assert "sync=false" in command.argv
+        assert "filesink" not in command.argv
+        assert " ".join(command.argv) == pipeline.text()
+        assert runner.state == PreviewState.RUNNING
+        assert state_label.text() == "State: Running"
+
+        stop_button.click()
+
+        assert runner.stop_calls == 1
+        assert runner.state == PreviewState.EXITED
+        assert state_label.text() == "State: Exited"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_input_activity_test_unavailable_without_eligible_candidate() -> None:
+    pane = build_detail_pane_for_audio_input(
+        Device(
+            id="hw:9,9",
+            kind="audio_input",
+            name="Unavailable Microphone",
+            metadata={"alsa_device": "hw:9,9"},
+        )
+    )
+    text = explore_accessible_text(pane)
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane)
+
+    try:
+        start_button = widget.findChild(QtWidgets.QPushButton, "audioInputTestStartButton")
+        state_label = widget.findChild(QtWidgets.QLabel, "audioInputTestStateText")
+        message_label = widget.findChild(QtWidgets.QLabel, "audioInputTestMessageText")
+
+        assert "Audio Input Activity Test" in text
+        assert "State: Unavailable" in text
+        assert "No safe generated audio-input activity command is available" in text
+        assert start_button is not None
+        assert state_label is not None
+        assert message_label is not None
+        assert state_label.text() == "State: Unavailable"
+        assert "No safe generated audio-input activity command is available" in message_label.text()
+        assert not start_button.isEnabled()
     finally:
         widget.deleteLater()
         _forget_pyside_modules()
@@ -919,7 +1014,7 @@ def test_audio_input_explore_uses_known_audio_caps_in_gst_caps() -> None:
     assert "Channels\n2" in text
     assert "GStreamer Caps\naudio/x-raw,format=S16LE,rate=48000,channels=2" in text
     assert (
-        "gst-launch-1.0 alsasrc device=hw:9,0 ! "
+        "gst-launch-1.0 alsasrc device=hw:9,0 num-buffers=20 ! "
         "audio/x-raw,format=S16LE,rate=48000,channels=2"
     ) in text
 
