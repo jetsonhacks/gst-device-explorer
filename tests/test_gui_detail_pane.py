@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gst_device_explorer.gui.builders import build_unknown_detail_pane
 from gst_device_explorer.gui.builders import build_detail_pane_for_audio_input
+from gst_device_explorer.gui.builders import build_detail_pane_for_audio_output
 from gst_device_explorer.gui.builders import build_detail_pane_for_video
 from gst_device_explorer.core.models import (
     CameraControl,
@@ -569,8 +570,30 @@ def test_group_and_audio_output_explore_tabs_have_expected_surfaces() -> None:
 
     assert "Group Explore" in group_text
     assert "Explore Camera" in group_text
-    assert "Audio output exploration controls are deferred." in output_text
+    assert output_text.startswith("Explore\n")
+    assert "Audio Output" in output_text
+    assert "Reachy-Style Speaker - hw:2,0" in output_text
+    assert "Kind: Audio Output" in output_text
+    assert "Endpoint: hw:2,0" in output_text
+    assert "Audio Output Mode" in output_text
+    assert "Sample Format" in output_text
+    assert "No detailed format list available" in output_text
+    assert "Sample Rate" in output_text
+    assert "Channels" in output_text
+    assert "GStreamer Caps" in output_text
+    assert "audio/x-raw" in output_text
+    assert "Generated Output Pipeline" in output_text
+    assert "Using default generated output candidate" in output_text
+    assert "gst-launch-1.0 audiotestsrc wave=sine freq=440 ! audio/x-raw" in output_text
+    assert "alsasink device=hw:2,0" in output_text
+    assert "Copy Pipeline" in output_text
+    assert "Future Speaker Test" in output_text
+    assert "Speaker testing is deferred" in output_text
+    assert "Audio output exploration controls are deferred." not in output_text
     assert "Recommended Candidate" not in output_text
+    assert "Play" not in output_text
+    assert "Start" not in output_text
+    assert "Test Output" not in output_text
 
 
 def test_audio_input_explore_tab_is_inspector_with_generated_pipeline() -> None:
@@ -627,6 +650,89 @@ def test_audio_input_pipeline_widget_is_read_only_code_and_copyable() -> None:
     finally:
         widget.deleteLater()
         _forget_pyside_modules()
+
+
+def test_audio_output_pipeline_widget_is_read_only_code_and_copyable() -> None:
+    statuses: list[str] = []
+    pane = build_demo_gui_snapshot().detail_panes["audio_output:hw:2,0"]
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, status_callback=statuses.append)
+
+    try:
+        pipeline = widget.findChild(QtWidgets.QLineEdit, "audioOutputPipelineText")
+        copy_button = widget.findChild(QtWidgets.QPushButton, "audioOutputPipelineCopyButton")
+        buttons = widget.findChildren(QtWidgets.QPushButton)
+
+        assert pipeline is not None
+        assert copy_button is not None
+        assert pipeline.isReadOnly()
+        assert pipeline.property("presentation") == "code"
+        assert pipeline.font().fixedPitch()
+        assert pipeline.text().startswith("gst-launch-1.0 audiotestsrc wave=sine freq=440 ! audio/x-raw")
+        assert pipeline.text().endswith("alsasink device=hw:2,0")
+        assert copy_button.text() == "Copy Pipeline"
+        assert [button.text() for button in buttons] == ["Copy Pipeline"]
+
+        copy_button.click()
+
+        assert statuses == ["Copied to clipboard."]
+        assert copy_button.text() == "Copied"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_output_explore_uses_known_audio_caps_in_gst_caps() -> None:
+    pane = build_detail_pane_for_audio_output(
+        Device(
+            id="hw:9,0",
+            kind="audio_output",
+            name="Caps Speaker",
+            capabilities=[
+                Capability(
+                    name="audio_format",
+                    values={"format": "S16LE", "rate": "48000", "channels": "2"},
+                )
+            ],
+            metadata={"alsa_device": "hw:9,0"},
+        )
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Sample Format\nS16LE" in text
+    assert "Sample Rate\n48000" in text
+    assert "Channels\n2" in text
+    assert "GStreamer Caps\naudio/x-raw,format=S16LE,rate=48000,channels=2" in text
+    assert (
+        "gst-launch-1.0 audiotestsrc wave=sine freq=440 ! "
+        "audio/x-raw,format=S16LE,rate=48000,channels=2"
+    ) in text
+
+
+def test_audio_output_explore_shows_ranges_without_forcing_caps() -> None:
+    pane = build_detail_pane_for_audio_output(
+        Device(
+            id="hw:9,1",
+            kind="audio_output",
+            name="Range Speaker",
+            capabilities=[
+                Capability(
+                    name="audio_format",
+                    values={"format": "S16LE, S24LE", "rate": "8000-48000", "channels": "1-2"},
+                )
+            ],
+            metadata={"alsa_device": "hw:9,1"},
+        )
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Sample Format\nS16LE, S24LE" in text
+    assert "Sample Rate\n8000-48000" in text
+    assert "Channels\n1-2" in text
+    assert "GStreamer Caps\naudio/x-raw" in text
+    assert "audio/x-raw,format=S16LE, S24LE" not in text
 
 
 def test_audio_input_explore_uses_known_audio_caps_in_gst_caps() -> None:

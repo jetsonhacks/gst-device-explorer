@@ -95,6 +95,67 @@ card 0: PCH [HDA Intel PCH], device 3: HDMI 0 [HDMI 0]
     assert devices[0].metadata["source"] == "aplay"
 
 
+def test_playback_device_includes_audio_hw_params(monkeypatch) -> None:
+    output = """
+**** List of PLAYBACK Hardware Devices ****
+card 0: PCH [HDA Intel PCH], device 3: HDMI 0 [HDMI 0]
+"""
+    hw_params = """
+ACCESS:  MMAP_INTERLEAVED RW_INTERLEAVED
+FORMAT:  S16_LE S32_LE
+CHANNELS: 2
+RATE: [32000 192000]
+"""
+    _mock_alsa_command(
+        monkeypatch,
+        expected_command="aplay",
+        output=output,
+        hw_params={"hw:0,3": hw_params},
+    )
+
+    devices = discover_alsa_audio_outputs()
+
+    assert len(devices) == 1
+    capability = devices[0].capabilities[0]
+    assert capability.name == "audio_format"
+    assert capability.source == "aplay --dump-hw-params"
+    assert capability.values == {
+        "channels": "2",
+        "format": "S16LE, S32LE",
+        "rate": "32000-192000",
+    }
+
+
+def test_playback_hw_params_timeout_keeps_partial_capability_output(monkeypatch) -> None:
+    output = """
+**** List of PLAYBACK Hardware Devices ****
+card 0: PCH [HDA Intel PCH], device 3: HDMI 0 [HDMI 0]
+"""
+    partial_hw_params = """
+FORMAT:  S16_LE
+CHANNELS: 2
+RATE: 48000
+"""
+    _mock_alsa_command(
+        monkeypatch,
+        expected_command="aplay",
+        output=output,
+        hw_params={"hw:0,3": partial_hw_params},
+        hw_params_timeout=True,
+    )
+
+    devices = discover_alsa_audio_outputs()
+
+    assert len(devices) == 1
+    capability = devices[0].capabilities[0]
+    assert capability.source == "aplay --dump-hw-params"
+    assert capability.values == {
+        "channels": "2",
+        "format": "S16LE",
+        "rate": "48000",
+    }
+
+
 def test_multiple_devices(monkeypatch) -> None:
     output = """
 card 1: Device [USB Audio Device], device 0: USB Audio [USB Audio]
@@ -158,6 +219,7 @@ def _mock_alsa_command(
     output: str,
     returncode: int = 0,
     hw_params: dict[str, str] | None = None,
+    hw_params_timeout: bool = False,
 ) -> None:
     monkeypatch.setattr("shutil.which", lambda command: f"/usr/bin/{command}")
     hw_params = hw_params or {}
@@ -166,17 +228,34 @@ def _mock_alsa_command(
         assert check is False
         assert capture_output is True
         assert text is True
-        assert timeout == 5
         if command == [expected_command, "-l"]:
+            assert timeout == 5
             return subprocess.CompletedProcess(
                 command,
                 returncode,
                 stdout=output,
                 stderr="",
             )
-        if len(command) == 4 and command[:3] == [expected_command, "--dump-hw-params", "-D"]:
+        if len(command) >= 4 and command[:3] == [expected_command, "--dump-hw-params", "-D"]:
+            assert timeout == 0.75
             device = command[3]
+            if expected_command == "aplay":
+                assert command[4:] == [
+                    "-t",
+                    "raw",
+                    "-f",
+                    "S16_LE",
+                    "-c",
+                    "2",
+                    "-r",
+                    "48000",
+                    "/dev/null",
+                ]
+            else:
+                assert len(command) == 4
             if device in hw_params:
+                if hw_params_timeout:
+                    raise subprocess.TimeoutExpired(command, timeout, output=hw_params[device], stderr="")
                 return subprocess.CompletedProcess(command, 0, stdout=hw_params[device], stderr="")
             return subprocess.CompletedProcess(command, 1, stdout="", stderr="")
         raise AssertionError(f"Unexpected ALSA command: {command!r}")

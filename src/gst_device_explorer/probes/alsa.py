@@ -11,6 +11,8 @@ from gst_device_explorer.core.models import Capability, Device
 
 ARECORD = "arecord"
 APLAY = "aplay"
+ALSA_LIST_TIMEOUT_SECONDS = 5
+ALSA_HW_PARAMS_TIMEOUT_SECONDS = 0.75
 
 
 def discover_alsa_audio_inputs() -> list[Device]:
@@ -22,14 +24,14 @@ def discover_alsa_audio_inputs() -> list[Device]:
 def discover_alsa_audio_outputs() -> list[Device]:
     """Discover ALSA playback devices using aplay."""
 
-    return _discover_alsa_devices(command=APLAY, kind="audio_output")
+    return _discover_alsa_devices(command=APLAY, kind="audio_output", probe_hw_params=True)
 
 
 def _discover_alsa_devices(command: str, kind: str, *, probe_hw_params: bool = False) -> list[Device]:
     if shutil.which(command) is None:
         return []
 
-    result = _run_alsa_command([command, "-l"])
+    result = _run_alsa_command([command, "-l"], timeout_seconds=ALSA_LIST_TIMEOUT_SECONDS)
     if result is None or result.returncode != 0:
         return []
 
@@ -39,14 +41,25 @@ def _discover_alsa_devices(command: str, kind: str, *, probe_hw_params: bool = F
     return [_with_hw_params(device, command=command) for device in devices]
 
 
-def _run_alsa_command(command: list[str]) -> subprocess.CompletedProcess[str] | None:
+def _run_alsa_command(
+    command: list[str],
+    *,
+    timeout_seconds: float,
+) -> subprocess.CompletedProcess[str] | None:
     try:
         return subprocess.run(
             command,
             check=False,
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return subprocess.CompletedProcess(
+            command,
+            124,
+            stdout=_timeout_output_text(exc.stdout),
+            stderr=_timeout_output_text(exc.stderr),
         )
     except (FileNotFoundError, subprocess.SubprocessError, OSError):
         return None
@@ -96,11 +109,17 @@ def _parse_alsa_device_list(output: str, kind: str, source: str) -> list[Device]
 
 def _with_hw_params(device: Device, command: str) -> Device:
     alsa_device = str(device.metadata.get("alsa_device", device.id))
-    result = _run_alsa_command([command, "--dump-hw-params", "-D", alsa_device])
+    result = _run_alsa_command(
+        _hw_params_command(command, alsa_device),
+        timeout_seconds=ALSA_HW_PARAMS_TIMEOUT_SECONDS,
+    )
     if result is None:
         return device
 
-    capability = _parse_audio_hw_params("\n".join(part for part in (result.stdout, result.stderr) if part))
+    capability = _parse_audio_hw_params(
+        "\n".join(part for part in (result.stdout, result.stderr) if part),
+        command=command,
+    )
     if capability is None:
         return device
 
@@ -113,7 +132,35 @@ def _with_hw_params(device: Device, command: str) -> Device:
     )
 
 
-def _parse_audio_hw_params(output: str) -> Capability | None:
+def _hw_params_command(command: str, alsa_device: str) -> list[str]:
+    if command == APLAY:
+        return [
+            command,
+            "--dump-hw-params",
+            "-D",
+            alsa_device,
+            "-t",
+            "raw",
+            "-f",
+            "S16_LE",
+            "-c",
+            "2",
+            "-r",
+            "48000",
+            "/dev/null",
+        ]
+    return [command, "--dump-hw-params", "-D", alsa_device]
+
+
+def _timeout_output_text(output: str | bytes | None) -> str:
+    if output is None:
+        return ""
+    if isinstance(output, bytes):
+        return output.decode(errors="replace")
+    return output
+
+
+def _parse_audio_hw_params(output: str, *, command: str) -> Capability | None:
     values: dict[str, str] = {}
     for raw_line in output.splitlines():
         if ":" not in raw_line:
@@ -133,7 +180,7 @@ def _parse_audio_hw_params(output: str) -> Capability | None:
 
     if not values:
         return None
-    return Capability(name="audio_format", values=values, source="arecord --dump-hw-params")
+    return Capability(name="audio_format", values=values, source=f"{command} --dump-hw-params")
 
 
 def _format_alsa_values(value: str, *, normalize_format: bool = False) -> str:
