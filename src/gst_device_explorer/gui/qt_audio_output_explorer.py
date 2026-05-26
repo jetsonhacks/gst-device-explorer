@@ -6,6 +6,8 @@ import re
 from collections.abc import Callable
 
 from gst_device_explorer.gui.model import DetailPaneModel
+from gst_device_explorer.gui.preview_runner import PreviewCommand
+from gst_device_explorer.gui.qt_audio_output_test import create_audio_output_test_widget
 from gst_device_explorer.gui.qt_sections import copy_to_clipboard, create_text_label, target_from_summary
 
 
@@ -25,8 +27,23 @@ def audio_output_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     if target is not None:
         lines.append(_generated_output_pipeline(target, _audio_capability_values(detail)))
     lines.append("Copy Pipeline")
-    lines.append("Future Speaker Test")
-    lines.append("Speaker testing is deferred; this view does not play audio or change system audio settings.")
+    lines.append("Speaker Test")
+    if _speaker_test_available(detail) and target is not None:
+        lines.extend(
+            (
+                "State: Ready",
+                "Start Test",
+                "Stop Test",
+                "Plays a short generated tone on this selected endpoint. Does not change volume, mixer, or system audio routing.",
+            )
+        )
+    else:
+        lines.extend(
+            (
+                "State: Unavailable",
+                "No safe generated speaker-test command is available for this endpoint.",
+            )
+        )
     return tuple(lines)
 
 
@@ -34,6 +51,7 @@ def create_audio_output_explorer_widget(
     detail: DetailPaneModel,
     *,
     status_callback: Callable[[str], None] | None = None,
+    preview_runner: object | None = None,
 ) -> object:
     from PySide6.QtGui import QFont, QFontDatabase
     from PySide6.QtWidgets import QFormLayout, QGroupBox, QHBoxLayout, QLineEdit
@@ -84,12 +102,20 @@ def create_audio_output_explorer_widget(
     pipeline_layout.addWidget(copy_button)
     layout.addWidget(pipeline_box, 0)
 
-    future_box = QGroupBox("Future Speaker Test")
-    future_layout = QVBoxLayout(future_box)
-    future_layout.addWidget(
-        create_text_label("Speaker testing is deferred; this view does not play audio or change system audio settings.")
+    def current_test_command() -> PreviewCommand | None:
+        if target is None or not _speaker_test_available(detail):
+            return None
+        return PreviewCommand(
+            _generated_output_pipeline_argv(target, _audio_capability_values(detail)),
+            target=target,
+            description="Short generated speaker tone test",
+        )
+
+    speaker_test_widget, _refresh_speaker_test = create_audio_output_test_widget(
+        current_test_command,
+        preview_runner=preview_runner,
     )
-    layout.addWidget(future_box, 0)
+    layout.addWidget(speaker_test_widget, 0)
     layout.addStretch(1)
     return pane
 
@@ -152,10 +178,26 @@ def _section_items(detail: DetailPaneModel, title: str) -> tuple[str, ...]:
 
 
 def _generated_output_pipeline(target: str, values: dict[str, str]) -> str:
+    return " ".join(_generated_output_pipeline_argv(target, values))
+
+
+def _generated_output_pipeline_argv(target: str, values: dict[str, str]) -> tuple[str, ...]:
     return (
-        "gst-launch-1.0 audiotestsrc wave=sine freq=440 ! "
-        f"{_gst_caps_text(values)} ! audioconvert ! audioresample ! "
-        f"alsasink device={target}"
+        "gst-launch-1.0",
+        "audiotestsrc",
+        "wave=sine",
+        "freq=440",
+        "samplesperbuffer=2400",
+        "num-buffers=20",
+        "!",
+        _gst_caps_text(values),
+        "!",
+        "audioconvert",
+        "!",
+        "audioresample",
+        "!",
+        "alsasink",
+        f"device={target}",
     )
 
 
@@ -209,3 +251,8 @@ def _reset_copy_button(button: object, label: str) -> None:
         button.setToolTip(label)
     except RuntimeError:
         pass
+
+
+def _speaker_test_available(detail: DetailPaneModel) -> bool:
+    action = next((action for action in detail.actions if action.kind == "test_audio_output"), None)
+    return bool(action and action.enabled)

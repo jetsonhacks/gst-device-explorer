@@ -83,7 +83,14 @@ def create_explore_widget(
     elif has_audio_input_explorer(detail):
         layout.addWidget(create_audio_input_explorer_widget(detail, status_callback=status_callback), 1)
     elif has_audio_output_explorer(detail):
-        layout.addWidget(create_audio_output_explorer_widget(detail, status_callback=status_callback), 1)
+        layout.addWidget(
+            create_audio_output_explorer_widget(
+                detail,
+                status_callback=status_callback,
+                preview_runner=preview_runner,
+            ),
+            1,
+        )
     elif has_group_explorer(detail):
         layout.addWidget(
             create_group_explorer_widget(detail, navigate_callback=navigate_callback),

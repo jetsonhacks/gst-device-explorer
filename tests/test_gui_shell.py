@@ -154,6 +154,42 @@ def test_main_window_close_cleans_up_preview_runner() -> None:
         _forget_pyside_modules()
 
 
+def test_main_window_refresh_cleans_up_audio_output_test_runner() -> None:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_main_window import create_main_window
+
+    runner = _FakePreviewRunner()
+    runner.state = PreviewState.RUNNING
+    demo = build_demo_gui_snapshot()
+
+    class _Bundle:
+        snapshot = demo.snapshot
+        detail_panes = demo.detail_panes
+
+    window = create_main_window(
+        demo.snapshot,
+        demo.detail_panes,
+        refresh_builder=lambda previous_selected_id=None: _Bundle(),
+        preview_runner=runner,
+    )
+    window.show()
+    QtWidgets.QApplication.processEvents()
+
+    try:
+        window.refresh_snapshot()
+        QtWidgets.QApplication.processEvents()
+
+        assert runner.cleanup_calls >= 1
+        assert runner.state == PreviewState.EXITED
+    finally:
+        window.close()
+        window.deleteLater()
+        _forget_pyside_modules()
+
+
 def test_non_qt_gui_imports_do_not_import_pyside6() -> None:
     assert "PySide6" not in sys.modules
 

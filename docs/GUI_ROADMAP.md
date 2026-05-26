@@ -274,7 +274,7 @@ Milestone 34 — GUI Roadmap Consolidation and Hardware Interaction Readiness
 Milestone 35 — Preview Policy and Dry-Run UX
 Milestone 36 — Camera Preview Implementation
 Milestone 37 — Audio Test Policy and UX
-Milestone 38 — Audio Test Implementation
+Milestone 38 — Safe Audio Test Implementation
 Milestone 39 — Hardware Interface / HIL Validation Pass
 Milestone 40 — Commands and Reproduce Sections
 Milestone 41 — Reports Area
@@ -395,6 +395,8 @@ Implemented:
 
 ## Milestone 37 — Audio Test Policy and UX
 
+Status: Implemented
+
 Define safe GUI behavior for audio input and output tests before implementing them.
 
 The design should answer:
@@ -410,7 +412,23 @@ The design should answer:
 
 This should be a policy/design milestone.
 
-## Milestone 38 — Audio Test Implementation
+Implemented as documentation-only policy:
+
+- the first audio-input test should be a non-recording input activity or level-style test
+- microphone recording and capture-to-file remain deferred
+- the first audio-output test should be a short bounded generated tone test
+- user-selected sound-file playback remains deferred
+- future audio controls should appear only after the generated command/code-copy surface is visible
+- audio tests must use generated structured argv data for the selected endpoint only
+- Qt widgets should not own raw subprocess logic
+- future audio tests should reuse/extract Milestone 36 process-runner behavior only where it keeps the implementation small
+- process states reuse `Idle`, `Ready`, `Starting`, `Running`, `Stopping`, `Exited`, `Failed`, and `Unavailable`
+- cleanup is required on Stop, endpoint change, mode change, refresh, close, partial start failure, unexpected exit, and endpoint unavailability
+- no audio execution was added in this milestone
+
+## Milestone 38 — Safe Audio Test Implementation
+
+Status: Partially Implemented
 
 Add bounded audio input and output tests using generated pipelines only.
 
@@ -422,6 +440,15 @@ Possible scope:
 - explicit start/stop behavior
 - dry-run visibility
 - safe process cleanup
+
+Implemented so far:
+
+- safe audio output speaker test
+- short bounded generated tone command
+- structured argv execution through the existing GUI-facing runner/service
+- Speaker Test controls after the generated output pipeline/code-copy surface
+- cleanup through existing endpoint-change, refresh, and window-close runner paths
+- no audio input test yet
 
 This milestone should not introduce:
 
