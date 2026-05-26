@@ -85,6 +85,9 @@ def format_labels(detail: DetailPaneModel) -> dict[str, str]:
 
 
 def initial_selected_mode(detail: DetailPaneModel) -> tuple[str, str, str] | None:
+    selected = _selected_mode_from_camera_explorer(detail)
+    if selected is not None:
+        return selected
     mode_tree = camera_mode_tree(detail)
     for pixel_format, resolutions in mode_tree.items():
         for resolution, rates in resolutions.items():
@@ -130,18 +133,58 @@ def camera_pipeline_argv_for_selection(
     caps_type = "image/jpeg" if pixel_format == "MJPG" else "video/x-raw"
     caps_parts = [caps_type, f"width={width}", f"height={height}"]
     if caps_type == "video/x-raw":
-        caps_parts.append(f"format={pixel_format}")
+        gst_format = "YUY2" if pixel_format == "YUYV" else pixel_format
+        caps_parts.append(f"format={gst_format}")
     if frame_rate and frame_rate != "Unavailable":
         caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
-    return [
+    if pixel_format == "MJPG" and _candidate_available(detail, "jetson-uvc-mjpeg-nvjpeg-nveglglessink"):
+        return [
+            "gst-launch-1.0",
+            "v4l2src",
+            f"device={device_path}",
+            "io-mode=2",
+            "do-timestamp=true",
+            "!",
+            ",".join(caps_parts),
+            "!",
+            "jpegparse",
+            "!",
+            "nvjpegdec",
+            "!",
+            "video/x-raw(memory:NVMM), format=Y42B",
+            "!",
+            "nvvidconv",
+            "!",
+            "video/x-raw(memory:NVMM), format=NV12",
+            "!",
+            "nveglglessink",
+            "sync=false",
+        ]
+    argv = [
         "gst-launch-1.0",
         "v4l2src",
         f"device={device_path}",
         "!",
         ",".join(caps_parts),
+    ]
+    if caps_type == "image/jpeg":
+        argv.extend(["!", "jpegparse", "!", "jpegdec", "!"])
+    else:
+        argv.append("!")
+    argv.extend([
+        "videoconvert",
         "!",
         "autovideosink",
-    ]
+        "sync=false",
+    ])
+    return argv
+
+
+def _candidate_available(detail: DetailPaneModel, candidate_id: str) -> bool:
+    section = camera_section(detail, "Candidate Summary")
+    if section is None:
+        return False
+    return any(item.startswith(f"available: {candidate_id} ") for item in section.items)
 
 
 def _capability_values(item: str) -> dict[str, str]:
@@ -195,6 +238,24 @@ def _raw_camera_mode_tree(detail: DetailPaneModel) -> dict[str, dict[str, tuple[
         resolutions = result.setdefault(pixel_format, {})
         resolutions[resolution] = fps_values
     return result
+
+
+def _selected_mode_from_camera_explorer(detail: DetailPaneModel) -> tuple[str, str, str] | None:
+    section = camera_section(detail, "Camera Explorer")
+    if section is None:
+        return None
+    values: dict[str, str] = {}
+    for item in section.items:
+        if ": " not in item:
+            continue
+        label, value = item.split(": ", 1)
+        values[label] = value
+    pixel_format = values.get("Selected format")
+    resolution = values.get("Selected resolution")
+    frame_rate = values.get("Selected frame rate") or "Unavailable"
+    if not pixel_format or not resolution or pixel_format == "unavailable" or resolution == "unavailable":
+        return None
+    return pixel_format, resolution, frame_rate
 
 
 def _raw_capability_values(item: str) -> dict[str, str]:

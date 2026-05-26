@@ -269,9 +269,11 @@ def test_video_profile_does_not_change_candidate_or_diagnostic_behavior() -> Non
 
     assert profile is not None
     assert profile.candidate_summary["unavailable"][0].missing_elements == [
+        "jpegparse",
+        "jpegdec",
         "autovideosink"
     ]
-    assert diagnostics[0].missing_elements == ["autovideosink"]
+    assert diagnostics[0].missing_elements == ["jpegparse", "jpegdec", "autovideosink"]
     assert candidates == []
 
 
@@ -520,6 +522,7 @@ def _environment_with_generic_and_jetson_elements() -> list[EnvironmentFact]:
         _element_fact("videoconvert", True),
         _element_fact("autovideosink", True),
         _element_fact("jpegparse", True),
+        _element_fact("jpegdec", True),
         _element_fact("nvjpegdec", True),
         _element_fact("nvvidconv", True),
         _element_fact("nveglglessink", True),

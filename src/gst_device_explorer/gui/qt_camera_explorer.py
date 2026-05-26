@@ -248,7 +248,15 @@ def create_camera_explorer_widget(
             rate_list.setEnabled(False)
         else:
             rate_list.setEnabled(True)
-            rate_list.setCurrentRow(0)
+            desired_rate = (
+                initial_mode[2]
+                if initial_mode is not None
+                and fmt == initial_mode[0]
+                and resolution == initial_mode[1]
+                else ""
+            )
+            if not desired_rate or not _set_current_item_by_text(rate_list, desired_rate):
+                rate_list.setCurrentRow(0)
         update_pipeline()
 
     def update_resolutions() -> None:
@@ -263,7 +271,11 @@ def create_camera_explorer_widget(
             res_list.setEnabled(False)
         else:
             res_list.setEnabled(True)
-            res_list.setCurrentRow(0)
+            desired_resolution = (
+                initial_mode[1] if initial_mode is not None and fmt == initial_mode[0] else ""
+            )
+            if not desired_resolution or not _set_current_item_by_text(res_list, desired_resolution):
+                res_list.setCurrentRow(0)
         update_rates()
 
     fmt_list.currentItemChanged.connect(lambda _cur, _prev: update_resolutions())
@@ -271,7 +283,8 @@ def create_camera_explorer_widget(
     rate_list.currentItemChanged.connect(lambda _cur, _prev: update_pipeline())
 
     if fmt_list.count() > 0 and fmt_list.isEnabled():
-        fmt_list.setCurrentRow(0)
+        if initial_mode is None or not _set_current_item_by_data(fmt_list, initial_mode[0]):
+            fmt_list.setCurrentRow(0)
     update_preview_state()
 
     layout.addWidget(create_camera_controls_widget(detail), 1)
@@ -381,11 +394,33 @@ def _reset_copy_button(button: object, label: str) -> None:
 
 
 def _pipeline_text(detail: DetailPaneModel) -> str | None:
+    selected = initial_selected_mode(detail)
+    if selected is not None:
+        return camera_pipeline_for_selection(detail, *selected)
     section = camera_section(detail, "Generated Pipeline")
     if section is None or not section.items:
         return None
     value = section.items[0]
     return value if value.startswith("gst-launch-1.0 ") else None
+
+
+def _set_current_item_by_data(list_widget: object, value: str) -> bool:
+    from PySide6.QtCore import Qt
+
+    for index in range(list_widget.count()):
+        item = list_widget.item(index)
+        if str(item.data(Qt.UserRole)) == value:
+            list_widget.setCurrentRow(index)
+            return True
+    return False
+
+
+def _set_current_item_by_text(list_widget: object, value: str) -> bool:
+    for index in range(list_widget.count()):
+        if list_widget.item(index).text() == value:
+            list_widget.setCurrentRow(index)
+            return True
+    return False
 
 
 def _preview_available(detail: DetailPaneModel) -> bool:

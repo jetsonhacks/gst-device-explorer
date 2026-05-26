@@ -29,6 +29,8 @@ def test_generic_mjpg_video_diagnostic_available() -> None:
     )
     assert diagnostic.required_elements == [
         "v4l2src",
+        "jpegparse",
+        "jpegdec",
         "videoconvert",
         "autovideosink",
     ]
@@ -183,6 +185,8 @@ def _video_capability(pixel_format: str) -> Capability:
 def _environment_with_generic_elements() -> list[EnvironmentFact]:
     return [
         _element_fact("v4l2src", True),
+        _element_fact("jpegparse", True),
+        _element_fact("jpegdec", True),
         _element_fact("videoconvert", True),
         _element_fact("autovideosink", True),
     ]
@@ -194,6 +198,7 @@ def _environment_with_generic_and_jetson_elements() -> list[EnvironmentFact]:
         _element_fact("videoconvert", True),
         _element_fact("autovideosink", True),
         _element_fact("jpegparse", True),
+        _element_fact("jpegdec", True),
         _element_fact("nvjpegdec", True),
         _element_fact("nvvidconv", True),
         _element_fact("nveglglessink", True),

@@ -422,8 +422,33 @@ def test_camera_mode_tree_prefers_raw_reachy_camera_capabilities() -> None:
     }
     assert "MJPG (Motion-JPEG, compressed)" in text
     assert "YUYV (YUYV 4:2:2)" in text
-    assert "MJPG, 3840x2592, 30 fps" in text
+    assert "MJPG, 1920x1080, 60 fps" in text
+    assert "jpegparse ! jpegdec" in text
     assert "640x480" not in text
+
+
+def test_camera_explore_uses_available_jetson_candidate_for_selected_mjpg_mode() -> None:
+    pane = build_detail_pane_for_video(
+        _reachy_camera(),
+        control_set=_reachy_controls(),
+    )
+    pane = replace(
+        pane,
+        sections=(
+            *pane.sections,
+            DetailSection(
+                "Candidate Summary",
+                ("available: jetson-uvc-mjpeg-nvjpeg-nveglglessink - NVIDIA MJPEG preview elements are available.",),
+            ),
+        ),
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Selected: MJPG, 1920x1080, 60 fps" in text
+    assert "v4l2src device=/dev/video0 io-mode=2 do-timestamp=true" in text
+    assert "image/jpeg,width=1920,height=1080,framerate=60/1" in text
+    assert "jpegparse ! nvjpegdec" in text
+    assert "nveglglessink sync=false" in text
 
 
 def test_camera_controls_use_raw_reachy_control_set() -> None:

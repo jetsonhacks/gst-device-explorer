@@ -218,13 +218,13 @@ def build_camera_pipeline_text(
     caps_media_type = media_type or ("image/jpeg" if pixel_format == "MJPG" else "video/x-raw")
     caps_parts = [caps_media_type, f"width={width}", f"height={height}"]
     if caps_media_type == "video/x-raw":
-        caps_parts.append(f"format={pixel_format}")
+        gst_format = "YUY2" if pixel_format == "YUYV" else pixel_format
+        caps_parts.append(f"format={gst_format}")
     if frame_rate:
         caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
-    return (
-        f"gst-launch-1.0 v4l2src device={device_path} ! "
-        + ",".join(caps_parts)
-        + " ! autovideosink"
+    decode = " ! jpegparse ! jpegdec" if caps_media_type == "image/jpeg" else ""
+    return f"gst-launch-1.0 v4l2src device={device_path} ! " + ",".join(caps_parts) + (
+        f"{decode} ! videoconvert ! autovideosink sync=false"
     )
 
 

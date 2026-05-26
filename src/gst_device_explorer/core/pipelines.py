@@ -17,6 +17,13 @@ from gst_device_explorer.core.models import (
 
 GENERIC_VIDEO_PREVIEW_PROFILE = "generic-linux-video-preview"
 GENERIC_VIDEO_PREVIEW_ELEMENTS = ["v4l2src", "videoconvert", "autovideosink"]
+GENERIC_MJPEG_VIDEO_PREVIEW_ELEMENTS = [
+    "v4l2src",
+    "jpegparse",
+    "jpegdec",
+    "videoconvert",
+    "autovideosink",
+]
 JETSON_VIDEO_PREVIEW_PROFILE = "jetson-video-preview"
 JETSON_MJPEG_PREVIEW_ELEMENTS = [
     "v4l2src",
@@ -43,10 +50,6 @@ def build_video_preview_candidates(
     if device.kind != "video_input":
         return []
 
-    missing_elements = find_missing_elements(environment, GENERIC_VIDEO_PREVIEW_ELEMENTS)
-    if missing_elements:
-        return []
-
     candidates: list[_RankedCandidate] = []
     for capability in capabilities:
         if capability.values.get("media_type") != "video":
@@ -55,14 +58,20 @@ def build_video_preview_candidates(
         caps = _build_caps(capability.values)
         if caps is None:
             continue
-
         device_path = _device_path(device)
-        candidates.append(
-            _RankedCandidate(
-                candidate=_generic_video_preview_candidate(device_path, capability),
-                values=capability.values,
-            )
+        generic_required_elements = (
+            GENERIC_MJPEG_VIDEO_PREVIEW_ELEMENTS
+            if capability.values.get("pixel_format") == "MJPG"
+            else GENERIC_VIDEO_PREVIEW_ELEMENTS
         )
+        generic_missing_elements = find_missing_elements(environment, generic_required_elements)
+        if not generic_missing_elements:
+            candidates.append(
+                _RankedCandidate(
+                    candidate=_generic_video_preview_candidate(device_path, capability),
+                    values=capability.values,
+                )
+            )
 
         jetson_candidate = _jetson_mjpeg_preview_candidate(
             device_path=device_path,
@@ -94,12 +103,19 @@ def _generic_video_preview_candidate(
         f"device={device_path}",
         "!",
         caps,
-        "!",
+    ]
+    required_elements = GENERIC_VIDEO_PREVIEW_ELEMENTS
+    if capability.values.get("pixel_format") == "MJPG":
+        argv.extend(["!", "jpegparse", "!", "jpegdec", "!"])
+        required_elements = GENERIC_MJPEG_VIDEO_PREVIEW_ELEMENTS
+    else:
+        argv.append("!")
+    argv.extend([
         "videoconvert",
         "!",
         "autovideosink",
         "sync=false",
-    ]
+    ])
 
     return PipelineCandidate(
         candidate_id=_generic_candidate_id(capability.values),
@@ -110,10 +126,10 @@ def _generic_video_preview_candidate(
         reasons=_generic_candidate_reasons(
             device_path=device_path,
             values=capability.values,
-            required_elements=GENERIC_VIDEO_PREVIEW_ELEMENTS,
+            required_elements=required_elements,
         ),
         warnings=[],
-        required_elements=list(GENERIC_VIDEO_PREVIEW_ELEMENTS),
+        required_elements=list(required_elements),
         selected_profile=GENERIC_VIDEO_PREVIEW_PROFILE,
     )
 

@@ -12,6 +12,7 @@ from gst_device_explorer.core.models import (
     PipelineDiagnostic,
 )
 from gst_device_explorer.core.pipelines import (
+    GENERIC_MJPEG_VIDEO_PREVIEW_ELEMENTS,
     GENERIC_VIDEO_PREVIEW_ELEMENTS,
     JETSON_MJPEG_PREVIEW_ELEMENTS,
     _device_path,
@@ -52,7 +53,11 @@ def build_video_preview_diagnostics(
                     candidate_id=generic_candidate_id,
                     device_kind="video",
                     device_id=device_path,
-                    required_elements=GENERIC_VIDEO_PREVIEW_ELEMENTS,
+                    required_elements=(
+                        GENERIC_MJPEG_VIDEO_PREVIEW_ELEMENTS
+                        if values.get("pixel_format") == "MJPG"
+                        else GENERIC_VIDEO_PREVIEW_ELEMENTS
+                    ),
                     environment=environment,
                     available_reason=(
                         "Required GStreamer elements are available and the "
@@ -91,5 +96,4 @@ def _generic_candidate_id(values: dict[str, Any]) -> str | None:
     if pixel_format == "YUYV":
         return GENERIC_V4L2_YUYV_CANDIDATE_ID
     return None
-
 

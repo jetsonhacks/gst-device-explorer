@@ -42,8 +42,8 @@ def test_camera_pipeline_text_is_display_only_gstreamer_text() -> None:
 
     assert text == (
         "gst-launch-1.0 v4l2src device=/dev/video0 ! "
-        "video/x-raw,width=1280,height=720,format=YUYV,framerate=29970/1000 ! "
-        "autovideosink"
+        "video/x-raw,width=1280,height=720,format=YUY2,framerate=29970/1000 ! "
+        "videoconvert ! autovideosink sync=false"
     )
 
 
@@ -172,6 +172,7 @@ def test_pipeline_text_updates_when_format_changes() -> None:
 
     assert mjpg_pipeline is not None
     assert "image/jpeg" in mjpg_pipeline
+    assert "jpegparse ! jpegdec" in mjpg_pipeline
     assert "width=1920" in mjpg_pipeline
     assert "height=1080" in mjpg_pipeline
     assert "framerate=60/1" in mjpg_pipeline
@@ -179,7 +180,7 @@ def test_pipeline_text_updates_when_format_changes() -> None:
 
     assert yuyv_pipeline is not None
     assert "video/x-raw" in yuyv_pipeline
-    assert "format=YUYV" in yuyv_pipeline
+    assert "format=YUY2" in yuyv_pipeline
     assert "width=640" in yuyv_pipeline
     assert "framerate=20/1" in yuyv_pipeline
 

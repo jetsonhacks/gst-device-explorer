@@ -29,7 +29,7 @@ def test_mjpg_generic_video_preview_candidate() -> None:
     assert candidate.command == (
         "gst-launch-1.0 v4l2src device=/dev/video0 ! "
         "image/jpeg, width=1920, height=1080, framerate=60/1 ! "
-        "videoconvert ! autovideosink sync=false"
+        "jpegparse ! jpegdec ! videoconvert ! autovideosink sync=false"
     )
     assert candidate.candidate_id == "generic-v4l2-mjpeg-jpegdec-autovideosink"
     assert candidate.argv == [
@@ -38,6 +38,10 @@ def test_mjpg_generic_video_preview_candidate() -> None:
         "device=/dev/video0",
         "!",
         "image/jpeg, width=1920, height=1080, framerate=60/1",
+        "!",
+        "jpegparse",
+        "!",
+        "jpegdec",
         "!",
         "videoconvert",
         "!",
@@ -92,6 +96,8 @@ def test_missing_required_elements_produces_no_candidates() -> None:
     device = _video_device()
     environment = [
         _element_fact("v4l2src", True),
+        _element_fact("jpegparse", True),
+        _element_fact("jpegdec", True),
         _element_fact("videoconvert", True),
         _element_fact("autovideosink", False),
     ]
@@ -118,6 +124,8 @@ def test_reasons_and_required_elements_are_populated() -> None:
     candidate = candidates[0]
     assert candidate.required_elements == [
         "v4l2src",
+        "jpegparse",
+        "jpegdec",
         "videoconvert",
         "autovideosink",
     ]
@@ -126,7 +134,7 @@ def test_reasons_and_required_elements_are_populated() -> None:
         "selected pixel format: MJPG",
         "selected size: 640x480",
         "selected frame rate: 30/1",
-        "required elements available: v4l2src, videoconvert, autovideosink",
+        "required elements available: v4l2src, jpegparse, jpegdec, videoconvert, autovideosink",
     ]
     assert candidate.warnings == []
 
@@ -376,6 +384,8 @@ def _video_capability(
 def _environment_with_required_elements() -> list[EnvironmentFact]:
     return [
         _element_fact("v4l2src", True),
+        _element_fact("jpegparse", True),
+        _element_fact("jpegdec", True),
         _element_fact("videoconvert", True),
         _element_fact("autovideosink", True),
     ]
@@ -387,6 +397,7 @@ def _environment_with_generic_and_jetson_elements() -> list[EnvironmentFact]:
         _element_fact("videoconvert", True),
         _element_fact("autovideosink", True),
         _element_fact("jpegparse", True),
+        _element_fact("jpegdec", True),
         _element_fact("nvjpegdec", True),
         _element_fact("nvvidconv", True),
         _element_fact("nveglglessink", True),
