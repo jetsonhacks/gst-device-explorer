@@ -24,6 +24,7 @@ import gst_device_explorer.probes.gst as gst_probe
 import gst_device_explorer.probes.v4l2 as v4l2_probe
 from gst_device_explorer.cli.parser import build_parser
 import gst_device_explorer.cli.commands as commands
+import gst_device_explorer.cli.commands_bundle as commands_bundle
 import gst_device_explorer.cli.renderer as renderer
 import gst_device_explorer.cli.tui as tui
 
@@ -438,7 +439,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "support" and args.support_command == "bundle":
-        return commands.run_support_bundle(args.output)
+        return commands_bundle.run_support_bundle(args.output)
 
     parser.error("unknown command")
     return 2

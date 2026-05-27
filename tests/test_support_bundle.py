@@ -25,6 +25,7 @@ from gst_device_explorer.core.support import (
     validate_bundle_output_path,
 )
 import gst_device_explorer.cli.commands as cli_commands
+import gst_device_explorer.cli.commands_bundle as cli_commands_bundle
 
 
 # ---------------------------------------------------------------------------
@@ -70,20 +71,20 @@ def _mock_config():
 
 def _patch_all_probes(monkeypatch) -> None:
     """Patch every probe and data-source that run_support_bundle calls."""
-    monkeypatch.setattr(cli_commands, "build_system_report", lambda: _minimal_report())
+    monkeypatch.setattr(cli_commands_bundle, "build_system_report", lambda: _minimal_report())
     monkeypatch.setattr(
-        cli_commands.config, "effective_config", lambda path=None: _mock_config()
+        cli_commands_bundle.config, "effective_config", lambda path=None: _mock_config()
     )
-    monkeypatch.setattr(cli_commands.config, "config_search_paths", lambda: [])
-    monkeypatch.setattr(cli_commands.discovery, "discover_groupable_devices", lambda: [])
-    monkeypatch.setattr(cli_commands.schema_mod, "list_schema_documents", lambda: [])
-    monkeypatch.setattr(cli_commands.suggestions_mod, "list_generic_suggestions", lambda: [])
-    monkeypatch.setattr(cli_commands.presets, "list_presets", lambda: ())
+    monkeypatch.setattr(cli_commands_bundle.config, "config_search_paths", lambda: [])
+    monkeypatch.setattr(cli_commands_bundle.discovery, "discover_groupable_devices", lambda: [])
+    monkeypatch.setattr(cli_commands_bundle.schema_mod, "list_schema_documents", lambda: [])
+    monkeypatch.setattr(cli_commands_bundle.suggestions_mod, "list_generic_suggestions", lambda: [])
+    monkeypatch.setattr(cli_commands_bundle.presets, "list_presets", lambda: ())
     monkeypatch.setattr(
-        cli_commands, "build_tui_review_model", lambda **_kw: object()
+        cli_commands_bundle, "build_tui_review_model", lambda **_kw: object()
     )
     monkeypatch.setattr(
-        cli_commands, "render_overview_lines", lambda _model: ["TUI overview line"]
+        cli_commands_bundle, "render_overview_lines", lambda _model: ["TUI overview line"]
     )
 
 
