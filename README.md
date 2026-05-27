@@ -1,559 +1,184 @@
 # gst-device-explorer
 
-`gst-device-explorer` is a GUI-first Linux / Jetson media device explorer. It
-discovers camera, microphone, speaker, and grouped composite devices, then lets
-the user inspect capabilities and safely try generated GStreamer actions.
+`gst-device-explorer` is a GUI-first media endpoint explorer for NVIDIA Jetson systems and Ubuntu workstations.
 
-The mental model is:
+It discovers cameras, microphones, speakers, and composite USB/media devices, then helps you inspect capabilities, generate GStreamer commands, and safely try selected hardware actions.
 
-```text
-camera-caps for modern Jetson media devices.
-```
+The project is intended for embedded media work on Jetson developer kits and Ubuntu 24.04+ systems, especially with USB cameras, USB audio devices, and devices such as small robots that expose several media endpoints.
 
-The CLI remains important as a backend, debug interface, and testable probe
-layer, but the GUI is now the primary product direction.
+## Requirements
 
-Its first real domain is media exploration: video inputs, audio inputs, audio
-outputs, grouped composite USB devices, the local GStreamer environment, and
-useful generated pipeline candidates.
+Tested target platforms:
 
-Pipeline candidates carry a profile label identifying the generation strategy,
-such as a generic Linux preview or a Jetson/NVIDIA accelerated preview. The
-project also provides `DeviceProfile` endpoint summaries that combine discovery,
-candidate, diagnostic, and grouping information for CLI inspection and system
-reports.
+- NVIDIA Jetson systems running Jetson Linux 38+
+- Ubuntu 24.04+
 
-Future work should be judged by whether it improves the GUI media exploration
-experience. Additional backend infrastructure should support the sidebar,
-detail panes, grouping views, diagnostics, and safe generated actions rather
-than becoming a separate industrial diagnostics platform.
+The GUI uses PySide6 / Qt. Device discovery and media testing depend on common Ubuntu media tools, including GStreamer, V4L2 tools, and ALSA utilities.
 
-The project is currently in an early implementation phase. It has initial
-probing models, CLI renderers, video and audio pipeline candidate generation,
-and safe execution for selected video preview and ALSA audio test candidates. It
-can also create short, explicit, bounded capture files from generated video and
-audio-input candidates. Composite device groups are computed from discovered
-device metadata. Milestone 23 makes selected camera details feel like a camera
-explorer: pixel format, resolution, and frame-rate choices lead into prominent
-generated pipeline text, copy affordances, and dynamically discovered read-only
-V4L2 controls. Editing, audio loopback, group-based execution, and
-preview-window lifecycle management are not implemented yet.
+## Why use it
 
-## Minimal GUI Shell
+Media devices often appear as separate endpoints: `/dev/video0`, ALSA capture devices, ALSA playback devices, and USB composite devices. Figuring out which endpoint does what usually means jumping between command-line tools.
 
-PySide6 / Qt is the first GUI toolkit for the project. It is packaged as an
-optional extra so CLI-only use does not need to import or install Qt:
+`gst-device-explorer` brings that discovery workflow into one application.
+
+You can use it to:
+
+- find connected cameras, microphones, and speakers
+- inspect camera modes, audio formats, sample rates, and channel counts
+- see which endpoints appear to belong to the same physical device
+- preview a selected camera mode
+- adjust supported camera controls such as brightness or exposure
+- test speakers with a generated tone
+- play a local audio file through a selected output device
+- check whether a microphone endpoint opens without recording audio
+- copy generated GStreamer commands for manual testing
+
+![gst-device-explorer camera view](docs/images/gst-device-explorer.jpeg)
+
+## Install
+
+This project uses `uv` for Python environment and dependency management.
+
+Install `uv`:
 
 ```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+If your system does not have `curl`, use `wget`:
+
+```sh
+wget -qO- https://astral.sh/uv/install.sh | sh
+```
+
+After installation, restart your shell or follow the installer instructions to update your `PATH`.
+
+Clone the repository and install the GUI dependencies:
+
+```sh
+git clone https://github.com/jetsonhacks/gst-device-explorer.git
+cd gst-device-explorer
 uv sync --extra gui
+```
+
+Some probes depend on Ubuntu media tools. On Jetson Linux 38+ and Ubuntu 24.04+ systems, useful packages typically include GStreamer tools, V4L2 tools, and ALSA utilities.
+
+See `docs/SETUP.md` for system packages and verification commands.
+
+## Run
+
+Launch the live GUI:
+
+```sh
 uv run gst-device-explorer gui
+```
+
+Launch the demo GUI:
+
+```sh
 uv run gst-device-explorer gui --demo
 ```
 
-`gui` uses existing safe live discovery/probe paths to render cameras, audio
-inputs, audio outputs, and composite groups. `gui --demo` renders deterministic
-synthetic devices and does not probe real hardware. The Refresh control rebuilds
-the read-only GUI snapshot. The detail pane includes safe copy affordances for
-displayed identifiers and suggested commands. Action buttons show labels, safety
-metadata, suggested commands, and disabled reasons, but they do not run
-pipelines, capture media, spawn subprocesses, or execute suggested commands.
+Demo mode uses synthetic devices and does not probe real hardware.
 
-When a camera is selected, the GUI prioritizes camera exploration over generic
-report text. It shows available pixel formats, resolutions, frame rates, a
-display-only GStreamer pipeline string, a copy pipeline button, and the V4L2
-controls advertised by that specific camera. Controls are rendered dynamically
-as disabled read-only widgets from `v4l2-ctl --list-ctrls-menus` data; the GUI
-does not write controls or call `v4l2-ctl --set-ctrl`.
+## GUI overview
 
-## System Report
+The GUI is organized around two main views:
 
-Use `report` to capture the full media system state as a single structured
-document:
+- **Explore**: work with the selected endpoint or group
+- **Device Information**: inspect lower-level discovery details
 
-```sh
-gst-device-explorer report --json
-gst-device-explorer report
-```
+Current Explore surfaces include:
 
-The report gathers existing discovery, grouping, profile, candidate, and
-diagnostic information in one place. It is read-only and does not run
-pipelines. JSON output is the primary format and is suitable for GitHub
-issues, hardware validation, comparing Jetson systems, and remote debugging.
+- **Camera**: mode selection, generated preview pipeline, preview start/stop, supported camera-control writes
+- **Audio Output**: generated tone test, local-file playback test, pipeline-local level presets
+- **Audio Input**: bounded non-recording activity test
+- **Composite Groups**: endpoint cards and navigation for related devices
 
-The report includes:
+Group views explain and navigate. They do not run group-level pipelines or synchronized capture.
 
-- tool version and GStreamer environment facts
-- discovered video, audio-input, and audio-output devices
-- composite device groups
-- endpoint profiles for each discovered device
-- aggregated missing GStreamer elements
-- suggested next commands per endpoint
+## Typical workflow
 
-Text output is a compact summary. File output (`--output`) is deferred.
+1. Start the GUI.
+2. Select a camera, microphone, speaker, or composite group in the sidebar.
+3. Use **Explore** to inspect modes and generated commands.
+4. Run only explicitly supported actions.
+5. Use **Device Information** for lower-level discovery details.
 
-## Support Bundle Export
+## Camera exploration
 
-Use `support bundle` to create a portable support/debug bundle from existing
-safe inspection surfaces:
+The camera view can show discovered modes, generate a preview pipeline, start and stop preview, and expose supported camera controls. Writable controls can be adjusted for the selected camera endpoint, and individual controls can be reset to their reported default when available.
 
-```sh
-gst-device-explorer support bundle --output ./my-support-bundle
-```
+## Audio output testing
 
-The command creates a new directory at the explicit output path. The path must
-not already exist and its parent directory must exist.
+The audio output view can run a generated tone test or play a selected local audio file through the selected output endpoint. Test level and playback level are pipeline-local settings; they do not change system volume, mixer settings, or routing.
 
-The bundle includes:
+## Audio input checking
 
-- `manifest.json` — bundle metadata, file list, and creation timestamp
-- `report/system-report.json` — full system report in JSON envelope format
-- `report/system-report.txt` — compact system report text summary
-- `inventory/` — per-kind device, environment, and group listings
-- `config/` — configuration search paths, effective configuration, and validation
-- `schemas/` — known schema document list
-- `suggestions/` — generic suggested command catalog
-- `tui/snapshot.txt` — TUI overview snapshot
+The audio input view can open a selected input endpoint using a bounded non-recording test. It is intended to confirm that the endpoint is available. It does not record, save, or retain microphone audio.
 
-The support bundle is an export of already-safe inspection data. It does not:
+For deeper microphone quality testing, use an external audio application suited to capture and playback review.
 
-- run GStreamer pipelines or capture media
-- execute suggested commands
-- install packages or change system configuration
-- require special system privileges beyond normal device probing
+## Composite device groups
 
-The bundle is intended for attaching to GitHub issues, comparing Jetson systems,
-and field debugging without requiring direct access to the target hardware.
+Composite group views help explain when multiple endpoints appear to belong to the same physical device. Groups are navigation and explanation surfaces; actions still happen on individual endpoints.
 
-## Candidate Ranking and Recommendations
+## Command-line interface
 
-Use `recommend` to rank generated pipeline candidates and identify the best one
-to try first:
+The project also includes a CLI for setup, debugging, automation, and development.
+
+Start with:
 
 ```sh
-gst-device-explorer recommend video /dev/video0
-gst-device-explorer recommend video /dev/video0 --json
-
-gst-device-explorer recommend audio-input hw:0,0
-gst-device-explorer recommend audio-input hw:0,0 --json
-
-gst-device-explorer recommend audio-output hw:0,0
-gst-device-explorer recommend audio-output hw:0,0 --json
+uv run gst-device-explorer --help
 ```
 
-`recommend` ranks the same candidates that `pipeline` generates, without
-creating new pipelines or executing any of them. It explains why one candidate
-is suggested over another, including availability status, missing GStreamer
-elements, and confidence scores.
+For detailed setup checks and command examples, see `docs/SETUP.md`.
 
-Text output lists all ranked candidates in order with reasons. JSON output
-includes the full ranking with scores and reasons in machine-readable form.
+## Safety notes
 
-To inspect or run the recommended candidate:
+The GUI runs only supported actions generated for the selected endpoint. It does not accept arbitrary GStreamer pipeline text or shell commands.
 
-```sh
-# Inspect all candidates first
-gst-device-explorer pipeline video /dev/video0
+The application does not provide group-based execution, synchronized capture, long-running recording workflows, arbitrary V4L2 command entry, or system audio mixer/routing controls.
 
-# Dry-run the recommended (rank 1) candidate
-gst-device-explorer run video /dev/video0 --dry-run
+## Project status
 
-# Run a specific candidate by ID
-gst-device-explorer run video /dev/video0 --candidate jetson-uvc-mjpeg-nvjpeg-nveglglessink
-```
+`gst-device-explorer` is under active development. The current focus is a practical GUI for media-device exploration on Jetson Linux 38+ and Ubuntu 24.04+ systems.
 
-## Composite Device Groups
+Recent work has focused on:
 
-Use `groups` to inspect higher-level composite devices inferred from discovered
-V4L2 and ALSA devices:
+- camera preview and camera-control adjustment
+- audio output tone and local-file playback tests
+- audio input availability testing without recording
+- composite device grouping
+- cleaner GUI workflows around generated GStreamer commands
 
-```sh
-gst-device-explorer groups
-gst-device-explorer groups --json
-gst-device-explorer groups --metadata
-gst-device-explorer groups --metadata --json
-gst-device-explorer group <group-id>
-```
+See `docs/GUI_ROADMAP.md` for the current roadmap.
 
-Milestone 3 emits two USB grouping levels when the evidence is available:
-
-- exact USB-device groups for devices sharing the same USB parent path
-- parent USB-family groups for child composite groups that share a USB ancestor,
-  USB vendor ID, and non-generic product-family token
-
-Example output on Reachy Mini hardware:
+## Repository layout
 
 ```text
-Composite devices:
-- Reachy Mini Audio
-  id: usb-device-1-4-1-1
-  kind: unknown
-  confidence: 0.90
-  members:
-    - audio-input: hw:0,0
-    - audio-output: hw:0,0
+src/gst_device_explorer/
+  cli/       command-line interface
+  core/      shared models, pipeline candidates, diagnostics
+  gui/       PySide6 GUI
+  probes/    V4L2, ALSA, GStreamer, and system probing
 
-- Reachy Mini Camera
-  id: usb-device-1-4-1-4
-  kind: unknown
-  confidence: 0.90
-  members:
-    - camera: /dev/video0
-    - camera: /dev/video1
-
-- Reachy Mini
-  id: usb-family-1-4-1
-  kind: unknown
-  confidence: 0.80
-  members:
-    - audio-input: hw:0,0
-    - audio-output: hw:0,0
-    - camera: /dev/video0
-    - camera: /dev/video1
+docs/        setup, architecture, roadmap, and milestone notes
+tests/       unit and GUI tests
 ```
 
-Grouping enriches discovery output. Raw individual device commands such as
-`devices`, `audio-inputs`, `audio-outputs`, and `video <device>` remain
-available. Separate devices that do not share the grouping evidence, such as an
-Orbbec Femto Bolt attached alongside the robot, remain independent.
+## Documentation
 
-Use `groups --metadata` as the diagnostic view for the normalized records
-feeding the grouping engine when a group is missing or unexpected. Group-based
-pipeline generation and group-based execution are not included; use the existing
-`pipeline` and `run` commands for individual video and audio devices.
+Start with:
 
-## Composite Device Validation
+- `docs/SETUP.md`
+- `docs/GUI_ROADMAP.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DATA_MODEL.md`
 
-Use `validate group` to summarize the endpoint health of one composite device:
+## Contributing
 
-```sh
-gst-device-explorer validate group <group-id>
-gst-device-explorer validate group <group-id> --json
-```
+This project changes quickly. Before adding new user-facing behavior, prefer a small milestone document that states the user problem, proposed behavior, safety boundary, out-of-scope work, and test plan.
 
-Validation reuses existing group evidence and endpoint profiles. It reports a
-simple group status, per-endpoint status, candidate counts, aggregated missing
-GStreamer elements, and suggested endpoint-level next commands.
-
-Group validation is explanatory only. It does not run pipelines, does not run
-capture, does not generate group-level pipelines, and does not choose endpoints
-automatically. Use individual endpoint commands such as `profile`, `recommend`,
-`run`, and `capture` to inspect or test a specific video or audio endpoint.
-
-## Presets
-
-Use `preset` to discover named workflows over existing safe commands:
-
-```sh
-gst-device-explorer preset list
-gst-device-explorer preset show camera-preview
-gst-device-explorer preset command camera-preview video /dev/video0
-gst-device-explorer preset command short-video-capture video /dev/video0 --duration 5 --output sample.avi
-```
-
-Presets are built-in descriptions and command suggestions. They return
-structured argv internally and render readable command text or JSON externally.
-They do not execute commands, do not accept arbitrary GStreamer pipelines, and
-do not introduce group execution. Use the suggested endpoint commands when you
-are ready to inspect, run, capture, recommend, or validate.
-
-## Suggested Command Catalog
-
-Use `suggestions list` to browse a catalog of generic suggested commands:
-
-```sh
-gst-device-explorer suggestions list
-gst-device-explorer suggestions list --json
-```
-
-The catalog lists broad starting-point commands covering discovery, environment
-inspection, group listing, report generation, schema browsing, and configuration.
-It is a read-only reference and does not execute any command. Each entry includes
-a title, full argv, rendered command string, purpose, safety classification, and
-optional notes.
-
-Suggested commands also appear inline inside `profile`, `validate group`,
-`report`, and `tui` outputs, where they are tailored to the specific endpoint or
-group being inspected. The `suggestions list` catalog gives a static overview of
-the common commands available across the tool.
-
-Safety classifications used throughout suggested commands:
-
-- `inspection` — read-only probing, no side effects
-- `dry_run` — prints a command without executing it
-- `bounded_capture` — time-limited file write to an explicit output path
-- `safe_execution` — runs a generated pipeline with Ctrl+C to stop
-- `external_check` — invokes an external tool (e.g., `gst-inspect-1.0`)
-
-## Configuration
-
-Use `config` to inspect and validate bounded preferences:
-
-```sh
-gst-device-explorer config path
-gst-device-explorer config show
-gst-device-explorer config show --json
-gst-device-explorer config validate
-gst-device-explorer config validate --config ./gst-device-explorer.toml
-```
-
-Configuration is optional. Milestone 12 validates and displays configuration
-only; preferences do not change candidate generation, ranking, presets, reports,
-capture, validation, or execution yet. Config files cannot introduce arbitrary
-pipelines, shell commands, scripts, package installation, or system
-configuration changes.
-
-## Machine-Readable JSON
-
-Selected JSON outputs use a stable envelope for scripts and future interfaces:
-
-```json
-{
-  "schema_version": "1.0",
-  "tool_version": "0.28.4",
-  "kind": "preset_list",
-  "data": []
-}
-```
-
-The envelope is used by config, preset, schema discovery, device discovery,
-environment, grouping, video capability, pipeline candidate, pipeline
-diagnostic, profile, report, recommendation, and group validation JSON outputs.
-The `data` field contains the command-specific payload, preserving the older
-payload shape under the envelope.
-
-Selected known error paths return a companion error envelope:
-
-```json
-{
-  "schema_version": "1.0",
-  "tool_version": "0.28.4",
-  "kind": "error",
-  "error": {
-    "code": "unknown_schema",
-    "message": "Unknown schema: not-a-schema",
-    "details": {
-      "schema_id": "not-a-schema"
-    },
-    "suggested_commands": []
-  }
-}
-```
-
-Error envelopes use `kind: "error"` with an `error` object instead of `data`.
-The `error.code` field is a stable snake_case identifier for scripts to match.
-The `error.suggested_commands` list is advisory and is never executed automatically.
-
-Error envelope coverage in Milestone 17:
-
-- `schema show <unknown> --json` → `unknown_schema`
-- `preset show <unknown> --json` → `unknown_preset`
-- `preset command <unknown> ... --json` → `unknown_preset`
-- `preset command <id> <wrong-kind> ... --json` → `wrong_preset_target_kind`
-- `preset command <capture-preset> <video> <target> --json` (missing args) → `missing_required_argument`
-- `group <unknown> --json` → `group_not_found`
-- `validate group <unknown> --json` → `group_not_found`
-
-Non-JSON invocations preserve existing human-readable text behavior.
-Config JSON outputs remain in the success envelope with `valid: false`.
-
-Inspect the envelope contracts with:
-
-```sh
-gst-device-explorer schema list
-gst-device-explorer schema show json-envelope
-gst-device-explorer schema show error-envelope
-gst-device-explorer schema show error-envelope --json
-```
-
-## TUI Review Mode
-
-Use `tui` to browse a read-only terminal overview:
-
-```sh
-gst-device-explorer tui
-gst-device-explorer tui --snapshot
-```
-
-The TUI summarizes existing environment, device, group, preset, configuration,
-schema, and suggested-command information. It is a review surface only: it does
-not run pipelines, capture media, execute presets, edit configuration, install
-packages, or change system settings. Suggested commands are displayed for the
-user to run separately.
-
-## Device Profiles
-
-Use `profile` to get a structured summary of a device endpoint:
-
-```sh
-gst-device-explorer profile video /dev/video0
-gst-device-explorer profile video /dev/video0 --json
-
-gst-device-explorer profile audio-input hw:0,0
-gst-device-explorer profile audio-input hw:0,0 --json
-
-gst-device-explorer profile audio-output hw:0,0
-gst-device-explorer profile audio-output hw:0,0 --json
-```
-
-A device profile combines existing discovery, grouping, candidate, and
-diagnostic information in one compact view. It answers:
-
-- What is this device and what capabilities were discovered?
-- Which pipeline candidates are available?
-- Which candidates are blocked, and why?
-- Is this endpoint part of a composite device group?
-- What should I try next?
-
-Profiles differ from raw discovery (`devices`, `audio-inputs`, `video`),
-pipeline inspection (`pipeline`), and diagnostics (`pipeline --diagnostics`)
-in that they summarize all of these into one place. Profiles do not re-probe
-the device and do not execute pipelines.
-
-### Profile Workflow
-
-The recommended workflow when exploring a new device:
-
-```sh
-# 1. Discover devices
-gst-device-explorer devices
-gst-device-explorer audio-inputs
-gst-device-explorer audio-outputs
-
-# 2. Inspect groups (optional)
-gst-device-explorer groups
-
-# 3. Inspect profile
-gst-device-explorer profile video /dev/video0
-gst-device-explorer profile audio-input hw:0,0
-
-# 4. Inspect pipeline candidates
-gst-device-explorer pipeline video /dev/video0
-
-# 5. Inspect diagnostics if a candidate is missing
-gst-device-explorer pipeline video /dev/video0 --diagnostics
-
-# 6. Dry-run
-gst-device-explorer run video /dev/video0 --dry-run
-
-# 7. Run
-gst-device-explorer run video /dev/video0
-```
-
-### Group Membership in Profiles
-
-When composite device groups include the endpoint, the profile lists matching
-groups under a `Groups:` section. This is informational only — it does not
-change candidate generation or which device is targeted. Group-based pipeline
-generation and group-based execution remain out of scope. Group profiles are
-deferred.
-
-## Video Pipeline Candidates and Run
-
-Use `pipeline` to inspect generated video preview candidates:
-
-```sh
-gst-device-explorer pipeline video /dev/video0
-gst-device-explorer pipeline video /dev/video0 --json
-gst-device-explorer pipeline video /dev/video0 --diagnostics
-gst-device-explorer pipeline video /dev/video0 --diagnostics --json
-```
-
-Use `run` to select and execute one generated candidate:
-
-```sh
-gst-device-explorer run video /dev/video0 --dry-run
-gst-device-explorer run video /dev/video0
-gst-device-explorer run video /dev/video0 --candidate 0
-gst-device-explorer run video /dev/video0 --candidate jetson-uvc-mjpeg-nvjpeg-nveglglessink
-```
-
-`--dry-run` prints the selected candidate ID and GStreamer command without
-starting GStreamer. Without `--dry-run`, the selected candidate is executed with
-an argv-style subprocess call. Press Ctrl+C to stop a running pipeline.
-
-## Audio Pipeline Candidates and Run
-
-Use `pipeline` to inspect generated ALSA audio test candidates:
-
-```sh
-gst-device-explorer pipeline audio-input hw:0,0
-gst-device-explorer pipeline audio-input hw:0,0 --json
-gst-device-explorer pipeline audio-input hw:0,0 --diagnostics
-gst-device-explorer pipeline audio-input hw:0,0 --diagnostics --json
-gst-device-explorer pipeline audio-output hw:0,0
-gst-device-explorer pipeline audio-output hw:0,0 --json
-gst-device-explorer pipeline audio-output hw:0,0 --diagnostics
-gst-device-explorer pipeline audio-output hw:0,0 --diagnostics --json
-```
-
-Use `run` to select and execute one generated audio candidate:
-
-```sh
-gst-device-explorer run audio-input hw:0,0 --dry-run
-gst-device-explorer run audio-output hw:0,0 --dry-run
-gst-device-explorer run audio-input hw:0,0
-gst-device-explorer run audio-output hw:0,0
-gst-device-explorer run audio-output hw:0,0 --candidate generic-alsa-audio-output-sine-alsasink
-```
-
-The audio input level test is intended to run without audible output. The audio
-output sine test should play a 440 Hz tone. Audio execution uses generated
-`PipelineCandidate.argv` values and does not accept arbitrary GStreamer pipeline
-strings. Press Ctrl+C to stop a running audio pipeline.
-
-## Bounded Capture Tests
-
-Use `capture` to create short endpoint-based validation files from generated
-candidates only:
-
-```sh
-gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi
-gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi --dry-run
-
-gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav
-gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav --dry-run
-```
-
-Capture requires an explicit positive duration and an explicit output path.
-Dry-run prints the exact argv-backed command without starting GStreamer. Existing
-output files are rejected; `--overwrite` is not implemented.
-
-Capture is a bounded validation tool, not a recording framework. It does not
-accept arbitrary pipeline strings, does not perform group-based capture, does
-not run synchronized audio/video capture, and does not create background or
-long-running recordings. The first video capture candidates write simple AVI
-files; audio input capture writes WAV files.
-
-## Diagnostics Workflow
-
-Use diagnostics when a candidate is missing or when you want to understand why a
-candidate is available:
-
-```sh
-gst-device-explorer devices
-gst-device-explorer audio-inputs
-gst-device-explorer audio-outputs
-gst-device-explorer groups
-
-gst-device-explorer pipeline video /dev/video0
-gst-device-explorer pipeline video /dev/video0 --diagnostics
-gst-device-explorer run video /dev/video0 --dry-run
-gst-device-explorer run video /dev/video0
-```
-
-Diagnostics explain candidate availability and missing requirements; they do not
-execute pipelines. Missing GStreamer elements are reported with suggested
-checks such as:
-
-```sh
-gst-inspect-1.0 autovideosink
-gst-inspect-1.0 alsasink
-```
-
-## Setup
-
-See `docs/SETUP.md` for Python setup, required Linux tools, useful GStreamer
-packages, verification commands, and prerequisites for useful CLI output.
-
-See the `docs/` directory for the specification, architecture notes, development
-principles, pipeline candidate design, and milestone scope.
+Keep generated commands structured, endpoint-specific, and testable. Avoid arbitrary command execution and hidden system changes.
