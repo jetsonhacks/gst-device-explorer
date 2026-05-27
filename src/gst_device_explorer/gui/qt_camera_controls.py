@@ -193,11 +193,17 @@ def create_camera_controls_widget(
                         )
                     )
         content_layout.addStretch(1)
+        scroll.setUpdatesEnabled(False)
         old = scroll.takeWidget()
         if old is not None:
             old.deleteLater()
         scroll.setWidget(content)
-        QTimer.singleShot(0, lambda: _restore_scroll_position(scroll, scroll_x, scroll_y))
+
+        def _finish() -> None:
+            _restore_scroll_position(scroll, scroll_x, scroll_y)
+            scroll.setUpdatesEnabled(True)
+
+        QTimer.singleShot(0, _finish)
 
     render_controls()
     controls_layout.addWidget(scroll, 1)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
+from gst_device_explorer.core.audio_pipelines import AUDIO_SINE_FREQ, AUDIO_SINE_WAVE, build_audio_caps_text
 from gst_device_explorer.gui.model import DetailPaneModel
 from gst_device_explorer.gui.preview_runner import PreviewCommand
 from gst_device_explorer.gui.qt_audio_output_file_playback import (
@@ -176,7 +177,7 @@ def _mode_rows(detail: DetailPaneModel) -> tuple[tuple[str, str], ...]:
         ("Sample Format", values.get("sample_format") or values.get("format") or "No detailed format list available"),
         ("Sample Rate", values.get("sample_rate") or values.get("rate") or "No detailed sample rate list available"),
         ("Channels", values.get("channels") or "No detailed channel count available"),
-        ("GStreamer Caps", _gst_caps_text(values)),
+        ("GStreamer Caps", build_audio_caps_text(values)),
     )
 
 
@@ -225,13 +226,13 @@ def _generated_tone_argv(target: str, values: dict[str, str], level: str) -> tup
     return (
         "gst-launch-1.0",
         "audiotestsrc",
-        "wave=sine",
-        "freq=440",
+        AUDIO_SINE_WAVE,
+        AUDIO_SINE_FREQ,
         f"volume={volume}",
         "samplesperbuffer=2400",
         "num-buffers=20",
         "!",
-        _gst_caps_text(values),
+        build_audio_caps_text(values),
         "!",
         "audioconvert",
         "!",
@@ -240,26 +241,6 @@ def _generated_tone_argv(target: str, values: dict[str, str], level: str) -> tup
         "alsasink",
         f"device={target}",
     )
-
-
-def _gst_caps_text(values: dict[str, str]) -> str:
-    caps_parts = ["audio/x-raw"]
-    format_value = values.get("sample_format") or values.get("format")
-    rate_value = values.get("sample_rate") or values.get("rate")
-    channels_value = values.get("channels")
-    if _is_exact_caps_value(format_value):
-        caps_parts.append(f"format={format_value}")
-    if _is_exact_caps_value(rate_value):
-        caps_parts.append(f"rate={rate_value}")
-    if _is_exact_caps_value(channels_value):
-        caps_parts.append(f"channels={channels_value}")
-    return ",".join(caps_parts)
-
-
-def _is_exact_caps_value(value: str | None) -> bool:
-    if value is None:
-        return False
-    return bool(re.fullmatch(r"[A-Za-z0-9_]+", value))
 
 
 def _copy_button(

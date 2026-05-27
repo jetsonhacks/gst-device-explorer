@@ -206,6 +206,53 @@ def camera_copy_actions(state: CameraExplorerState) -> tuple[GuiAction, ...]:
     return tuple(actions)
 
 
+_V4L2_MEDIA_TYPE: dict[str, str] = {
+    "MJPG": "image/jpeg",
+    "H264": "video/x-h264",
+    "HEVC": "video/x-h265",
+}
+
+_V4L2_TO_GST_FORMAT: dict[str, str] = {
+    "BGR3": "BGR",
+    "GREY": "GRAY8",
+    "RGB3": "RGB",
+    "Y16": "GRAY16_LE",
+    "YUYV": "YUY2",
+}
+
+_GST_DECODE_CONVERT: dict[str, str] = {
+    "image/jpeg": "jpegparse ! jpegdec ! videoconvert",
+    "video/x-h264": "h264parse ! nvv4l2decoder ! nvvidconv",
+    "video/x-h265": "h265parse ! nvv4l2decoder ! nvvidconv",
+}
+
+
+def build_camera_pipeline_argv(
+    *,
+    device_path: str,
+    pixel_format: str | None,
+    resolution: str | None,
+    frame_rate: str | None,
+    media_type: str | None = None,
+) -> list[str] | None:
+    """Build a structured argv for a GStreamer preview pipeline."""
+
+    if not pixel_format or not resolution:
+        return None
+    width, height = resolution.split("x", 1)
+    caps_media_type = media_type or _V4L2_MEDIA_TYPE.get(pixel_format, "video/x-raw")
+    caps_parts = [caps_media_type, f"width={width}", f"height={height}"]
+    if caps_media_type == "video/x-raw":
+        caps_parts.append(f"format={_V4L2_TO_GST_FORMAT.get(pixel_format, pixel_format)}")
+    if frame_rate:
+        caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
+    argv = ["gst-launch-1.0", "v4l2src", f"device={device_path}", "!", ",".join(caps_parts)]
+    for element in _GST_DECODE_CONVERT.get(caps_media_type, "videoconvert").split(" ! "):
+        argv.extend(["!", element])
+    argv.extend(["!", "autovideosink", "sync=false"])
+    return argv
+
+
 def build_camera_pipeline_text(
     *,
     device_path: str,
@@ -216,20 +263,14 @@ def build_camera_pipeline_text(
 ) -> str | None:
     """Build display-only GStreamer pipeline text for a camera mode."""
 
-    if not pixel_format or not resolution:
-        return None
-    width, height = resolution.split("x", 1)
-    caps_media_type = media_type or ("image/jpeg" if pixel_format == "MJPG" else "video/x-raw")
-    caps_parts = [caps_media_type, f"width={width}", f"height={height}"]
-    if caps_media_type == "video/x-raw":
-        gst_format = "YUY2" if pixel_format == "YUYV" else pixel_format
-        caps_parts.append(f"format={gst_format}")
-    if frame_rate:
-        caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
-    decode = " ! jpegparse ! jpegdec" if caps_media_type == "image/jpeg" else ""
-    return f"gst-launch-1.0 v4l2src device={device_path} ! " + ",".join(caps_parts) + (
-        f"{decode} ! videoconvert ! autovideosink sync=false"
+    argv = build_camera_pipeline_argv(
+        device_path=device_path,
+        pixel_format=pixel_format,
+        resolution=resolution,
+        frame_rate=frame_rate,
+        media_type=media_type,
     )
+    return " ".join(argv) if argv is not None else None
 
 
 def _format_options(capabilities: list[Capability]) -> tuple[CameraFormatOption, ...]:
@@ -255,7 +296,7 @@ def _format_options(capabilities: list[Capability]) -> tuple[CameraFormatOption,
             pixel_format,
             {
                 "description": values.get("description"),
-                "media_type": "image/jpeg" if pixel_format == "MJPG" else "video/x-raw",
+                "media_type": _V4L2_MEDIA_TYPE.get(pixel_format, "video/x-raw"),
                 "resolutions": {},
             },
         )

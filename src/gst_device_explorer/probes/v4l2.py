@@ -147,7 +147,7 @@ def _parse_v4l2_formats(output: str, device_path: str) -> list[Capability]:
                 current_size=current_size,
             )
             current_format = {
-                "pixel_format": format_match.group(1),
+                "pixel_format": format_match.group(1).strip(),
                 "description": format_match.group(2),
             }
             current_size = None

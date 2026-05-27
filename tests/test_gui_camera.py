@@ -242,3 +242,126 @@ def test_pipeline_text_without_frame_rate_is_valid() -> None:
     assert text is not None
     assert "framerate=" not in text
     assert "image/jpeg" in text
+
+
+def test_pipeline_text_for_h264_uses_jetson_hardware_decoder() -> None:
+    text = build_camera_pipeline_text(
+        device_path="/dev/video2",
+        pixel_format="H264",
+        resolution="1920x1080",
+        frame_rate="30 fps",
+    )
+
+    assert text is not None
+    assert "video/x-h264" in text
+    assert "width=1920" in text
+    assert "height=1080" in text
+    assert "framerate=30/1" in text
+    assert "format=" not in text
+    assert "h264parse ! nvv4l2decoder ! nvvidconv" in text
+    assert "autovideosink sync=false" in text
+
+
+def test_pipeline_text_for_grey_maps_format_to_gray8() -> None:
+    text = build_camera_pipeline_text(
+        device_path="/dev/video4",
+        pixel_format="GREY",
+        resolution="640x480",
+        frame_rate="30 fps",
+    )
+
+    assert text is not None
+    assert "format=GRAY8" in text
+    assert "videoconvert ! autovideosink sync=false" in text
+
+
+def test_pipeline_text_for_rgb3_maps_format_to_rgb() -> None:
+    text = build_camera_pipeline_text(
+        device_path="/dev/video4",
+        pixel_format="RGB3",
+        resolution="640x480",
+        frame_rate="30 fps",
+    )
+
+    assert text is not None
+    assert "format=RGB" in text
+
+
+def test_pipeline_text_for_bgr3_maps_format_to_bgr() -> None:
+    text = build_camera_pipeline_text(
+        device_path="/dev/video4",
+        pixel_format="BGR3",
+        resolution="640x480",
+        frame_rate="30 fps",
+    )
+
+    assert text is not None
+    assert "format=BGR" in text
+
+
+def test_pipeline_text_for_y16_maps_format_to_gray16_le() -> None:
+    text = build_camera_pipeline_text(
+        device_path="/dev/video3",
+        pixel_format="Y16",
+        resolution="640x480",
+        frame_rate="30 fps",
+    )
+
+    assert text is not None
+    assert "video/x-raw" in text
+    assert "format=GRAY16_LE" in text
+    assert "videoconvert ! autovideosink sync=false" in text
+
+
+def test_pipeline_text_for_hevc_uses_jetson_hardware_decoder() -> None:
+    text = build_camera_pipeline_text(
+        device_path="/dev/video2",
+        pixel_format="HEVC",
+        resolution="1920x1080",
+        frame_rate="30 fps",
+    )
+
+    assert text is not None
+    assert "video/x-h265" in text
+    assert "width=1920" in text
+    assert "format=" not in text
+    assert "h265parse ! nvv4l2decoder ! nvvidconv" in text
+    assert "autovideosink sync=false" in text
+
+
+def test_h264_format_option_has_correct_media_type() -> None:
+    device = Device(
+        id="/dev/video2",
+        kind="video_input",
+        name="H264 Camera",
+        capabilities=[
+            _capability("H264", 1920, 1080, [30.0], "H.264"),
+        ],
+        metadata={"path": "/dev/video2", "backend": "v4l2"},
+    )
+    state = build_camera_explorer_state(device)
+
+    assert state.formats[0].pixel_format == "H264"
+    assert state.formats[0].media_type == "video/x-h264"
+    assert state.pipeline_text is not None
+    assert "video/x-h264" in state.pipeline_text
+    assert "h264parse ! nvv4l2decoder ! nvvidconv" in state.pipeline_text
+
+
+def test_hevc_format_option_has_correct_media_type() -> None:
+    device = Device(
+        id="/dev/video2",
+        kind="video_input",
+        name="HEVC Camera",
+        capabilities=[
+            _capability("HEVC", 1920, 1080, [30.0], "HEVC"),
+        ],
+        metadata={"path": "/dev/video2", "backend": "v4l2"},
+    )
+    state = build_camera_explorer_state(device)
+
+    assert state.formats[0].pixel_format == "HEVC"
+    assert state.formats[0].media_type == "video/x-h265"
+    assert state.pipeline_text is not None
+    assert "video/x-h265" in state.pipeline_text
+    assert "h265parse ! nvv4l2decoder ! nvvidconv" in state.pipeline_text

@@ -108,6 +108,23 @@ def test_yuyv_capability_parsing(monkeypatch) -> None:
     assert capabilities[0].values["fps"] == [20.0]
 
 
+def test_padded_fourcc_pixel_format_is_stripped(monkeypatch) -> None:
+    output = """
+    [0]: 'Y16 ' (Greyscale 16-bit)
+        Size: Discrete 1024x512
+            Interval: Discrete 0.033s (30.000 fps)
+"""
+    _mock_v4l2_ctl(monkeypatch, output=output)
+
+    capabilities = discover_v4l2_capabilities("/dev/video6")
+
+    assert len(capabilities) == 1
+    assert capabilities[0].values["pixel_format"] == "Y16"
+    assert capabilities[0].values["description"] == "Greyscale 16-bit"
+    assert capabilities[0].values["width"] == 1024
+    assert capabilities[0].values["height"] == 512
+
+
 def test_multiple_sizes_and_frame_rates(monkeypatch) -> None:
     output = """
     [0]: 'MJPG' (Motion-JPEG, compressed)

@@ -52,7 +52,13 @@ def create_detail_pane_widget(
     PySide6 imports stay inside this factory so non-GUI imports remain light.
     """
 
+    from PySide6.QtCore import QEvent
     from PySide6.QtWidgets import QScrollArea, QSizePolicy, QTabWidget
+
+    class _NoAutoScrollArea(QScrollArea):
+        def focusNextPrevChild(self, next_: bool) -> bool:
+            from PySide6.QtWidgets import QWidget
+            return QWidget.focusNextPrevChild(self, next_)
 
     class DetailTabbedWidget(QTabWidget, DetailPaneWidgetMixin):
         def __init__(self) -> None:
@@ -87,7 +93,7 @@ def create_detail_pane_widget(
             self.setCurrentIndex(0)
 
     def _scroll_area() -> object:
-        scroll = QScrollArea()
+        scroll = _NoAutoScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         return scroll

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from gst_device_explorer.gui.camera import build_camera_pipeline_argv
 from gst_device_explorer.gui.model import DetailPaneModel, DetailSection
 from gst_device_explorer.gui.qt_sections import target_from_summary
 
@@ -138,14 +139,10 @@ def camera_pipeline_argv_for_selection(
     ):
         return None
     width, height = resolution.split("x", 1)
-    caps_type = "image/jpeg" if pixel_format == "MJPG" else "video/x-raw"
-    caps_parts = [caps_type, f"width={width}", f"height={height}"]
-    if caps_type == "video/x-raw":
-        gst_format = "YUY2" if pixel_format == "YUYV" else pixel_format
-        caps_parts.append(f"format={gst_format}")
-    if frame_rate and frame_rate != "Unavailable":
-        caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
     if pixel_format == "MJPG" and _candidate_available(detail, "jetson-uvc-mjpeg-nvjpeg-nveglglessink"):
+        caps_parts = ["image/jpeg", f"width={width}", f"height={height}"]
+        if frame_rate and frame_rate != "Unavailable":
+            caps_parts.append(f"framerate={_fps_fraction(frame_rate)}")
         return [
             "gst-launch-1.0",
             "v4l2src",
@@ -168,24 +165,12 @@ def camera_pipeline_argv_for_selection(
             "nveglglessink",
             "sync=false",
         ]
-    argv = [
-        "gst-launch-1.0",
-        "v4l2src",
-        f"device={device_path}",
-        "!",
-        ",".join(caps_parts),
-    ]
-    if caps_type == "image/jpeg":
-        argv.extend(["!", "jpegparse", "!", "jpegdec", "!"])
-    else:
-        argv.append("!")
-    argv.extend([
-        "videoconvert",
-        "!",
-        "autovideosink",
-        "sync=false",
-    ])
-    return argv
+    return build_camera_pipeline_argv(
+        device_path=device_path,
+        pixel_format=pixel_format,
+        resolution=resolution,
+        frame_rate=frame_rate if frame_rate != "Unavailable" else None,
+    )
 
 
 def _candidate_available(detail: DetailPaneModel, candidate_id: str) -> bool:

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import re
+
 from gst_device_explorer.core.diagnostics import find_missing_elements
 from gst_device_explorer.core.models import Device, EnvironmentFact, PipelineCandidate
 
 
 GENERIC_ALSA_AUDIO_INPUT_TEST_PROFILE = "generic-alsa-audio-input-test"
 GENERIC_ALSA_AUDIO_OUTPUT_TEST_PROFILE = "generic-alsa-audio-output-test"
+
+AUDIO_LEVEL_INTERVAL = "interval=1000000000"
+AUDIO_SINE_WAVE = "wave=sine"
+AUDIO_SINE_FREQ = "freq=440"
 
 ALSA_AUDIO_INPUT_LEVEL_ELEMENTS = [
     "alsasrc",
@@ -47,7 +53,7 @@ def build_audio_input_test_candidates(
         "audioresample",
         "!",
         "level",
-        "interval=1000000000",
+        AUDIO_LEVEL_INTERVAL,
         "!",
         "fakesink",
     ]
@@ -87,8 +93,8 @@ def build_audio_output_test_candidates(
     argv = [
         "gst-launch-1.0",
         "audiotestsrc",
-        "wave=sine",
-        "freq=440",
+        AUDIO_SINE_WAVE,
+        AUDIO_SINE_FREQ,
         "!",
         "audioconvert",
         "!",
@@ -115,6 +121,27 @@ def build_audio_output_test_candidates(
             selected_profile=GENERIC_ALSA_AUDIO_OUTPUT_TEST_PROFILE,
         )
     ]
+
+
+def build_audio_caps_text(values: dict[str, str]) -> str:
+    """Build a GStreamer audio/x-raw caps string from capability values."""
+    caps_parts = ["audio/x-raw"]
+    format_value = values.get("sample_format") or values.get("format")
+    rate_value = values.get("sample_rate") or values.get("rate")
+    channels_value = values.get("channels")
+    if _is_exact_caps_value(format_value):
+        caps_parts.append(f"format={format_value}")
+    if _is_exact_caps_value(rate_value):
+        caps_parts.append(f"rate={rate_value}")
+    if _is_exact_caps_value(channels_value):
+        caps_parts.append(f"channels={channels_value}")
+    return ",".join(caps_parts)
+
+
+def _is_exact_caps_value(value: str | None) -> bool:
+    if value is None:
+        return False
+    return bool(re.fullmatch(r"[A-Za-z0-9_]+", value))
 
 
 def _alsa_device_name(device: Device) -> str:
