@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from gst_device_explorer.core.models import CameraControlSet
 from gst_device_explorer.gui.model import DetailPaneModel
 from gst_device_explorer.gui.qt_device_info import (
     create_device_information_widget,
@@ -42,6 +43,9 @@ def create_detail_pane_widget(
     status_callback: Callable[[str], None] | None = None,
     navigate_callback: Callable[[str], None] | None = None,
     preview_runner: object | None = None,
+    camera_control_writer: object | None = None,
+    camera_control_refresher: Callable[[str], CameraControlSet | None] | None = None,
+    current_endpoint_getter: Callable[[], str | None] | None = None,
 ) -> object:
     """Create the concrete Qt detail widget.
 
@@ -71,6 +75,9 @@ def create_detail_pane_widget(
                     status_callback=status_callback,
                     navigate_callback=navigate_callback,
                     preview_runner=_runner,
+                    camera_control_writer=camera_control_writer,
+                    camera_control_refresher=camera_control_refresher,
+                    current_endpoint_getter=current_endpoint_getter,
                 ),
             )
             _replace_scroll_widget(

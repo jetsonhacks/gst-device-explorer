@@ -279,10 +279,12 @@ Milestone 39 — Safe Audio Input Activity Test Implementation
 Milestone 40 — Hardware Interface / HIL Validation Pass
 Milestone 41 — Audio Output Quality Test Policy and UX
 Milestone 42 — Audio Output Quality Test Implementation
-Milestone 43 — Commands and Reproduce Sections
-Milestone 44 — Reports Area
-Milestone 45 — Service-Layer Cleanup
-Milestone 46 — Polish and HIL Validation
+Milestone 43 — Camera Control Write Policy and UX
+Milestone 44 — Camera Control Write Implementation and HIL Validation
+Milestone 45 — Post-HIL Issue Resolution and Refactoring Pass
+Milestone 46 — README and First-Run Documentation Rewrite
+Milestone 47 — Commands and Reproduce Sections
+Milestone 48 — Reports Area
 ```
 
 A small process-boundary milestone may be inserted before camera preview if Milestone 35 shows that subprocess handling should not live directly in Qt widgets.
@@ -515,7 +517,7 @@ Implemented:
 - defined bounded playback as the preferred first implementation
 - defined command provenance requirements for file playback
 - defined cleanup requirements matching Milestones 36, 38, and 39 patterns
-- deferred `PreviewCommand` rename to a later service-layer cleanup milestone
+- deferred `PreviewCommand` rename to the Milestone 45 post-HIL issue/refactoring pass
 - confirmed all safety boundaries intact
 - no implementation behavior added
 
@@ -538,9 +540,154 @@ Implemented:
 
 HIL validated on `jetsonhacks` with `hw:0,0`: `.wav`, `.flac`, `.mp3` play correctly; unsupported file reported as Failed; no system audio mutation observed.
 
-## Milestone 43 — Commands and Reproduce Sections
+## Roadmap Adjustment After Milestone 42
 
-Add curated command sections in Device Information views after preview/audio-test workflows have matured.
+Milestone 42 completes the current audio output quality test path. Audio output is satisfactory for the current product stage, and audio input should remain intentionally minimal for now: endpoint discovery, capability display, generated safe command, bounded non-recording activity test, and external applications for deeper capture or audio quality testing.
+
+The next product gap is camera controls. Camera preview without writable controls is not enough for useful HIL testing because a user needs to adjust brightness, exposure, white balance, and gain and visually confirm changes during preview.
+
+Commands/Reproduce and Reports remain valuable, but they should stay deferred until after camera-control writes, post-HIL issue resolution/refactoring, and README/product framing cleanup.
+
+## Milestone 43 — Camera Control Write Policy and UX
+
+Status: Implemented
+
+Define the policy and user experience for writing camera controls during testing.
+
+This is a documentation/policy milestone, not an implementation milestone.
+
+Earlier camera-control work intentionally preserved read-only inspector semantics and did not add V4L2 writes. Now that camera preview has been HIL validated, the project needs a scoped policy for changing camera controls during preview-oriented testing.
+
+The policy should answer:
+
+- which camera controls are writable
+- which controls remain read-only
+- how the UI distinguishes readable, writable, active, inactive, and unavailable controls
+- whether writes apply live while preview is running
+- whether writes also work when preview is stopped
+- whether changes apply immediately or require an Apply action
+- whether Reset to Default is available per control when default values are known
+- whether original values are restored on close, or whether that remains deferred
+- how auto/manual dependency controls are represented and updated
+- what backend write mechanism is allowed
+- how shell-string execution is avoided
+- how stale or wrong-endpoint writes are prevented
+- what HIL validation proves that controls affect the preview image
+
+Safety boundaries that remain in force until Milestone 44 deliberately opens a scoped write path:
+
+- no arbitrary command execution
+- no shell-string execution
+- no `shell=True`
+- no group-based camera-control writes
+- no arbitrary V4L2 command entry
+- no hidden device mutation
+- no broad system configuration changes
+
+Implemented as documentation-only policy:
+
+- distinguished readable, writable, active, inactive, and unavailable control states
+- chose immediate writes for supported active writable controls
+- allowed writes during preview and while preview is stopped, provided the selected endpoint remains valid
+- kept preview execution separate from camera-control write requests
+- scoped Reset/Default to per-control behavior only when a default value is known
+- deferred global Reset All and automatic restore-on-close
+- required structured camera-control write requests with selected-endpoint provenance
+- required structured argv only if `v4l2-ctl` is used later
+- scoped the first implementation to integer, boolean, and menu controls
+- deferred compound, string, unknown/private, ambiguous button controls, and controls lacking safe metadata
+- documented Milestone 44 HIL expectations
+- confirmed no write behavior is added until Milestone 44
+
+## Milestone 44 — Camera Control Write Implementation and HIL Validation
+
+Status: Implementation complete; HIL validation blocked by unavailable camera device
+
+Implement the camera-control write behavior approved in Milestone 43.
+
+Expected implementation direction:
+
+- structured camera-control write requests
+- selected endpoint only
+- active/writable controls only
+- live update while preview is running
+- read-only display for unsupported or inactive controls
+- per-control Reset to Default only when default value is known
+- no global restore-all unless explicitly approved
+- no group-level writes
+- no shell-string execution
+- HIL validation with a real camera
+
+Expected HIL validation:
+
+- preview starts
+- brightness, exposure, white balance, and gain changes affect the preview image when supported
+- inactive controls stay disabled
+- auto/manual control dependencies behave understandably
+- reset/default behavior works where available
+- endpoint changes prevent stale writes
+- refresh and close cleanup are safe
+
+Implementation status:
+
+- added structured `CameraControlWriteRequest` and `CameraControlWriter`
+- added a scoped `v4l2-ctl --set-ctrl` path using structured argv only
+- enabled active writable integer, boolean, and menu controls in live camera Explore
+- kept inactive, read-only, and unsupported controls non-editable
+- added per-control Default writes where a default value is known
+- blocked stale endpoint writes
+- re-discovered selected-endpoint controls after successful boolean/menu writes so auto/manual dependencies can update dependent controls
+- avoided rebuilding the scrolled control pane for integer slider/spin writes
+- kept demo mode read-only for camera-control writes
+- preserved preview, audio, group, Commands/Reproduce, and Reports boundaries
+- full automated test suite passes
+
+HIL status:
+
+- HIL host `jetsonhacks` had `v4l2-ctl` installed but no `/dev/video*` device nodes
+- real-camera preview/control validation could not be performed
+- Milestone 44 is not complete by the HIL acceptance standard until a follow-up HIL pass validates at least one supported visual camera-control write on real hardware, when such a control is exposed
+
+## Milestone 45 — Post-HIL Issue Resolution and Refactoring Pass
+
+Collect and resolve issues discovered during Milestones 36–44, then refactor only where the HIL-proven implementation reveals real seams.
+
+Scope:
+
+- collect issues raised during camera preview, audio output, audio input, HIL, and camera-control work
+- fix stale/provenance/eligibility bugs
+- review shared process-runner naming such as `PreviewCommand`
+- reduce duplicate camera/audio test code where practical
+- review GUI module size and responsibility boundaries
+- review test fixtures that may look like real hardware data
+- keep safety boundaries intact
+- avoid adding new product features
+
+This is the right place to consider renaming `PreviewCommand` or introducing a more generic media-test/process-runner name.
+
+## Milestone 46 — README and First-Run Documentation Rewrite
+
+Rewrite the repository README so it reflects what the project actually is now.
+
+This is a user-facing documentation milestone after the refactoring pass.
+
+Scope:
+
+- explain `gst-device-explorer` as a GUI-first media endpoint explorer
+- explain first-run workflow
+- describe camera preview and camera controls
+- describe audio output generated tone and local file playback quality test
+- describe audio input's current scope honestly
+- explain composite group behavior
+- explain safety boundaries
+- provide Jetson/Linux setup notes
+- include minimal CLI examples only where useful
+- remove stale report-first or CLI-first framing
+- avoid overpromising unsupported behavior
+
+## Milestone 47 — Commands and Reproduce Sections
+
+Add curated command sections in Device Information views after camera preview, audio output quality testing, minimal audio input activity testing, camera-control writes, issue/refactoring cleanup, and README/product framing cleanup have matured.
 
 Commands may include:
 
@@ -552,9 +699,11 @@ Commands may include:
 
 These commands should teach the user how to reproduce GUI-derived discovery from the command line without cluttering the Explore tab.
 
-## Milestone 44 — Reports Area
+The goal remains curated, read-only, copyable commands that reproduce mature GUI-derived investigations.
 
-Add a dedicated Reports or Diagnostics area after hardware interaction workflows have been validated.
+## Milestone 48 — Reports Area
+
+Add a dedicated Reports or Diagnostics area after Commands/Reproduce.
 
 This area should contain:
 
@@ -564,38 +713,9 @@ This area should contain:
 - schema-related output
 - diagnostic summaries
 - development/debug information
-- hardware-interaction diagnostics that proved useful during preview/audio-test validation
+- hardware-interaction diagnostics that proved useful during preview, audio-test, and camera-control validation
 
 This keeps report functions available while removing them from the main exploration workflow.
-
-## Milestone 45 — Service-Layer Cleanup
-
-Introduce purpose-built GUI-facing services so widgets consume exploration models instead of raw CLI/report structures.
-
-Possible services:
-
-- `MediaExplorerService`
-- `CameraExplorerService`
-- `AudioExplorerService`
-- `GroupExplorerService`
-- `GuiProcessRunner` or equivalent, if preview/audio-test implementation demonstrated the need
-
-The goal is to prevent the GUI from becoming a rendered version of CLI output or a collection of widgets that directly own hardware/process behavior.
-
-This milestone may move earlier if preview/audio-test work exposes a concrete architectural seam that must be addressed before safe implementation can continue.
-
-## Milestone 46 — Polish and HIL Validation
-
-Validate the redesigned GUI on Jetson and Reachy Mini-style hardware.
-
-This milestone should include:
-
-- hardware-in-the-loop validation
-- layout refinement
-- removal of development remnants from the main UI
-- documentation updates
-- regression tests
-- confirmation that safety boundaries remain intact
 
 ## Safety Boundaries
 
@@ -609,11 +729,25 @@ Until deliberately changed by a scoped milestone, preserve these boundaries:
 - no remote behavior
 - no group-based execution
 - no synchronized capture
-- no V4L2 control writes
-- no `v4l2-ctl --set-ctrl`
-- no GUI preview/capture/test behavior unless deliberately scoped
-- no audio capture/playback execution unless deliberately scoped
+- V4L2 control writes are limited to supported active camera controls for the currently selected camera endpoint
+- `v4l2-ctl --set-ctrl` is allowed only through structured camera-control requests and structured argv
+- no new GUI preview/capture/test behavior unless deliberately scoped
+- no new audio capture/playback execution unless deliberately scoped
 - no mixer, volume, route, or system audio mutation
+
+Milestone 44 opens only this scoped boundary:
+
+```text
+Write supported active camera controls for the currently selected camera endpoint using structured control requests.
+```
+
+All other camera-control write behavior remains prohibited:
+
+- no arbitrary user-authored V4L2 commands
+- no shell-string execution
+- no `shell=True`
+- no group-based camera-control writes
+- no writes to unrelated endpoints
 
 ## Working Summary
 
@@ -628,10 +762,28 @@ A useful distinction:
 - **Reports** means creating a full accounting for support, debugging, or documentation.
 - **Commands** means teaching how to reproduce a mature investigation outside the GUI.
 
-Through Milestone 41, the GUI has established:
+Through Milestone 41, the GUI established:
 
 - inspector-first Explore pages for camera, audio input, audio output, and groups
 - safe camera preview, audio output speaker tone, and audio input activity test on real HIL hardware
 - a policy for audio output quality testing that distinguishes generated tone verification from local file playback fidelity
 
-Through Milestone 42, Audio Output Explore supports both Generated Tone testing (with pipeline-local Test Level presets) and Local File Playback (with file selection, Playback Level presets, and clean Stop/cleanup). Commands/Reproduce and Reports remain deferred at Milestones 43–44.
+Through Milestone 42, Audio Output Explore supports both Generated Tone testing and Local File Playback:
+
+- Generated Tone test exists
+- Test Level presets exist: Quiet / Normal / Loud
+- Local File Playback exists
+- Playback Level presets exist
+- local selected files play through the selected output endpoint
+- `filesrc location=<path>` is used instead of URI/network playback
+- remote URLs are structurally impossible in the playback path
+- unsupported files fail cleanly
+- HIL validation was performed on `jetsonhacks` with `hw:0,0`
+- `.wav`, `.flac`, and `.mp3` were validated
+- safety boundaries remain intact
+
+Audio input is intentionally minimal for now: endpoint discovery, capability display, generated safe command, bounded non-recording activity test, and recommendation to use an external application for deeper capture or audio quality testing.
+
+Camera controls are the next product gap. Camera preview without writable controls is not enough for useful HIL testing because a user needs to adjust brightness, exposure, white balance, and gain and visually confirm changes during preview.
+
+Commands/Reproduce and Reports remain deferred until after camera-control writes, issue/refactoring cleanup, and README/product framing cleanup. The app remains exploration-first, with hardware actions explicitly scoped and safety bounded.

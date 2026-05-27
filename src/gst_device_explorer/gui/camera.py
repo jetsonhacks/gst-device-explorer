@@ -120,30 +120,6 @@ def camera_explorer_sections(state: CameraExplorerState) -> tuple[DetailSection,
             rates = ", ".join(rate.label for rate in resolution.frame_rates) or "No frame rates"
             rate_items.append(f"{fmt.pixel_format} {resolution.label}: {rates}")
 
-    control_items = []
-    if state.control_set is None or not state.control_set.controls:
-        control_items.append("No V4L2 controls advertised.")
-    else:
-        for control in state.control_set.controls:
-            parts = [
-                f"type={control.control_type}",
-                f"value={control.current_value}" if control.current_value is not None else "value=",
-            ]
-            if control.minimum is not None and control.maximum is not None:
-                parts.append(f"range={control.minimum}..{control.maximum}")
-            if control.step is not None:
-                parts.append(f"step={control.step}")
-            if control.default_value is not None:
-                parts.append(f"default={control.default_value}")
-            if control.flags:
-                parts.append("flags=" + ",".join(control.flags))
-            if control.choices:
-                parts.append(
-                    "choices="
-                    + "|".join(f"{choice.value}={choice.label}" for choice in control.choices)
-                )
-            control_items.append(f"{control.name}: " + "; ".join(parts))
-
     return (
         DetailSection(
             title="Camera Explorer",
@@ -166,11 +142,39 @@ def camera_explorer_sections(state: CameraExplorerState) -> tuple[DetailSection,
             title="Generated Pipeline",
             items=(state.pipeline_text or state.unavailable_reason or "Pipeline unavailable.",),
         ),
-        DetailSection(
-            title="V4L2 Controls",
-            items=tuple(control_items),
-        ),
+        camera_control_section(state.control_set),
     )
+
+
+def camera_control_section(control_set: CameraControlSet | None) -> DetailSection:
+    """Build the camera-control detail section from discovered controls."""
+
+    control_items = []
+    if control_set is None or not control_set.controls:
+        control_items.append("No V4L2 controls advertised.")
+    else:
+        for control in control_set.controls:
+            parts = [
+                f"type={control.control_type}",
+                f"value={control.current_value}" if control.current_value is not None else "value=",
+            ]
+            if control.control_id is not None:
+                parts.append(f"id={control.control_id}")
+            if control.minimum is not None and control.maximum is not None:
+                parts.append(f"range={control.minimum}..{control.maximum}")
+            if control.step is not None:
+                parts.append(f"step={control.step}")
+            if control.default_value is not None:
+                parts.append(f"default={control.default_value}")
+            if control.flags:
+                parts.append("flags=" + ",".join(control.flags))
+            if control.choices:
+                parts.append(
+                    "choices="
+                    + "|".join(f"{choice.value}={choice.label}" for choice in control.choices)
+                )
+            control_items.append(f"{control.name}: " + "; ".join(parts))
+    return DetailSection(title="V4L2 Controls", items=tuple(control_items))
 
 
 def camera_copy_actions(state: CameraExplorerState) -> tuple[GuiAction, ...]:

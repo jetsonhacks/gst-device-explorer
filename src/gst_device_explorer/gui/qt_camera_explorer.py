@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from gst_device_explorer.core.models import CameraControlSet
 from gst_device_explorer.gui.model import DetailPaneModel, DetailSection
 from gst_device_explorer.gui.qt_camera_controls import (
     camera_control_accessible_lines,
@@ -85,6 +86,9 @@ def create_camera_explorer_widget(
     *,
     status_callback: Callable[[str], None] | None = None,
     preview_runner: object | None = None,
+    camera_control_writer: object | None = None,
+    camera_control_refresher: Callable[[str], CameraControlSet | None] | None = None,
+    current_endpoint_getter: Callable[[], str | None] | None = None,
 ) -> object:
     from PySide6.QtGui import QFont, QFontDatabase
     from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget
@@ -287,7 +291,16 @@ def create_camera_explorer_widget(
             fmt_list.setCurrentRow(0)
     update_preview_state()
 
-    layout.addWidget(create_camera_controls_widget(detail), 1)
+    layout.addWidget(
+        create_camera_controls_widget(
+            detail,
+            camera_control_writer=camera_control_writer,
+            camera_control_refresher=camera_control_refresher,
+            current_endpoint_getter=current_endpoint_getter,
+            status_callback=status_callback,
+        ),
+        1,
+    )
     return pane
 
 

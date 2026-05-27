@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from dataclasses import replace
 
+from gst_device_explorer.core.models import CameraControlSet
+from gst_device_explorer.gui.camera import camera_control_section
 from gst_device_explorer.gui.model import DetailPaneModel
-from gst_device_explorer.gui.qt_sections import create_text_label, split_display_row
+from gst_device_explorer.gui.qt_sections import create_text_label, split_display_row, target_from_summary
 
 CONTROL_GROUP_ORDER = (
     "Image Adjustment",
@@ -50,6 +54,9 @@ class CameraControlWidgetPlan:
 
     name: str
     label: str
+    control_id: str | None
+    control_type: str
+    device_path: str
     widget_kind: str
     current_value: str
     current_label: str
@@ -67,16 +74,47 @@ class CameraControlWidgetPlan:
         return "inactive" in self.flags
 
     @property
+    def read_only(self) -> bool:
+        return any(flag in {"read-only", "readonly", "disabled"} for flag in self.normalized_flags)
+
+    @property
+    def writable(self) -> bool:
+        return self.supported_for_writes and not self.inactive and not self.read_only
+
+    @property
+    def supported_for_writes(self) -> bool:
+        if self.widget_kind == "slider_spin":
+            return self.minimum is not None and self.maximum is not None
+        if self.widget_kind == "checkbox":
+            return True
+        if self.widget_kind == "combo":
+            return bool(self.choices)
+        return False
+
+    @property
+    def normalized_flags(self) -> tuple[str, ...]:
+        return tuple(flag.lower() for flag in self.flags)
+
+    @property
     def default_label(self) -> str | None:
         if self.default_value is None:
             return None
         return _choice_label(self.choices, self.default_value) or self.default_value
 
 
-def create_camera_controls_widget(detail: DetailPaneModel) -> object:
-    from PySide6.QtCore import Qt
+def create_camera_controls_widget(
+    detail: DetailPaneModel,
+    *,
+    camera_control_writer: object | None = None,
+    camera_control_refresher: Callable[[str], CameraControlSet | None] | None = None,
+    current_endpoint_getter: Callable[[], str | None] | None = None,
+    status_callback: Callable[[str], None] | None = None,
+) -> object:
+    from PySide6.QtCore import QTimer, Qt
     from PySide6.QtWidgets import QFrame, QGroupBox, QLabel
     from PySide6.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+
+    current_detail = detail
 
     controls_box = QGroupBox("Camera Controls")
     controls_box.setObjectName("cameraControlsSection")
@@ -90,203 +128,99 @@ def create_camera_controls_widget(detail: DetailPaneModel) -> object:
     scroll.setWidgetResizable(True)
     scroll.setMinimumHeight(180)
     scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    content = QWidget()
-    content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
-    content_layout = QVBoxLayout(content)
-    content_layout.setContentsMargins(8, 8, 8, 8)
-    content_layout.setSpacing(8)
-    content_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-    plans = camera_control_widget_plans(detail)
-    if not plans:
-        content_layout.addWidget(create_text_label("No V4L2 controls advertised for this device."))
-    else:
-        first_group = True
-        for group_name, group_plans in _grouped_control_plans(plans):
-            if not first_group:
-                group_divider = QFrame()
-                group_divider.setFrameShape(QFrame.HLine)
-                group_divider.setFrameShadow(QFrame.Plain)
-                group_divider.setObjectName("cameraControlGroupDivider")
-                group_divider.setMaximumWidth(760)
-                content_layout.addWidget(group_divider)
-            first_group = False
-            heading = QLabel(group_name)
-            heading.setObjectName("cameraControlGroupHeader")
-            heading.setProperty("controlGroup", group_name)
-            heading.setStyleSheet(
-                "QLabel#cameraControlGroupHeader {"
-                "font-weight: 600;"
-                "padding-top: 4px;"
-                "}"
-            )
-            content_layout.addWidget(heading)
-            for plan in group_plans:
-                content_layout.addWidget(_control_row(plan))
-    content_layout.addStretch(1)
-    scroll.setWidget(content)
+    from gst_device_explorer.gui.qt_camera_control_widgets import control_row
+
+    def refresh_controls() -> None:
+        nonlocal current_detail
+        endpoint = target_from_summary(current_detail)
+        if endpoint is None or camera_control_refresher is None:
+            return
+        if current_endpoint_getter is not None and current_endpoint_getter() != endpoint:
+            return
+        refreshed = camera_control_refresher(endpoint)
+        if refreshed is None:
+            return
+        current_detail = _detail_with_control_set(current_detail, refreshed)
+        render_controls()
+
+    def schedule_refresh() -> None:
+        QTimer.singleShot(0, refresh_controls)
+
+    def render_controls() -> None:
+        scroll_x = scroll.horizontalScrollBar().value()
+        scroll_y = scroll.verticalScrollBar().value()
+        content = QWidget()
+        content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(8, 8, 8, 8)
+        content_layout.setSpacing(8)
+        content_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+
+        plans = camera_control_widget_plans(current_detail)
+        endpoint = target_from_summary(current_detail)
+        if not plans:
+            content_layout.addWidget(create_text_label("No V4L2 controls advertised for this device."))
+        else:
+            first_group = True
+            for group_name, group_plans in _grouped_control_plans(plans):
+                if not first_group:
+                    group_divider = QFrame()
+                    group_divider.setFrameShape(QFrame.HLine)
+                    group_divider.setFrameShadow(QFrame.Plain)
+                    group_divider.setObjectName("cameraControlGroupDivider")
+                    group_divider.setMaximumWidth(760)
+                    content_layout.addWidget(group_divider)
+                first_group = False
+                heading = QLabel(group_name)
+                heading.setObjectName("cameraControlGroupHeader")
+                heading.setProperty("controlGroup", group_name)
+                heading.setStyleSheet(
+                    "QLabel#cameraControlGroupHeader {"
+                    "font-weight: 600;"
+                    "padding-top: 4px;"
+                    "}"
+                )
+                content_layout.addWidget(heading)
+                for plan in group_plans:
+                    content_layout.addWidget(
+                        control_row(
+                            plan,
+                            camera_control_writer=camera_control_writer,
+                            selected_endpoint=endpoint,
+                            current_endpoint_getter=current_endpoint_getter,
+                            status_callback=status_callback,
+                            refresh_callback=schedule_refresh,
+                        )
+                    )
+        content_layout.addStretch(1)
+        old = scroll.takeWidget()
+        if old is not None:
+            old.deleteLater()
+        scroll.setWidget(content)
+        QTimer.singleShot(0, lambda: _restore_scroll_position(scroll, scroll_x, scroll_y))
+
+    render_controls()
     controls_layout.addWidget(scroll, 1)
     return controls_box
 
 
-def _control_row(plan: CameraControlWidgetPlan) -> object:
-    from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QWidget
-
-    row = QWidget()
-    row.setObjectName(f"cameraControlRow_{plan.name}")
-    row.setProperty("controlName", plan.name)
-    row.setProperty("controlGroup", plan.group)
-    row.setProperty("inactive", plan.inactive)
-    row.setMaximumWidth(760)
-    row.setMinimumWidth(0)
-    row.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    layout = QHBoxLayout(row)
-    layout.setContentsMargins(4, 3, 4, 3)
-    layout.setSpacing(8)
-    row.setToolTip(plan.tooltip)
-    row.setAccessibleName(plan.label)
-    row.setAccessibleDescription(plan.tooltip)
-    if plan.inactive:
-        row.setStyleSheet("")
-
-    title = QLabel(plan.label)
-    title.setObjectName("cameraControlLabel")
-    title.setProperty("inactive", plan.inactive)
-    title.setMinimumWidth(150)
-    title.setMaximumWidth(210)
-    title.setToolTip(plan.tooltip)
-    if plan.inactive:
-        title.setStyleSheet(f"color: {INACTIVE_TEXT_COLOR};")
-    layout.addWidget(title)
-
-    control_widget = _readonly_control_widget(plan)
-    control_widget.setProperty("inactive", plan.inactive)
-    control_widget.setToolTip(plan.tooltip)
-    control_widget.setAccessibleName(plan.label)
-    control_widget.setAccessibleDescription(plan.tooltip)
-    if plan.widget_kind == "checkbox":
-        control_widget.setMinimumWidth(24)
-        control_widget.setMaximumWidth(36)
-        control_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        control_stretch = 0
-    elif plan.widget_kind in {"combo", "button", "value"}:
-        control_widget.setMinimumWidth(120)
-        control_widget.setMaximumWidth(260)
-        control_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        control_stretch = 0
-    else:
-        control_widget.setMaximumWidth(360)
-        control_widget.setMinimumWidth(120)
-        control_stretch = 1
-    layout.addWidget(control_widget, control_stretch)
-
-    if plan.default_value is not None:
-        default_button = QPushButton("Default")
-        default_button.setObjectName("cameraControlDefaultButton")
-        default_button.setProperty("controlName", plan.name)
-        default_button.setProperty("inactive", plan.inactive)
-        default_button.setEnabled(False)
-        default_button.setToolTip(
-            "Reset-to-default is deferred; this view is read-only."
-            + (f" Default: {plan.default_label}." if plan.default_label else "")
-        )
-        default_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        default_button.setMinimumWidth(76)
-        if plan.inactive:
-            default_button.setStyleSheet(
-                "QPushButton:disabled {"
-                f"color: {INACTIVE_TEXT_COLOR};"
-                "}"
-            )
-        layout.addWidget(default_button)
-    layout.addStretch(1)
-    return row
+def _restore_scroll_position(scroll: object, horizontal: int, vertical: int) -> None:
+    scroll.horizontalScrollBar().setValue(horizontal)
+    scroll.verticalScrollBar().setValue(vertical)
 
 
-def _readonly_control_widget(plan: CameraControlWidgetPlan) -> object:
-    if plan.widget_kind == "slider_spin":
-        return _readonly_slider_spin(plan)
-    if plan.widget_kind == "checkbox":
-        return _readonly_checkbox(plan)
-    if plan.widget_kind == "combo":
-        return _readonly_combo(plan)
-    if plan.widget_kind == "button":
-        return _readonly_button(plan)
-    return _readonly_value_label(plan)
-
-
-def _readonly_slider_spin(plan: CameraControlWidgetPlan) -> object:
-    from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QHBoxLayout, QSlider, QSpinBox, QWidget
-
-    holder = QWidget()
-    holder.setObjectName("cameraControlSliderSpin")
-    layout = QHBoxLayout(holder)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(8)
-    slider = QSlider(Qt.Horizontal)
-    slider.setObjectName("cameraControlSlider")
-    spin = QSpinBox()
-    spin.setObjectName("cameraControlIntegerValue")
-    minimum = plan.minimum if plan.minimum is not None else _int_or(plan.current_value, 0)
-    maximum = plan.maximum if plan.maximum is not None else _int_or(plan.current_value, minimum)
-    step = plan.step or 1
-    value = min(max(_int_or(plan.current_value, minimum), minimum), maximum)
-    for widget in (slider, spin):
-        widget.setMinimum(minimum)
-        widget.setMaximum(maximum)
-        widget.setSingleStep(step)
-        widget.setValue(value)
-        widget.setEnabled(False)
-    spin.lineEdit().setAlignment(Qt.AlignmentFlag.AlignRight)
-    spin.setMinimumWidth(72)
-    spin.setMaximumWidth(88)
-    layout.addWidget(slider, 1)
-    layout.addWidget(spin, 0)
-    return holder
-
-
-def _readonly_checkbox(plan: CameraControlWidgetPlan) -> object:
-    from PySide6.QtWidgets import QCheckBox
-
-    checkbox = QCheckBox()
-    checkbox.setObjectName("cameraControlCheckbox")
-    checkbox.setChecked(plan.current_value.lower() in {"1", "true", "yes", "on"})
-    checkbox.setEnabled(False)
-    return checkbox
-
-
-def _readonly_combo(plan: CameraControlWidgetPlan) -> object:
-    from PySide6.QtWidgets import QComboBox
-
-    combo = QComboBox()
-    combo.setObjectName("cameraControlCombo")
-    choices = plan.choices or ((plan.current_value, plan.current_label),)
-    for value, label in choices:
-        combo.addItem(label, value)
-    selected = next((index for index, (value, _label) in enumerate(choices) if value == plan.current_value), 0)
-    combo.setCurrentIndex(selected)
-    combo.setEnabled(False)
-    combo.setMinimumWidth(160)
-    combo.setMaximumWidth(260)
-    return combo
-
-
-def _readonly_button(plan: CameraControlWidgetPlan) -> object:
-    from PySide6.QtWidgets import QPushButton
-
-    button = QPushButton(plan.label)
-    button.setObjectName("cameraControlButton")
-    button.setEnabled(False)
-    return button
-
-
-def _readonly_value_label(plan: CameraControlWidgetPlan) -> object:
-    from PySide6.QtWidgets import QLabel
-
-    label = QLabel(plan.current_label)
-    label.setObjectName("cameraControlValueLabel")
-    label.setEnabled(not plan.inactive)
-    return label
+def _detail_with_control_set(
+    detail: DetailPaneModel,
+    control_set: CameraControlSet,
+) -> DetailPaneModel:
+    replacement = camera_control_section(control_set)
+    sections = tuple(
+        replacement if section.title == "V4L2 Controls" else section
+        for section in detail.sections
+    )
+    if all(section.title != "V4L2 Controls" for section in detail.sections):
+        sections = (*sections, replacement)
+    return replace(detail, sections=sections)
 
 
 def camera_control_accessible_lines(detail: DetailPaneModel) -> tuple[str, ...]:
@@ -330,6 +264,9 @@ def _control_plan(line: str) -> CameraControlWidgetPlan:
     return CameraControlWidgetPlan(
         name=name,
         label=_control_label(name),
+        control_id=fields.get("id"),
+        control_type=fields.get("type", ""),
+        device_path=fields.get("device", ""),
         widget_kind=widget_kind,
         current_value=current_value,
         current_label=_current_value_label(widget_kind, choices, current_value),

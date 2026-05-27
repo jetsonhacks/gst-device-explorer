@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Callable
 
+from gst_device_explorer.core.models import CameraControlSet
 from gst_device_explorer.gui.model import DetailPaneModel, MediaExplorerSnapshot
 
 
@@ -13,6 +14,8 @@ def create_main_window(
     detail_panes: Mapping[str, DetailPaneModel] | None = None,
     refresh_builder: Callable[..., object] | None = None,
     preview_runner: object | None = None,
+    camera_control_writer: object | None = None,
+    camera_control_refresher: Callable[[str], CameraControlSet | None] | None = None,
 ) -> object:
     """Create the main Qt window for a GUI snapshot."""
 
@@ -46,6 +49,9 @@ def create_main_window(
             self._detail = create_detail_pane_widget(
                 status_callback=lambda message: self.statusBar().showMessage(message, 2500),
                 navigate_callback=lambda node_id: self.select_node(node_id),
+                camera_control_writer=camera_control_writer,
+                camera_control_refresher=camera_control_refresher,
+                current_endpoint_getter=lambda: self._current_detail_target(),
             )
             splitter.addWidget(self._tree)
             splitter.addWidget(self._detail)
@@ -118,6 +124,14 @@ def create_main_window(
             if not items:
                 return self._snapshot.selected_node_id
             return str(items[0].data(0, Qt.UserRole))
+
+        def _current_detail_target(self) -> str | None:
+            node_id = self._current_node_id()
+            detail = self._detail_panes.get(str(node_id), self._snapshot.detail_pane)
+            for line in detail.summary:
+                if line.startswith("Endpoint: "):
+                    return line.split(": ", 1)[1]
+            return None
 
         def closeEvent(self, event: object) -> None:
             for runner in self._preview_runners.values():

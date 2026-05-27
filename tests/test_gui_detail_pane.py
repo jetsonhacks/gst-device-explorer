@@ -541,6 +541,96 @@ def test_camera_control_widget_renders_group_headers_and_keeps_controls() -> Non
         _forget_pyside_modules()
 
 
+def test_active_writable_integer_camera_control_is_editable_and_writes_request() -> None:
+    pane = build_detail_pane_for_video(
+        _camera_with_grouped_controls(),
+        control_set=_grouped_controls(),
+    )
+    writer = _FakeCameraControlWriter()
+    widget, QtWidgets = _camera_explorer_widget(pane=pane, camera_control_writer=writer)
+
+    try:
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_brightness")
+        assert row is not None
+        spin = row.findChild(QtWidgets.QSpinBox, "cameraControlIntegerValue")
+
+        assert spin is not None
+        assert spin.isEnabled()
+
+        spin.setValue(141)
+        QtWidgets.QApplication.processEvents()
+
+        assert len(writer.requests) == 1
+        request = writer.requests[0]
+        assert request.endpoint == "/dev/video0"
+        assert request.control_name == "brightness"
+        assert request.control_type == "int"
+        assert request.value == "141"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_active_writable_boolean_camera_control_is_editable_and_writes_request() -> None:
+    pane = build_detail_pane_for_video(
+        _reachy_camera(),
+        control_set=_reachy_controls(),
+    )
+    writer = _FakeCameraControlWriter()
+    widget, QtWidgets = _camera_explorer_widget(pane=pane, camera_control_writer=writer)
+
+    try:
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_white_balance_temperature_auto")
+        assert row is not None
+        checkbox = row.findChild(QtWidgets.QCheckBox, "cameraControlCheckbox")
+
+        assert checkbox is not None
+        assert checkbox.isEnabled()
+
+        checkbox.setChecked(False)
+        QtWidgets.QApplication.processEvents()
+
+        assert len(writer.requests) == 1
+        request = writer.requests[0]
+        assert request.endpoint == "/dev/video0"
+        assert request.control_name == "white_balance_temperature_auto"
+        assert request.control_type == "bool"
+        assert request.value == "0"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_active_writable_menu_camera_control_is_editable_and_writes_request() -> None:
+    pane = build_detail_pane_for_video(
+        _reachy_camera(),
+        control_set=_reachy_controls(),
+    )
+    writer = _FakeCameraControlWriter()
+    widget, QtWidgets = _camera_explorer_widget(pane=pane, camera_control_writer=writer)
+
+    try:
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_power_line_frequency")
+        assert row is not None
+        combo = row.findChild(QtWidgets.QComboBox, "cameraControlCombo")
+
+        assert combo is not None
+        assert combo.isEnabled()
+
+        combo.setCurrentIndex(1)
+        QtWidgets.QApplication.processEvents()
+
+        assert len(writer.requests) == 1
+        request = writer.requests[0]
+        assert request.endpoint == "/dev/video0"
+        assert request.control_name == "power_line_frequency"
+        assert request.control_type == "menu"
+        assert request.value == "1"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
 def test_inactive_camera_control_row_is_muted_and_non_interactive() -> None:
     pane = build_detail_pane_for_video(
         _reachy_camera(),
@@ -580,6 +670,239 @@ def test_inactive_camera_control_row_is_muted_and_non_interactive() -> None:
         assert active_label.isEnabled()
     finally:
         widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_inactive_camera_control_stays_disabled_with_writer() -> None:
+    pane = build_detail_pane_for_video(
+        _reachy_camera(),
+        control_set=_reachy_controls(),
+    )
+    widget, QtWidgets = _camera_explorer_widget(
+        pane=pane,
+        camera_control_writer=_FakeCameraControlWriter(),
+    )
+
+    try:
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_white_balance_temperature")
+        assert row is not None
+        spin = row.findChild(QtWidgets.QSpinBox, "cameraControlIntegerValue")
+        default_button = row.findChild(QtWidgets.QPushButton, "cameraControlDefaultButton")
+
+        assert spin is not None
+        assert default_button is not None
+        assert not spin.isEnabled()
+        assert not default_button.isEnabled()
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_read_only_and_unsupported_camera_controls_stay_non_editable() -> None:
+    pane = build_detail_pane_for_video(
+        _camera_with_grouped_controls(),
+        control_set=_controls_with_read_only_and_unsupported_items(),
+    )
+    widget, QtWidgets = _camera_explorer_widget(
+        pane=pane,
+        camera_control_writer=_FakeCameraControlWriter(),
+    )
+
+    try:
+        read_only_row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_brightness")
+        unsupported_row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_serial_number")
+
+        assert read_only_row is not None
+        assert unsupported_row is not None
+        read_only_spin = read_only_row.findChild(QtWidgets.QSpinBox, "cameraControlIntegerValue")
+        unsupported_value = unsupported_row.findChild(QtWidgets.QLabel, "cameraControlValueLabel")
+
+        assert read_only_spin is not None
+        assert unsupported_value is not None
+        assert not read_only_spin.isEnabled()
+        assert not unsupported_value.isEnabled()
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_camera_control_default_button_writes_reported_default_only() -> None:
+    pane = build_detail_pane_for_video(
+        _camera_with_grouped_controls(),
+        control_set=_grouped_controls(),
+    )
+    writer = _FakeCameraControlWriter()
+    widget, QtWidgets = _camera_explorer_widget(pane=pane, camera_control_writer=writer)
+
+    try:
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_brightness")
+        assert row is not None
+        default_button = row.findChild(QtWidgets.QPushButton, "cameraControlDefaultButton")
+
+        assert default_button is not None
+        assert default_button.isEnabled()
+
+        default_button.click()
+        QtWidgets.QApplication.processEvents()
+
+        assert len(writer.requests) == 1
+        request = writer.requests[0]
+        assert request.control_name == "brightness"
+        assert request.value == "128"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_camera_control_reset_is_unavailable_without_reported_default() -> None:
+    pane = build_detail_pane_for_video(
+        _reachy_camera(),
+        control_set=_controls_without_default(),
+    )
+    widget, QtWidgets = _camera_explorer_widget(
+        pane=pane,
+        camera_control_writer=_FakeCameraControlWriter(),
+    )
+
+    try:
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_brightness")
+        assert row is not None
+
+        assert row.findChild(QtWidgets.QPushButton, "cameraControlDefaultButton") is None
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_camera_control_write_is_blocked_for_stale_endpoint() -> None:
+    pane = build_detail_pane_for_video(
+        _camera_with_grouped_controls(),
+        control_set=_grouped_controls(),
+    )
+    writer = _FakeCameraControlWriter()
+    statuses: list[str] = []
+    widget, QtWidgets = _camera_explorer_widget(
+        pane=pane,
+        camera_control_writer=writer,
+        current_endpoint_getter=lambda: "/dev/video1",
+        status_callback=statuses.append,
+    )
+
+    try:
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_brightness")
+        assert row is not None
+        spin = row.findChild(QtWidgets.QSpinBox, "cameraControlIntegerValue")
+
+        assert spin is not None
+        spin.setValue(141)
+        QtWidgets.QApplication.processEvents()
+
+        assert writer.requests == []
+        assert "Stale endpoint" in statuses
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_camera_control_successful_write_refreshes_dependent_control_state() -> None:
+    pane = build_detail_pane_for_video(
+        _reachy_camera(),
+        control_set=_reachy_controls(),
+    )
+    writer = _FakeCameraControlWriter()
+    refreshed_sets = [_reachy_controls_with_manual_white_balance()]
+    widget, QtWidgets = _camera_explorer_widget(
+        pane=pane,
+        camera_control_writer=writer,
+        camera_control_refresher=lambda endpoint: refreshed_sets.pop(0) if endpoint == "/dev/video0" else None,
+    )
+
+    try:
+        inactive_row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_white_balance_temperature")
+        assert inactive_row is not None
+        inactive_spin = inactive_row.findChild(QtWidgets.QSpinBox, "cameraControlIntegerValue")
+        assert inactive_spin is not None
+        assert not inactive_spin.isEnabled()
+
+        auto_row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_white_balance_temperature_auto")
+        assert auto_row is not None
+        checkbox = auto_row.findChild(QtWidgets.QCheckBox, "cameraControlCheckbox")
+        assert checkbox is not None
+
+        checkbox.setChecked(False)
+        QtWidgets.QApplication.processEvents()
+        QtWidgets.QApplication.processEvents()
+
+        refreshed_row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_white_balance_temperature")
+        assert refreshed_row is not None
+        refreshed_spin = refreshed_row.findChild(QtWidgets.QSpinBox, "cameraControlIntegerValue")
+        assert refreshed_spin is not None
+        assert refreshed_spin.isEnabled()
+        assert refreshed_spin.value() == 4600
+        assert len(writer.requests) == 1
+        assert writer.requests[0].control_name == "white_balance_temperature_auto"
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_integer_camera_control_write_does_not_rebuild_scrolled_controls() -> None:
+    pane = build_detail_pane_for_video(
+        _camera_with_grouped_controls(),
+        control_set=_grouped_controls(),
+    )
+    writer = _FakeCameraControlWriter()
+    refresh_calls: list[str] = []
+    widget, QtWidgets = _camera_explorer_widget(
+        pane=pane,
+        camera_control_writer=writer,
+        camera_control_refresher=lambda endpoint: refresh_calls.append(endpoint) or _grouped_controls(),
+    )
+
+    try:
+        scroll = widget.findChild(QtWidgets.QScrollArea, "cameraControlsScrollArea")
+        row = widget.findChild(QtWidgets.QWidget, "cameraControlRow_brightness")
+        assert scroll is not None
+        assert row is not None
+        spin = row.findChild(QtWidgets.QSpinBox, "cameraControlIntegerValue")
+
+        assert spin is not None
+        scroll.verticalScrollBar().setValue(37)
+        before_widget = scroll.widget()
+        spin.setValue(141)
+        QtWidgets.QApplication.processEvents()
+        QtWidgets.QApplication.processEvents()
+
+        assert len(writer.requests) == 1
+        assert writer.requests[0].control_name == "brightness"
+        assert refresh_calls == []
+        assert scroll.widget() is before_widget
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
+def test_audio_and_group_explore_pages_do_not_expose_camera_control_writes() -> None:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    snapshot = build_demo_gui_snapshot()
+
+    audio_widget = create_explore_widget(
+        snapshot.detail_panes["audio_input:hw:2,0"],
+        camera_control_writer=_FakeCameraControlWriter(),
+    )
+    group_widget = create_explore_widget(
+        snapshot.detail_panes["group:demo-usb-device"],
+        camera_control_writer=_FakeCameraControlWriter(),
+    )
+
+    try:
+        assert audio_widget.findChildren(QtWidgets.QWidget, "cameraControlRow_brightness") == []
+        assert group_widget.findChildren(QtWidgets.QWidget, "cameraControlRow_brightness") == []
+    finally:
+        audio_widget.deleteLater()
+        group_widget.deleteLater()
         _forget_pyside_modules()
 
 
@@ -1474,7 +1797,40 @@ def test_detail_helpers_do_not_execute_subprocesses(monkeypatch) -> None:
     assert "Reachy-Style Camera" in detail_accessible_text(pane)
 
 
-def _camera_explorer_widget(*, pane=None, status_callback=None, preview_runner=None):
+def test_v4l2_camera_control_write_uses_structured_argv(monkeypatch) -> None:
+    import gst_device_explorer.probes.v4l2 as v4l2_probe
+
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(v4l2_probe.shutil, "which", lambda _name: "/usr/bin/v4l2-ctl")
+    monkeypatch.setattr(v4l2_probe.subprocess, "run", fake_run)
+
+    result = v4l2_probe.write_v4l2_control("/dev/video0", "brightness", 128)
+
+    assert result is not None
+    assert result.returncode == 0
+    assert calls == [
+        (
+            ["v4l2-ctl", "--device", "/dev/video0", "--set-ctrl", "brightness=128"],
+            {"check": False, "capture_output": True, "text": True, "timeout": 5},
+        )
+    ]
+    assert "shell" not in calls[0][1]
+
+
+def _camera_explorer_widget(
+    *,
+    pane=None,
+    status_callback=None,
+    preview_runner=None,
+    camera_control_writer=None,
+    camera_control_refresher=None,
+    current_endpoint_getter=None,
+):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     QtWidgets = pytest.importorskip("PySide6.QtWidgets")
     QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
@@ -1487,9 +1843,24 @@ def _camera_explorer_widget(*, pane=None, status_callback=None, preview_runner=N
             detail,
             status_callback=status_callback,
             preview_runner=preview_runner,
+            camera_control_writer=camera_control_writer,
+            camera_control_refresher=camera_control_refresher,
+            current_endpoint_getter=current_endpoint_getter,
         ),
         QtWidgets,
     )
+
+
+class _FakeCameraControlWriter:
+    def __init__(self, *, success: bool = True) -> None:
+        self.success = success
+        self.requests = []
+
+    def write(self, request):
+        from gst_device_explorer.gui.camera_control_writer import CameraControlWriteResult
+
+        self.requests.append(request)
+        return CameraControlWriteResult(self.success, "" if self.success else "write failed")
 
 
 class _FakePreviewRunner:
@@ -1599,6 +1970,53 @@ def _grouped_controls() -> CameraControlSet:
                     CameraControlChoice(value="1", label="50 Hz"),
                     CameraControlChoice(value="2", label="60 Hz"),
                 ),
+            ),
+        ),
+    )
+
+
+def _controls_with_read_only_and_unsupported_items() -> CameraControlSet:
+    return CameraControlSet(
+        device_path="/dev/video0",
+        source="v4l2-ctl",
+        controls=(
+            CameraControl(
+                name="brightness",
+                label="Brightness",
+                control_type="int",
+                device_path="/dev/video0",
+                current_value="140",
+                default_value="128",
+                minimum="0",
+                maximum="255",
+                step="1",
+                flags=("read-only",),
+            ),
+            CameraControl(
+                name="serial_number",
+                label="Serial Number",
+                control_type="string",
+                device_path="/dev/video0",
+                current_value="abc123",
+            ),
+        ),
+    )
+
+
+def _controls_without_default() -> CameraControlSet:
+    return CameraControlSet(
+        device_path="/dev/video0",
+        source="v4l2-ctl",
+        controls=(
+            CameraControl(
+                name="brightness",
+                label="Brightness",
+                control_type="int",
+                device_path="/dev/video0",
+                current_value="140",
+                minimum="0",
+                maximum="255",
+                step="1",
             ),
         ),
     )
@@ -1779,6 +2197,49 @@ def _reachy_controls() -> CameraControlSet:
                 control_type="bool",
                 device_path="/dev/video0",
                 current_value="1",
+                default_value="1",
+            ),
+        ),
+    )
+
+
+def _reachy_controls_with_manual_white_balance() -> CameraControlSet:
+    return CameraControlSet(
+        device_path="/dev/video0",
+        source="v4l2-ctl",
+        controls=(
+            CameraControl(
+                name="power_line_frequency",
+                label="Power Line Frequency",
+                control_type="menu",
+                device_path="/dev/video0",
+                current_value="2",
+                default_value="1",
+                minimum="0",
+                maximum="2",
+                choices=(
+                    CameraControlChoice(value="0", label="Disabled"),
+                    CameraControlChoice(value="1", label="50 Hz"),
+                    CameraControlChoice(value="2", label="60 Hz"),
+                ),
+            ),
+            CameraControl(
+                name="white_balance_temperature",
+                label="White Balance Temperature",
+                control_type="int",
+                device_path="/dev/video0",
+                current_value="4600",
+                default_value="4600",
+                minimum="2800",
+                maximum="6500",
+                step="1",
+            ),
+            CameraControl(
+                name="white_balance_temperature_auto",
+                label="White Balance Temperature Auto",
+                control_type="bool",
+                device_path="/dev/video0",
+                current_value="0",
                 default_value="1",
             ),
         ),

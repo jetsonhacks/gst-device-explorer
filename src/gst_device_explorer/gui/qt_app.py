@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from gst_device_explorer.gui.demo import build_demo_gui_snapshot
 from gst_device_explorer.gui.live import build_live_gui_snapshot, refresh_gui_snapshot
+import gst_device_explorer.probes.v4l2 as v4l2_probe
 
 
 def launch_gui(*, demo: bool = False) -> int:
@@ -11,6 +12,7 @@ def launch_gui(*, demo: bool = False) -> int:
 
     from PySide6.QtWidgets import QApplication
 
+    from gst_device_explorer.gui.camera_control_writer import CameraControlWriter
     from gst_device_explorer.gui.qt_main_window import create_main_window
 
     app = QApplication.instance() or QApplication([])
@@ -19,6 +21,8 @@ def launch_gui(*, demo: bool = False) -> int:
         gui_state.snapshot,
         gui_state.detail_panes,
         refresh_builder=_refresh_builder(demo=demo),
+        camera_control_writer=None if demo else CameraControlWriter(),
+        camera_control_refresher=None if demo else v4l2_probe.discover_v4l2_controls,
     )
     window.show()
     return int(app.exec())

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from gst_device_explorer.core.models import CameraControlSet
 from gst_device_explorer.gui.model import DetailPaneModel
 from gst_device_explorer.gui.qt_audio_input_explorer import (
     audio_input_explore_lines,
@@ -62,6 +63,9 @@ def create_explore_widget(
     status_callback: Callable[[str], None] | None = None,
     navigate_callback: Callable[[str], None] | None = None,
     preview_runner: object | None = None,
+    camera_control_writer: object | None = None,
+    camera_control_refresher: Callable[[str], CameraControlSet | None] | None = None,
+    current_endpoint_getter: Callable[[], str | None] | None = None,
 ) -> object:
     from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QWidget
 
@@ -77,6 +81,9 @@ def create_explore_widget(
                 detail,
                 status_callback=status_callback,
                 preview_runner=preview_runner,
+                camera_control_writer=camera_control_writer,
+                camera_control_refresher=camera_control_refresher,
+                current_endpoint_getter=current_endpoint_getter,
             ),
             1,
         )

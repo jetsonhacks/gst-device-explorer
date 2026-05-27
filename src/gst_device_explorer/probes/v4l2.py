@@ -86,6 +86,26 @@ def discover_v4l2_controls(device_path: str | Path) -> CameraControlSet:
     return _parse_v4l2_controls(result.stdout, device_path=str(path))
 
 
+def write_v4l2_control(
+    device_path: str | Path,
+    control_name: str,
+    value: str | int | bool,
+) -> subprocess.CompletedProcess[str] | None:
+    """Write one V4L2 control using structured argv only."""
+
+    if shutil.which(V4L2_CTL) is None:
+        return None
+
+    path = Path(device_path)
+    name = str(control_name).strip()
+    if not name:
+        return None
+    value_text = _control_write_value(value)
+    return _run_v4l2_ctl(
+        [V4L2_CTL, "--device", str(path), "--set-ctrl", f"{name}={value_text}"]
+    )
+
+
 def _is_char_device(path: Path) -> bool:
     try:
         return stat.S_ISCHR(path.stat().st_mode)
@@ -104,6 +124,12 @@ def _run_v4l2_ctl(command: list[str]) -> subprocess.CompletedProcess[str] | None
         )
     except (FileNotFoundError, subprocess.SubprocessError, OSError):
         return None
+
+
+def _control_write_value(value: str | int | bool) -> str:
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return str(value)
 
 
 def _parse_v4l2_formats(output: str, device_path: str) -> list[Capability]:
