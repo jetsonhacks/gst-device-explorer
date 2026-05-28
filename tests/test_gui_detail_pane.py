@@ -102,20 +102,19 @@ def test_camera_explore_tab_contains_camera_explorer_not_report_sections() -> No
     assert "Frame Rate" in text
     assert "Selected" in text
     assert "Selected: MJPG, 640x480, 30 fps" in text
-    assert "Generated Pipeline" in text
+    assert "Pipeline" in text
     assert "gst-launch-1.0 v4l2src device=/dev/video0" in text
-    assert "Copy Pipeline" in text
+    assert "Copy pipeline" in text
     assert "Preview" in text
-    assert "State: Ready" in text
-    assert "Start Preview" in text
+    assert "Ready" in text
     assert "Camera Controls" in text
     assert "Brightness" in text
     assert "Current: 140" in text
-    assert text.index("Camera Mode") < text.index("Generated Pipeline")
-    assert text.index("Selected: MJPG, 640x480, 30 fps") < text.index("Generated Pipeline")
-    assert text.index("Generated Pipeline") < text.index("Preview")
+    assert text.index("Camera Mode") < text.index("Pipeline")
+    assert text.index("Selected: MJPG, 640x480, 30 fps") < text.index("Pipeline")
+    assert text.index("Pipeline") < text.index("Preview")
     assert text.index("Preview") < text.index("Camera Controls")
-    assert text.index("Generated Pipeline") < text.index("Camera Controls")
+    assert text.index("Pipeline") < text.index("Camera Controls")
     assert "Camera Explorer" not in text
     assert "Camera Summary" not in text
     assert "Identity and Metadata" not in text
@@ -147,9 +146,11 @@ def test_camera_pipeline_widget_is_read_only_code_and_copyable() -> None:
     try:
         pipeline = widget.findChild(QtWidgets.QLineEdit, "cameraPipelineText")
         copy_button = widget.findChild(QtWidgets.QPushButton, "cameraPipelineCopyButton")
+        status_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewStatusLabel")
 
         assert pipeline is not None
         assert copy_button is not None
+        assert status_label is not None
         assert pipeline.isReadOnly()
         assert pipeline.property("presentation") == "code"
         assert pipeline.font().fixedPitch()
@@ -157,7 +158,7 @@ def test_camera_pipeline_widget_is_read_only_code_and_copyable() -> None:
         copy_button.click()
 
         assert statuses == ["Copied to clipboard."]
-        assert copy_button.text() == "Copied"
+        assert status_label.text() == "Copied pipeline to clipboard"
     finally:
         widget.deleteLater()
         _forget_pyside_modules()
@@ -169,18 +170,17 @@ def test_camera_preview_widget_uses_structured_command_runner() -> None:
 
     try:
         pipeline = widget.findChild(QtWidgets.QLineEdit, "cameraPipelineText")
-        start_button = widget.findChild(QtWidgets.QPushButton, "cameraPreviewStartButton")
-        stop_button = widget.findChild(QtWidgets.QPushButton, "cameraPreviewStopButton")
-        state_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewStateText")
+        preview_btn = widget.findChild(QtWidgets.QPushButton, "cameraPreviewButton")
+        status_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewStatusLabel")
 
         assert pipeline is not None
-        assert start_button is not None
-        assert stop_button is not None
-        assert state_label is not None
-        assert state_label.text() == "State: Ready"
-        assert widget.layout().indexOf(pipeline.parentWidget()) < widget.layout().indexOf(start_button.parentWidget())
+        assert preview_btn is not None
+        assert status_label is not None
+        assert status_label.text() == "Ready"
+        # Pipeline field and preview button are in the same compact Pipeline section
+        assert pipeline.parentWidget() is preview_btn.parentWidget()
 
-        start_button.click()
+        preview_btn.click()
 
         assert len(runner.started) == 1
         command = runner.started[0]
@@ -189,13 +189,13 @@ def test_camera_preview_widget_uses_structured_command_runner() -> None:
         assert command.argv[:3] == ("gst-launch-1.0", "v4l2src", "device=/dev/video0")
         assert " ".join(command.argv) == pipeline.text()
         assert runner.state == PreviewState.RUNNING
-        assert state_label.text() == "State: Running"
+        assert status_label.text() == "Preview running"
 
-        stop_button.click()
+        preview_btn.click()
 
         assert runner.stop_calls == 1
         assert runner.state == PreviewState.EXITED
-        assert state_label.text() == "State: Exited"
+        assert status_label.text() == "Preview closed"
     finally:
         widget.deleteLater()
         _forget_pyside_modules()
@@ -205,16 +205,13 @@ def test_camera_preview_unavailable_without_eligible_candidate() -> None:
     widget, QtWidgets = _camera_explorer_widget(pane=build_demo_gui_snapshot().detail_panes["video:/dev/video2"])
 
     try:
-        start_button = widget.findChild(QtWidgets.QPushButton, "cameraPreviewStartButton")
-        state_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewStateText")
-        message_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewMessageText")
+        preview_btn = widget.findChild(QtWidgets.QPushButton, "cameraPreviewButton")
+        status_label = widget.findChild(QtWidgets.QLabel, "cameraPreviewStatusLabel")
 
-        assert start_button is not None
-        assert state_label is not None
-        assert message_label is not None
-        assert state_label.text() == "State: Unavailable"
-        assert "Preview unavailable" in message_label.text()
-        assert not start_button.isEnabled()
+        assert preview_btn is not None
+        assert status_label is not None
+        assert status_label.text() == "Unavailable"
+        assert not preview_btn.isEnabled()
     finally:
         widget.deleteLater()
         _forget_pyside_modules()

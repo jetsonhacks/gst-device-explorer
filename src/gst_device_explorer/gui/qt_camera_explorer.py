@@ -66,16 +66,16 @@ def camera_explore_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     if selected is not None:
         lines.append("Selected")
         lines.append(f"Selected: {selected_mode_text(*selected)}")
-    lines.append("Generated Pipeline")
+    lines.append("Pipeline")
     pipeline = _pipeline_text(detail)
     if pipeline is not None:
         lines.append(pipeline)
-    lines.append("Copy Pipeline")
+    lines.append("Copy pipeline")
     lines.append("Preview")
     if _preview_available(detail) and initial_selected_mode(detail) is not None:
-        lines.extend(("State: Ready", "Start Preview", "Stop Preview"))
+        lines.append("Ready")
     else:
-        lines.extend(("State: Unavailable", "Preview unavailable: no eligible generated camera preview candidate."))
+        lines.append("Unavailable")
     lines.append("Camera Controls")
     lines.extend(camera_control_accessible_lines(detail))
     return tuple(lines)
@@ -90,10 +90,22 @@ def create_camera_explorer_widget(
     camera_control_refresher: Callable[[str], CameraControlSet | None] | None = None,
     current_endpoint_getter: Callable[[], str | None] | None = None,
 ) -> object:
-    from PySide6.QtGui import QFont, QFontDatabase
-    from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget
-    from PySide6.QtWidgets import QListWidgetItem, QPushButton, QSizePolicy, QVBoxLayout, QWidget
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtGui import QFont, QFontDatabase, QIcon
+    from PySide6.QtWidgets import (
+        QApplication,
+        QGroupBox,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QListWidget,
+        QListWidgetItem,
+        QPushButton,
+        QSizePolicy,
+        QStyle,
+        QVBoxLayout,
+        QWidget,
+    )
 
     pane = QWidget()
     pane.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -158,39 +170,6 @@ def create_camera_explorer_widget(
     settings_outer.addWidget(selected_mode_label)
     layout.addWidget(settings_box, 0)
 
-    pipeline = _pipeline_text(detail)
-    pipeline_box = QGroupBox("Generated Pipeline")
-    pipeline_box_layout = QVBoxLayout(pipeline_box)
-    pipeline_row = QHBoxLayout()
-    pipeline_row.setSpacing(6)
-    pipeline_edit = QLineEdit(pipeline or "Pipeline unavailable for this camera mode.")
-    pipeline_edit.setReadOnly(True)
-    pipeline_edit.setObjectName("cameraPipelineText")
-    pipeline_edit.setProperty("presentation", "code")
-    pipeline_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
-    pipeline_font.setStyleHint(QFont.Monospace)
-    pipeline_font.setFixedPitch(True)
-    pipeline_edit.setFont(pipeline_font)
-    pipeline_edit.setMinimumWidth(0)
-    pipeline_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-    pipeline_edit.setStyleSheet(
-        "QLineEdit#cameraPipelineText {"
-        "font-family: monospace;"
-        "padding: 3px 6px;"
-        "}"
-    )
-    pipeline_edit.setCursorPosition(0)
-    pipeline_row.addWidget(pipeline_edit, 1)
-    copy_btn = _copy_dynamic_button(
-        "Copy Pipeline",
-        pipeline_edit.text,
-        status_callback=status_callback,
-    )
-    copy_btn.setEnabled(bool(pipeline))
-    pipeline_row.addWidget(copy_btn)
-    pipeline_box_layout.addLayout(pipeline_row)
-    layout.addWidget(pipeline_box, 0)
-
     def current_preview_command() -> PreviewCommand | None:
         if not _preview_available(detail):
             return None
@@ -210,11 +189,61 @@ def create_camera_explorer_widget(
             description=f"Preview {selected_mode_text(str(fmt), resolution, frame_rate)}",
         )
 
-    preview_widget, update_preview_state = create_camera_preview_widget(
+    preview_btn, status_label, update_preview_state = create_camera_preview_widget(
         current_preview_command,
         preview_runner=preview_runner,
     )
-    layout.addWidget(preview_widget, 0)
+
+    pipeline = _pipeline_text(detail)
+    pipeline_box = QGroupBox("Pipeline")
+    pipeline_layout = QVBoxLayout(pipeline_box)
+    pipeline_layout.setSpacing(4)
+
+    command_row = QHBoxLayout()
+    command_row.setSpacing(4)
+
+    pipeline_edit = QLineEdit(pipeline or "Pipeline unavailable for this camera mode.")
+    pipeline_edit.setReadOnly(True)
+    pipeline_edit.setObjectName("cameraPipelineText")
+    pipeline_edit.setProperty("presentation", "code")
+    pipeline_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+    pipeline_font.setStyleHint(QFont.Monospace)
+    pipeline_font.setFixedPitch(True)
+    pipeline_edit.setFont(pipeline_font)
+    pipeline_edit.setMinimumWidth(0)
+    pipeline_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    pipeline_edit.setStyleSheet(
+        "QLineEdit#cameraPipelineText {"
+        "font-family: monospace;"
+        "padding: 3px 6px;"
+        "}"
+    )
+    pipeline_edit.setCursorPosition(0)
+    command_row.addWidget(pipeline_edit, 1)
+
+    app_style = QApplication.style()
+    copy_btn = QPushButton()
+    copy_btn.setObjectName("cameraPipelineCopyButton")
+    copy_btn.setToolTip("Copy generated pipeline")
+    copy_btn.setFixedSize(28, 28)
+    copy_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    copy_btn.setIcon(
+        QIcon.fromTheme("edit-copy", app_style.standardIcon(QStyle.SP_FileDialogDetailedView))
+    )
+    copy_btn.setEnabled(bool(pipeline))
+    command_row.addWidget(copy_btn)
+    command_row.addWidget(preview_btn)
+
+    pipeline_layout.addLayout(command_row)
+    pipeline_layout.addWidget(status_label)
+    layout.addWidget(pipeline_box, 0)
+
+    def on_copy(_checked: bool = False) -> None:
+        copy_to_clipboard(pipeline_edit.text(), status_callback=status_callback)
+        status_label.setText("Copied pipeline to clipboard")
+        QTimer.singleShot(2000, update_preview_state)
+
+    copy_btn.clicked.connect(on_copy)
 
     def update_pipeline() -> None:
         rate_item = rate_list.currentItem()
@@ -368,42 +397,6 @@ def _metadata_values(detail: DetailPaneModel) -> dict[str, str]:
             key, value = item.split(": ", 1)
             result[key] = value
     return result
-
-
-def _copy_dynamic_button(
-    label: str,
-    text_getter: Callable[[], str],
-    *,
-    status_callback: Callable[[str], None] | None = None,
-) -> object:
-    from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QPushButton, QSizePolicy
-
-    button = QPushButton(label)
-    button.setObjectName("cameraPipelineCopyButton")
-    button.setToolTip(label)
-    button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-    original_label = label
-
-    def _copy(_checked: bool = False) -> None:
-        copy_to_clipboard(
-            text_getter(),
-            status_callback=status_callback,
-        )
-        button.setText("Copied")
-        button.setToolTip("Copied")
-        QTimer.singleShot(1200, lambda: _reset_copy_button(button, original_label))
-
-    button.clicked.connect(_copy)
-    return button
-
-
-def _reset_copy_button(button: object, label: str) -> None:
-    try:
-        button.setText(label)
-        button.setToolTip(label)
-    except RuntimeError:
-        pass
 
 
 def _pipeline_text(detail: DetailPaneModel) -> str | None:

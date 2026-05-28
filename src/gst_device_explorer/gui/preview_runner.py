@@ -49,9 +49,13 @@ class PreviewRunner:
         *,
         popen_factory: Callable[[list[str]], object] | None = None,
         terminate_timeout_seconds: float = 2.0,
+        graceful_exit_codes: tuple[int, ...] = (0, 1),
     ) -> None:
         self._popen_factory = popen_factory or subprocess.Popen
         self._terminate_timeout_seconds = terminate_timeout_seconds
+        # gst-launch-1.0 exits with 1 when the user closes the preview window;
+        # treat that the same as a clean exit rather than a failure.
+        self._graceful_exit_codes = frozenset(graceful_exit_codes)
         self._process: object | None = None
         self._command: PreviewCommand | None = None
         self.state = PreviewState.IDLE
@@ -99,7 +103,7 @@ class PreviewRunner:
 
         self.exit_code = int(code)
         self._process = None
-        if code == 0:
+        if code in self._graceful_exit_codes:
             self.state = PreviewState.EXITED
             self.failure_text = None
         else:

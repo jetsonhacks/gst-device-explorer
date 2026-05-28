@@ -59,6 +59,18 @@ def test_preview_runner_poll_detects_failed_exit() -> None:
     assert runner.failure_text == "Preview exited with code 2."
 
 
+def test_preview_runner_exit_code_1_is_graceful_close() -> None:
+    # gst-launch-1.0 exits with code 1 when the user closes the preview window.
+    # That is not a failure — treat it the same as code 0.
+    process = _FakeProcess(returncode=1)
+    runner = PreviewRunner(popen_factory=lambda _argv: process)
+    runner.start(PreviewCommand(["gst-launch-1.0", "fakesrc", "!", "fakesink"], target="/dev/video0"))
+
+    assert runner.poll() == PreviewState.EXITED
+    assert runner.exit_code == 1
+    assert runner.failure_text is None
+
+
 def test_preview_runner_stop_terminates_process() -> None:
     process = _FakeProcess()
     runner = PreviewRunner(popen_factory=lambda _argv: process)
