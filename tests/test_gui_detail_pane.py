@@ -31,7 +31,6 @@ from gst_device_explorer.gui.live import build_error_detail_pane, build_empty_sn
 from gst_device_explorer.gui.model import DetailSection
 from gst_device_explorer.gui.qt_camera_controls import camera_control_group_labels, camera_control_widget_plans
 from gst_device_explorer.gui.qt_camera_modes import camera_mode_tree
-from gst_device_explorer.gui.qt_device_info import create_device_information_widget
 from gst_device_explorer.gui.qt_detail import (
     action_copy_text,
     copy_display_text,
@@ -39,7 +38,6 @@ from gst_device_explorer.gui.qt_detail import (
     detail_accessible_text,
     detail_identity_items,
     detail_tab_titles,
-    device_information_accessible_text,
     explore_accessible_text,
     section_display_title,
     section_kind,
@@ -83,10 +81,10 @@ def test_video_detail_pane_has_camera_specific_text() -> None:
     assert "Recommended Candidate" in text
 
 
-def test_selected_detail_pane_has_explore_and_device_information_tabs() -> None:
+def test_selected_detail_pane_has_single_explore_tab() -> None:
     pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
 
-    assert detail_tab_titles(pane) == ("Explore", "Device Information")
+    assert detail_tab_titles(pane) == ("Explore",)
 
 
 def test_camera_explore_tab_contains_camera_explorer_not_report_sections() -> None:
@@ -267,6 +265,109 @@ def test_camera_explore_header_uses_group_derived_display_name() -> None:
     assert "Reachy Mini Camera - /dev/video0" in explore_accessible_text(pane)
 
 
+def test_camera_explore_shows_usb_path_when_group_present() -> None:
+    pane = build_detail_pane_for_video(
+        Device(
+            id="/dev/video0",
+            kind="video_input",
+            name="video0",
+            metadata={"path": "/dev/video0", "driver": "uvcvideo"},
+            capabilities=[_video_capability("MJPG", "Motion-JPEG", 640, 480, [30.0])],
+        ),
+        profile=DeviceProfile(
+            device_kind="video",
+            device="/dev/video0",
+            display_name="video0",
+            groups=(
+                ProfileGroupSummary(
+                    group_id="usb-device-1-4-1-4",
+                    label="Reachy Mini",
+                    confidence=0.95,
+                    kind="usb",
+                    member_count=3,
+                ),
+            ),
+        ),
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Group: Reachy Mini" in text
+    assert "USB path: usb-device-1-4-1-4" in text
+
+
+def test_camera_explore_omits_usb_path_when_no_group() -> None:
+    pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
+    text = explore_accessible_text(pane)
+
+    assert "USB path:" not in text
+
+
+def test_audio_input_explore_shows_usb_path_when_group_present() -> None:
+    pane = build_detail_pane_for_audio_input(
+        Device(
+            id="hw:2,0",
+            kind="audio_input",
+            name="Reachy-Style Microphone",
+            metadata={"alsa_device": "hw:2,0"},
+        ),
+        profile=DeviceProfile(
+            device_kind="audio-input",
+            device="hw:2,0",
+            display_name="Reachy-Style Microphone",
+            groups=(
+                ProfileGroupSummary(
+                    group_id="usb-device-1-4-1-4",
+                    label="Reachy Mini",
+                    confidence=0.95,
+                    kind="usb",
+                    member_count=3,
+                ),
+            ),
+        ),
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Group: Reachy Mini" in text
+    assert "USB path: usb-device-1-4-1-4" in text
+
+
+def test_audio_output_explore_shows_usb_path_when_group_present() -> None:
+    pane = build_detail_pane_for_audio_output(
+        Device(
+            id="hw:2,0",
+            kind="audio_output",
+            name="Reachy-Style Speaker",
+            metadata={"alsa_device": "hw:2,0"},
+        ),
+        profile=DeviceProfile(
+            device_kind="audio-output",
+            device="hw:2,0",
+            display_name="Reachy-Style Speaker",
+            groups=(
+                ProfileGroupSummary(
+                    group_id="usb-device-1-4-1-4",
+                    label="Reachy Mini",
+                    confidence=0.95,
+                    kind="usb",
+                    member_count=3,
+                ),
+            ),
+        ),
+    )
+    text = explore_accessible_text(pane)
+
+    assert "Group: Reachy Mini" in text
+    assert "USB path: usb-device-1-4-1-4" in text
+
+
+def test_audio_explore_omits_usb_path_when_no_group() -> None:
+    input_text = explore_accessible_text(build_demo_gui_snapshot().detail_panes["audio_input:hw:2,0"])
+    output_text = explore_accessible_text(build_demo_gui_snapshot().detail_panes["audio_output:hw:2,0"])
+
+    assert "USB path:" not in input_text
+    assert "USB path:" not in output_text
+
+
 def test_group_explore_tab_is_dashboard_with_endpoint_cards() -> None:
     pane = build_demo_gui_snapshot().detail_panes["group:demo-usb-device"]
     text = explore_accessible_text(pane)
@@ -292,7 +393,7 @@ def test_group_explore_tab_is_dashboard_with_endpoint_cards() -> None:
     assert "Validate Group" not in text
 
 
-def test_group_device_information_explains_evidence_membership_and_cli() -> None:
+def test_group_detail_pane_explains_evidence_membership_and_cli() -> None:
     snapshot = build_media_explorer_snapshot(
         video_devices=[_video_device("/dev/video0"), _video_device("/dev/video1")],
         audio_inputs=[_audio_input_device("hw:2,0")],
@@ -300,9 +401,8 @@ def test_group_device_information_explains_evidence_membership_and_cli() -> None
         groups=[_reachy_audio_group(), _reachy_camera_group(), _reachy_parent_group()],
         selected_id="group:usb-family-1-4",
     )
-    text = device_information_accessible_text(snapshot.detail_pane)
+    text = detail_accessible_text(snapshot.detail_pane)
 
-    assert text.startswith("Device Information\n")
     assert "Group Summary" in text
     assert "Name: Reachy Mini" in text
     assert "Group id: usb-family-1-4" in text
@@ -315,7 +415,6 @@ def test_group_device_information_explains_evidence_membership_and_cli() -> None
     assert "Child Groups" in text
     assert "Reachy Mini Audio: audio-device-alsa-card-0, endpoints hw:2,0, hw:2,0" in text
     assert "Reachy Mini Camera: usb-device-1-4-1-4, endpoints /dev/video0, /dev/video1" in text
-    assert "Constituent Endpoints" not in text
     assert "Metadata / Diagnostics" in text
     assert "No additional group metadata is available." in text
     assert "Reproduce with CLI" in text
@@ -324,32 +423,6 @@ def test_group_device_information_explains_evidence_membership_and_cli() -> None
     assert "gst-device-explorer report" in text
     assert "Preview" not in text
     assert "Capture" not in text
-
-
-def test_group_device_information_renders_cli_commands_as_read_only_code() -> None:
-    snapshot = build_media_explorer_snapshot(
-        groups=[_reachy_parent_group()],
-        selected_id="group:usb-family-1-4",
-    )
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
-    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-    widget = create_device_information_widget(snapshot.detail_pane)
-
-    try:
-        command_fields = widget.findChildren(QtWidgets.QLineEdit, "groupReproduceCommandText")
-
-        assert [field.text() for field in command_fields] == [
-            "gst-device-explorer groups",
-            "gst-device-explorer validate group usb-family-1-4",
-            "gst-device-explorer report",
-        ]
-        assert all(field.isReadOnly() for field in command_fields)
-        assert all(field.property("presentation") == "code" for field in command_fields)
-        assert all(field.font().fixedPitch() for field in command_fields)
-    finally:
-        widget.deleteLater()
-        _forget_pyside_modules()
 
 
 def test_group_explore_widget_endpoint_actions_are_navigation_only() -> None:
@@ -995,23 +1068,6 @@ def test_checkbox_camera_control_keeps_default_button_attached() -> None:
     finally:
         widget.deleteLater()
         _forget_pyside_modules()
-
-
-def test_device_information_tab_contains_report_sections_not_camera_explorer() -> None:
-    pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
-    text = device_information_accessible_text(pane)
-
-    assert text.startswith("Device Information\n")
-    assert "Identity" in text
-    assert "Summary" in text
-    assert "Identity and Metadata" in text
-    assert "Capabilities" in text
-    assert "Candidate Pipelines" in text
-    assert "Recommended Candidate" in text
-    assert "Copy" in text
-    assert "Safe Actions" in text
-    assert "Camera Explorer" not in text
-    assert "Dynamic V4L2 Controls" not in text
 
 
 def test_group_and_audio_output_explore_tabs_have_expected_surfaces() -> None:

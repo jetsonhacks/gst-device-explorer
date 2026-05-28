@@ -170,6 +170,13 @@ def copyable_line_value(line: str) -> str | None:
     return None
 
 
+def usb_path_from_group_item(item: str) -> str | None:
+    """Extract the group id (USB path) from a Groups section item like 'Label (group-id)'."""
+    if " (" in item and item.endswith(")"):
+        return item.split(" (", 1)[1][:-1]
+    return None
+
+
 def split_display_row(item: str) -> tuple[str, str]:
     for separator in (": ", " - "):
         if separator in item:

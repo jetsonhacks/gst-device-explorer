@@ -6,10 +6,6 @@ from collections.abc import Callable
 
 from gst_device_explorer.core.models import CameraControlSet
 from gst_device_explorer.gui.model import DetailPaneModel
-from gst_device_explorer.gui.qt_device_info import (
-    create_device_information_widget,
-    device_information_accessible_text,
-)
 from gst_device_explorer.gui.qt_explore import create_explore_widget, explore_accessible_text
 from gst_device_explorer.gui.qt_sections import (
     action_copy_text,
@@ -22,7 +18,7 @@ from gst_device_explorer.gui.qt_sections import (
     section_kind,
 )
 
-DETAIL_TAB_TITLES = ("Explore", "Device Information")
+DETAIL_TAB_TITLES = ("Explore",)
 
 
 class DetailPaneWidgetMixin:
@@ -65,10 +61,8 @@ def create_detail_pane_widget(
             super().__init__()
             self.setObjectName("detailTabs")
             self._explore = _scroll_area()
-            self._information = _scroll_area()
             self._fallback_runner = preview_runner
             self.addTab(self._explore, DETAIL_TAB_TITLES[0])
-            self.addTab(self._information, DETAIL_TAB_TITLES[1])
 
         def render_detail(self, detail: DetailPaneModel, *, preview_runner: object | None = None) -> None:
             _runner = preview_runner if preview_runner is not None else self._fallback_runner
@@ -85,10 +79,6 @@ def create_detail_pane_widget(
                     camera_control_refresher=camera_control_refresher,
                     current_endpoint_getter=current_endpoint_getter,
                 ),
-            )
-            _replace_scroll_widget(
-                self._information,
-                create_device_information_widget(detail, status_callback=status_callback),
             )
             self.setCurrentIndex(0)
 

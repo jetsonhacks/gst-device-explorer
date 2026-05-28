@@ -24,6 +24,7 @@ from gst_device_explorer.gui.qt_sections import (
     copy_to_clipboard,
     create_text_label,
     target_from_summary,
+    usb_path_from_group_item,
 )
 from gst_device_explorer.gui.preview_runner import PreviewCommand
 
@@ -366,6 +367,9 @@ def _camera_subheader_text(detail: DetailPaneModel) -> str:
     if groups is not None and groups.items:
         group_label = groups.items[0].split(" (", 1)[0]
         parts.append(f"Group: {group_label}")
+        usb_path = usb_path_from_group_item(groups.items[0])
+        if usb_path:
+            parts.append(f"USB path: {usb_path}")
     return " - ".join(parts)
 
 

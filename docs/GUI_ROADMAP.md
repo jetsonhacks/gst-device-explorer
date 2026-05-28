@@ -61,13 +61,13 @@ The goal is not to enforce an arbitrary line count. The goal is to keep the code
 Milestones 29–33 established the current Explore-page pattern:
 
 ```text
-Compact endpoint or group summary
+Compact endpoint or group summary (USB path and group membership when present)
 Mode/capability selection or presentation
 Generated command or pipeline
 Compact read-only monospace code/copy surface
-Future safe-action placeholder, only when useful
+Scoped safe-action controls, only when useful
 Read-only inspector semantics
-Secondary/raw/detail material kept in Device Information or Reports
+Raw/debug-style content excluded from GUI; available via CLI
 ```
 
 Current adaptations:
@@ -650,72 +650,57 @@ HIL status:
 
 ## Milestone 45 — Post-HIL Issue Resolution and Refactoring Pass
 
-Collect and resolve issues discovered during Milestones 36–44, then refactor only where the HIL-proven implementation reveals real seams.
+Status: Implemented
 
-Scope:
+Implemented independently from Milestone 46.
 
-- collect issues raised during camera preview, audio output, audio input, HIL, and camera-control work
-- fix stale/provenance/eligibility bugs
-- review shared process-runner naming such as `PreviewCommand`
-- reduce duplicate camera/audio test code where practical
-- review GUI module size and responsibility boundaries
-- review test fixtures that may look like real hardware data
-- keep safety boundaries intact
-- avoid adding new product features
+Implemented:
 
-This is the right place to consider renaming `PreviewCommand` or introducing a more generic media-test/process-runner name.
+- Simplified camera pipeline copy/preview UI: generated pipeline and preview action now use compact inline controls
+- Surfaced USB path and group membership metadata directly in Explore pages for camera, audio input, and audio output endpoints when a composite group is present; label is `USB path` or `Group`
+- Removed the Device Information tab from the GUI; Explore is now the single primary device surface
+- Preserved all underlying profile, metadata, diagnostic, and model data; raw/debug-style content is excluded from the normal GUI but remains accessible via the CLI
+- Updated `explore_placeholder_lines` fallback text to no longer reference Device Information
+- Retained read-only, safe-action, and inspector semantics throughout Explore
+- Automated test suite updated and passing: Device Information tab tests removed or converted to `detail_accessible_text`-based assertions; five new USB path/group Explore tests added; 646 total passing
 
 ## Milestone 46 — README and First-Run Documentation Rewrite
 
-Rewrite the repository README so it reflects what the project actually is now.
+Status: Implemented
 
-This is a user-facing documentation milestone after the refactoring pass.
+Implemented independently from Milestone 45.
 
-Scope:
+Implemented:
 
-- explain `gst-device-explorer` as a GUI-first media endpoint explorer
-- explain first-run workflow
-- describe camera preview and camera controls
-- describe audio output generated tone and local file playback quality test
-- describe audio input's current scope honestly
-- explain composite group behavior
-- explain safety boundaries
-- provide Jetson/Linux setup notes
-- include minimal CLI examples only where useful
-- remove stale report-first or CLI-first framing
-- avoid overpromising unsupported behavior
+- Rewrote the repository README to reflect the current GUI-first media endpoint explorer framing
+- Described camera preview and camera controls
+- Described audio output generated tone and local file playback quality testing
+- Described audio input's intentionally minimal scope
+- Explained composite group behavior and sidebar navigation
+- Stated safety boundaries
+- Provided Jetson/Linux and Reachy Mini setup notes
+- Removed stale report-first or CLI-first framing
+- Avoided overpromising unsupported behavior
 
 ## Milestone 47 — Commands and Reproduce Sections
 
-Add curated command sections in Device Information views after camera preview, audio output quality testing, minimal audio input activity testing, camera-control writes, issue/refactoring cleanup, and README/product framing cleanup have matured.
+Status: Complete — superseded by Device Information tab removal
 
-Commands may include:
+The originally planned Commands and Reproduce sections were intended to live inside the Device Information tab. With the Device Information tab removed in Milestone 45, the GUI surface for curated command content was not built.
 
-- `gst-device-explorer` commands
-- `v4l2-ctl` commands for camera inspection
-- ALSA commands for audio inspection
-- GStreamer commands for generated pipeline testing
-- commands that reproduce the proven preview/test investigation flow
+CLI commands remain the primary channel for reproduce and investigation workflows. The CLI surface provides `gst-device-explorer groups`, `validate group`, `report`, and pipeline-generation commands without requiring a dedicated GUI area.
 
-These commands should teach the user how to reproduce GUI-derived discovery from the command line without cluttering the Explore tab.
-
-The goal remains curated, read-only, copyable commands that reproduce mature GUI-derived investigations.
+No dedicated Commands/Reproduce GUI surface was added.
 
 ## Milestone 48 — Reports Area
 
-Add a dedicated Reports or Diagnostics area after Commands/Reproduce.
+Status: Complete — superseded by Device Information tab removal
 
-This area should contain:
+The originally planned Reports and Diagnostics area presupposed the Device Information tab as its container. With the Device Information tab removed in Milestone 45, raw/debug-style diagnostic content was intentionally excluded from the normal GUI workflow.
 
-- full device reports
-- support bundles
-- raw JSON
-- schema-related output
-- diagnostic summaries
-- development/debug information
-- hardware-interaction diagnostics that proved useful during preview, audio-test, and camera-control validation
+The underlying model data — profiles, diagnostics, candidate rankings, validation results — is preserved and accessible via CLI reports.
 
-This keeps report functions available while removing them from the main exploration workflow.
+No dedicated GUI Reports area was built.
 
 ## Safety Boundaries
 
@@ -751,39 +736,29 @@ All other camera-control write behavior remains prohibited:
 
 ## Working Summary
 
-The GUI should be organized around exploration first.
+The GUI is organized around exploration first. Explore is the single primary device surface.
 
-The camera, audio input, audio output, and group Explore pages now share an inspector-first pattern: compact summary, capability selection or presentation, generated code/copy output, scoped safe-action placeholders, and read-only semantics. Lower-level reports and diagnostics stay out of the primary working surface.
+The camera, audio input, audio output, and group Explore pages share an inspector-first pattern: compact endpoint summary (including USB path and group membership when present), capability selection or presentation, generated code/copy output, scoped safe-action controls, and read-only semantics. Raw/debug-style content is excluded from the normal GUI and remains available through the CLI.
 
-A useful distinction:
+The Device Information tab has been removed. There is no secondary device-information tab. Explore is the complete GUI surface for a selected endpoint or group.
 
-- **Explore** means selecting settings, inspecting modes, and eventually trying explicitly scoped generated behavior.
-- **Device Information** means understanding what the system discovered.
-- **Reports** means creating a full accounting for support, debugging, or documentation.
-- **Commands** means teaching how to reproduce a mature investigation outside the GUI.
-
-Through Milestone 41, the GUI established:
+Through Milestone 44, the GUI established:
 
 - inspector-first Explore pages for camera, audio input, audio output, and groups
-- safe camera preview, audio output speaker tone, and audio input activity test on real HIL hardware
-- a policy for audio output quality testing that distinguishes generated tone verification from local file playback fidelity
+- safe camera preview, audio output speaker tone and local file playback, and audio input activity test on real HIL hardware
+- camera-control writes for active writable integer, boolean, and menu controls
+- a structured camera-control write path using `v4l2-ctl --set-ctrl` via structured argv only
 
-Through Milestone 42, Audio Output Explore supports both Generated Tone testing and Local File Playback:
+Through Milestone 45 and 46:
 
-- Generated Tone test exists
-- Test Level presets exist: Quiet / Normal / Loud
-- Local File Playback exists
-- Playback Level presets exist
-- local selected files play through the selected output endpoint
-- `filesrc location=<path>` is used instead of URI/network playback
-- remote URLs are structurally impossible in the playback path
-- unsupported files fail cleanly
-- HIL validation was performed on `jetsonhacks` with `hw:0,0`
-- `.wav`, `.flac`, and `.mp3` were validated
-- safety boundaries remain intact
+- Device Information tab removed; Explore is the sole primary surface
+- USB path and group metadata surfaced directly in Explore for all endpoint types
+- camera pipeline copy/preview UI simplified with compact inline controls
+- README rewritten to reflect GUI-first media endpoint explorer framing
+- all safety boundaries intact
 
-Audio input is intentionally minimal for now: endpoint discovery, capability display, generated safe command, bounded non-recording activity test, and recommendation to use an external application for deeper capture or audio quality testing.
+Milestones 47 and 48 are complete by design decision: Commands/Reproduce and Reports were not built as GUI areas. CLI commands remain the channel for reproduce workflows and full diagnostic reports.
 
-Camera controls are the next product gap. Camera preview without writable controls is not enough for useful HIL testing because a user needs to adjust brightness, exposure, white balance, and gain and visually confirm changes during preview.
+Audio input remains intentionally minimal: endpoint discovery, capability display, generated safe command, and bounded non-recording activity test. Deeper capture or audio quality testing belongs to external applications.
 
-Commands/Reproduce and Reports remain deferred until after camera-control writes, issue/refactoring cleanup, and README/product framing cleanup. The app remains exploration-first, with hardware actions explicitly scoped and safety bounded.
+Safety boundaries remain in force as documented above. No new GUI preview, capture, or execution behavior should be added unless scoped by a dedicated milestone.

@@ -15,7 +15,7 @@ from gst_device_explorer.gui.qt_audio_output_file_playback import (
     file_playback_argv,
 )
 from gst_device_explorer.gui.qt_audio_output_test import create_audio_output_test_widget
-from gst_device_explorer.gui.qt_sections import copy_to_clipboard, create_text_label, target_from_summary
+from gst_device_explorer.gui.qt_sections import copy_to_clipboard, create_text_label, target_from_summary, usb_path_from_group_item
 
 _TONE_LEVEL_VOLUMES: dict[str, float] = {"Quiet": 0.2, "Normal": 0.5, "Loud": 0.8}
 _DEFAULT_TONE_LEVEL = "Quiet"
@@ -168,6 +168,9 @@ def _summary_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     groups = _section_items(detail, "Groups")
     if groups:
         lines.append("Group: " + groups[0].split(" (", 1)[0])
+        usb_path = usb_path_from_group_item(groups[0])
+        if usb_path:
+            lines.append(f"USB path: {usb_path}")
     return tuple(lines)
 
 

@@ -310,16 +310,16 @@ def explore_placeholder_lines(detail: DetailPaneModel) -> tuple[str, ...]:
     if detail.kind == "audio_input":
         return (
             "Audio input exploration controls are deferred.",
-            "Open Device Information for discovered capabilities and generated candidates.",
+            "Use the CLI to view discovered capabilities and generated candidates.",
         )
     if detail.kind == "audio_output":
         return (
             "Audio output exploration controls are deferred.",
-            "Open Device Information for discovered capabilities and generated candidates.",
+            "Use the CLI to view discovered capabilities and generated candidates.",
         )
     if detail.kind in {"empty", "error", "unknown"}:
         return detail.summary
     return (
         "Exploration controls are not available for this selection yet.",
-        "Open Device Information for discovered details.",
+        "Use the CLI to view discovered details.",
     )
