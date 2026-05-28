@@ -383,6 +383,49 @@ def test_group_explore_widget_endpoint_actions_are_navigation_only() -> None:
         _forget_pyside_modules()
 
 
+def test_group_explore_buttons_navigate_to_child_group_endpoint_nodes() -> None:
+    # When a parent group's endpoints are all owned by child groups, the sidebar has no
+    # direct-endpoint nodes under the parent — only child-group subnodes.  Buttons must
+    # navigate to the child-group-scoped nodes (group:child-id:kind:target).
+    selected: list[str] = []
+    snapshot = build_media_explorer_snapshot(
+        video_devices=[_video_device("/dev/video0"), _video_device("/dev/video1")],
+        audio_inputs=[_audio_input_device("hw:2,0")],
+        audio_outputs=[_audio_output_device("hw:2,0")],
+        groups=[_reachy_audio_group(), _reachy_camera_group(), _reachy_parent_group()],
+        selected_id="group:usb-family-1-4",
+    )
+    pane = snapshot.detail_pane
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = create_explore_widget(pane, navigate_callback=selected.append)
+
+    try:
+        cards = widget.findChildren(QtWidgets.QFrame, "groupEndpointCard")
+        buttons = widget.findChildren(QtWidgets.QPushButton, "groupEndpointExploreButton")
+
+        assert [card.property("targetNodeId") for card in cards] == [
+            "group:audio-device-alsa-card-0:audio_input:hw:2,0",
+            "group:audio-device-alsa-card-0:audio_output:hw:2,0",
+            "group:usb-device-1-4-1-4:video:/dev/video0",
+            "group:usb-device-1-4-1-4:video:/dev/video1",
+        ]
+        assert [button.text() for button in buttons] == [
+            "Explore Microphone",
+            "Explore Speaker",
+            "Explore Camera",
+            "Explore Camera",
+        ]
+
+        buttons[0].click()
+
+        assert selected == ["group:audio-device-alsa-card-0:audio_input:hw:2,0"]
+    finally:
+        widget.deleteLater()
+        _forget_pyside_modules()
+
+
 def test_camera_mode_tree_contains_all_demo_modes_by_format_and_size() -> None:
     pane = build_demo_gui_snapshot().detail_panes["video:/dev/video0"]
 

@@ -174,6 +174,12 @@ def create_group_explorer_widget(
 
 def group_endpoint_cards(detail: DetailPaneModel) -> tuple[GroupEndpointCard, ...]:
     endpoints = _section_items(detail, "Endpoints")
+    # Direct endpoints have sidebar nodes scoped to this group (group:id:kind:target).
+    # Endpoints owned by child groups navigate to the child group's scoped node
+    # (group:child-id:kind:target), since the parent sidebar node only has child-group
+    # subnodes, not direct-endpoint subnodes for those members.
+    direct_endpoint_items = frozenset(_section_items(detail, "Direct Endpoints"))
+    child_group_map = _endpoint_child_group_map(detail)
     group_prefix = f"{detail.selected_id}:"
     cards = []
     for item in endpoints:
@@ -182,12 +188,19 @@ def group_endpoint_cards(detail: DetailPaneModel) -> tuple[GroupEndpointCard, ..
         role, target = item.split(": ", 1)
         role_label = _endpoint_role_label(role)
         node_kind = _node_kind_for_role(role)
+        if item in direct_endpoint_items:
+            node_id = f"{group_prefix}{node_kind}:{target}"
+        elif item in child_group_map:
+            child_id = child_group_map[item]
+            node_id = f"group:{child_id}:{node_kind}:{target}"
+        else:
+            node_id = f"{node_kind}:{target}"
         cards.append(
             GroupEndpointCard(
                 role_label=role_label,
                 target=target,
                 node_kind=node_kind,
-                node_id=f"{group_prefix}{node_kind}:{target}",
+                node_id=node_id,
                 summary=_endpoint_card_summary(role_label, target),
             )
         )
@@ -236,6 +249,16 @@ def _compact_group_summary(detail: DetailPaneModel) -> tuple[str, ...]:
 def _section_items(detail: DetailPaneModel, title: str) -> tuple[str, ...]:
     section = next((section for section in detail.sections if section.title == title), None)
     return () if section is None else section.items
+
+
+def _endpoint_child_group_map(detail: DetailPaneModel) -> dict[str, str]:
+    """Return {endpoint_item: child_group_id} from the Endpoint Child Group Map section."""
+    result: dict[str, str] = {}
+    for item in _section_items(detail, "Endpoint Child Group Map"):
+        if " -> " in item:
+            endpoint_item, child_id = item.rsplit(" -> ", 1)
+            result[endpoint_item] = child_id
+    return result
 
 
 def _endpoint_role_label(role: str) -> str:

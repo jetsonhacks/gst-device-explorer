@@ -104,6 +104,14 @@ def build_detail_pane_for_group(
             or ("No child groups inferred.",),
         ),
         DetailSection(
+            title="Endpoint Child Group Map",
+            items=tuple(
+                f"{_role_label(member.role)}: {member.device_id} -> {child.id}"
+                for child in child_groups
+                for member in sorted(child.members, key=lambda m: (m.role, m.device_id))
+            ),
+        ),
+        DetailSection(
             title="Grouping Evidence",
             items=tuple(
                 f"{evidence.description} ({evidence.source}, {evidence.strength:.2f})"
