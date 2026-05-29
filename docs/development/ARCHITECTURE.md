@@ -5,8 +5,8 @@ specific responsibility. The goal is to make probing, modeling, profile
 selection, pipeline construction, and presentation evolve independently.
 
 The first implementation domain is GStreamer-oriented media exploration. The
-architecture should also leave room for future exploration plugins without
-turning Milestone 1 into a generic hardware inventory system.
+architecture leaves room for future exploration plugins without turning into a
+generic hardware inventory system.
 
 The core architecture should separate the exploration framework from the initial
 media-specific probes. GStreamer video/audio support is the first domain, not
@@ -18,8 +18,8 @@ Probes inspect the local system and collect raw information from tools and APIs
 such as GStreamer, v4l2, ALSA, PulseAudio, PipeWire, and platform-specific
 commands. They should avoid making final product decisions.
 
-Initial probes should focus on video inputs, audio inputs, audio outputs, and
-the local GStreamer environment.
+Probes cover video inputs, audio inputs, audio outputs, and the local
+GStreamer environment.
 
 ## Normalized Models
 
@@ -45,8 +45,8 @@ structured view for CLI/JSON inspection and system reports. It does not control
 pipeline generation.
 
 A richer platform-policy Profile layer — where a named object expresses
-preferences and known-good patterns consumed by pipeline builders — may be added
-in a later milestone but is not part of the current implementation.
+preferences and known-good patterns consumed by pipeline builders — is not part
+of the current implementation.
 
 ## Pipeline Builders
 
@@ -83,18 +83,19 @@ confidence, and `GroupingEvidence` so renderers can show uncertainty instead of
 hiding it. The grouping layer enriches discovery; it does not replace raw
 individual device views.
 
-Milestone 3 emits exact USB-device groups for devices sharing the same USB
-parent path. It can also emit a parent USB-family group above multiple exact
+The grouping engine emits exact USB-device groups for devices sharing the same
+USB parent path. It can also emit a parent USB-family group above multiple exact
 USB-device groups when they share a meaningful USB ancestor, USB vendor ID, and
 non-generic product-family token. Devices without that evidence remain
-independent; for example, a separate Orbbec Femto Bolt attached alongside a
-robot is not folded into the robot's USB-family group.
+independent; for example, a separate camera attached alongside a composite device
+is not folded into that device's USB-family group.
 
-The CLI renders computed groups through `groups`, `groups --json`, `group
-<group-id>`, and `group <group-id> --json`. It can also render the normalized
-metadata feeding the grouping engine through `groups --metadata` and
-`groups --metadata --json`. Group rendering is presentation only; group-based
-pipeline generation and execution are outside the current scope.
+`gst-device-explorer-cli` renders computed groups through `groups`,
+`groups --json`, `group <group-id>`, and `group <group-id> --json`. It can also
+render the normalized metadata feeding the grouping engine through
+`groups --metadata` and `groups --metadata --json`. Group rendering is
+presentation only; group-based pipeline generation and execution are outside the
+current scope.
 
 ## Validation
 
@@ -125,10 +126,10 @@ Configuration is a bounded preference model with pure parsing and validation in
 the core layer. The CLI can show search paths, display the effective/default
 configuration, and validate TOML files.
 
-Milestone 12 configuration is display and validation only. It does not alter
-candidate generation, ranking, presets, reports, capture, validation, or
-execution. Configuration files cannot define raw pipelines, shell commands,
-scripts, hooks, plugins, or remote behavior.
+Configuration is display and validation only. It does not alter candidate
+generation, ranking, presets, reports, capture, validation, or execution.
+Configuration files cannot define raw pipelines, shell commands, scripts, hooks,
+plugins, or remote behavior.
 
 ## Suggested Command Catalog
 
@@ -145,13 +146,12 @@ all endpoint kinds and tool commands. Builders are pure functions with no
 side effects. The `list_generic_suggestions()` function returns a static catalog
 of broad starting-point commands for the `suggestions list` CLI command.
 
-Four model fields changed from `list[str]` to `list[SuggestedCommand]` in
-Milestone 16: `DeviceProfile.suggested_next_commands`,
+The model fields `DeviceProfile.suggested_next_commands`,
 `SystemReport.suggested_next_commands`,
 `EndpointValidationSummary.suggested_next_commands`, and
-`GroupValidation.suggested_next_commands`. Serializers expose the full
-`SuggestedCommand` shape under these keys. Renderers extract `.command` for
-text display.
+`GroupValidation.suggested_next_commands` carry `list[SuggestedCommand]`.
+Serializers expose the full `SuggestedCommand` shape under these keys. Renderers
+extract `.command` for text display.
 
 Safety vocabulary: `inspection`, `dry_run`, `bounded_capture`,
 `safe_execution`, `external_check`.
@@ -163,10 +163,9 @@ helper supplies `schema_version`, `tool_version`, `kind`, and `data` fields so
 scripts and future UI layers can identify the response family before reading
 the command-specific payload.
 
-Milestone 13 applied the envelope to bounded config and preset JSON outputs and
-added schema discovery commands for the envelope contract. Milestone 14 extends
-that same wrapper to older hardware-oriented JSON outputs at the renderer
-boundary. Command-specific payloads are preserved under `data`.
+The envelope is applied to config, preset, schema, and hardware-oriented JSON
+outputs at the renderer boundary. Command-specific payloads are preserved under
+`data`.
 
 ## Error Envelopes
 
@@ -196,8 +195,8 @@ human-readable. The `error.details` map carries command-specific context.
 in `cli/serializers.py` wraps it with the schema/tool version fields.
 `print_json_error` in `cli/renderer.py` serializes and prints it.
 
-Milestone 17 wraps: unknown schema, unknown preset, wrong preset target kind,
-missing required preset arguments, and group-not-found error paths.
+Error envelope paths include: unknown schema, unknown preset, wrong preset
+target kind, missing required preset arguments, and group-not-found.
 
 Non-JSON error paths preserve existing human-readable text behavior.
 Non-zero exit codes are preserved for all error paths.
@@ -209,19 +208,17 @@ or configuration behavior.
 ## Renderers
 
 Renderers turn normalized models and pipeline candidates into user-facing
-representations. The first renderer is expected to be a CLI. A future GUI should
-use the same underlying models and builders rather than duplicating discovery or
-pipeline logic.
+representations. Both the CLI (`gst-device-explorer-cli`) and the GUI
+(`gst-device-explorer`) are renderers over the same normalized models and
+builders. Neither duplicates discovery or pipeline logic.
 
 ## GUI Application Model
 
-Milestone 19 resets the product direction around a GUI-first media explorer:
-camera-caps for modern Jetson media devices. The CLI remains a backend, debug
-surface, and testable probe layer, but future work should be judged by whether
-it improves the GUI media exploration experience.
+`gst-device-explorer` is GUI-first. The CLI (`gst-device-explorer-cli`) is an
+explicit alternate path for power users, headless systems, and scripts.
 
 `gst_device_explorer.gui.model` defines frozen, toolkit-neutral dataclasses for
-a future sidebar/main-pane application:
+the sidebar/main-pane application:
 
 - `MediaExplorerSnapshot`
 - `SidebarNode`
@@ -230,73 +227,63 @@ a future sidebar/main-pane application:
 - `GuiAction`
 - `GuiActionResult`
 
-`gst_device_explorer.gui.builders` maps existing core models such as `Device`,
+`gst_device_explorer.gui.builders` maps core models such as `Device`,
 `CompositeDevice`, `DeviceProfile`, `GroupValidation`, and `CandidateRanking`
 into renderable GUI state. These builders are pure: they do not probe hardware,
 run subprocesses, execute GStreamer pipelines, capture media, start background
 workflows, or import Qt, GTK, Tkinter, Textual, web frameworks, or any other GUI
 toolkit.
 
-GUI actions are advisory metadata only. Where possible they reference existing
-`SuggestedCommand` objects so a future GUI can show or copy generated commands
-without opening an arbitrary execution surface.
+GUI actions reference `SuggestedCommand` objects where possible so the GUI can
+show or copy generated commands without opening an arbitrary execution surface.
 
 ## PySide6 GUI Shell
 
-Milestone 20 selects PySide6 / Qt as the initial concrete GUI toolkit and adds
-a minimal desktop shell under `gst_device_explorer.gui.qt_*`. Toolkit-specific
-imports are isolated to those Qt modules and the `gst-device-explorer gui`
-entrypoint imports them lazily, so ordinary CLI commands do not require Qt.
-
-The shell renders `MediaExplorerSnapshot` data into a tree sidebar and detail
-pane. `gst_device_explorer.gui.demo` provides deterministic synthetic data for
-screenshots, tests, and HIL manual validation:
+PySide6 / Qt is the concrete GUI toolkit. Toolkit-specific imports are isolated
+to `gst_device_explorer.gui.qt_*` modules. The `gst-device-explorer` script
+launches the GUI directly; CLI commands do not import Qt.
 
 ```sh
-gst-device-explorer gui --demo
+gst-device-explorer           # live device discovery
+gst-device-explorer --demo    # deterministic synthetic data; no hardware required
 ```
 
-The GUI does not probe devices, execute suggested commands, run GStreamer,
-capture media, or spawn subprocesses in this milestone. Action buttons are
-visible controls over metadata only.
+The Qt shell renders `MediaExplorerSnapshot` data into a sidebar and main pane.
+The primary surface is the **Explore** pane for the selected item.
 
-Milestone 21 adds `gst_device_explorer.gui.live`, a narrow adapter from existing
-safe probe/discovery/profile/grouping paths to `MediaExplorerSnapshot` and
-detail-pane models. `gst-device-explorer gui` now builds a live read-only
-snapshot, while `gst-device-explorer gui --demo` keeps deterministic synthetic
-data. The Qt shell owns rendering and refresh wiring only; it does not duplicate
-discovery policy.
+`gst_device_explorer.gui.live` adapts existing probe, discovery, profile, and
+grouping paths into `MediaExplorerSnapshot` and detail-pane models. The shell
+owns rendering, refresh wiring, and subprocess lifecycle; it does not duplicate
+discovery policy. Refresh rebuilds the live snapshot synchronously, repopulates
+the sidebar, preserves the selected node when possible, and renders empty/error
+states cleanly.
 
-Refresh is synchronous and read-only in this milestone. It rebuilds the live
-snapshot, repopulates the sidebar, preserves the selected node when possible,
-and renders empty/error states cleanly. GUI actions remain metadata only and do
-not execute suggested commands or pipelines.
-
-Milestone 22 polishes the Qt detail pane. The renderer organizes selected-item
-details into identity, summary, capabilities, candidate, diagnostic, safe-action,
-copy, and notes sections. Copy buttons write already-displayed identifiers or
-suggested command strings to the local clipboard and update the window status
-bar; they do not execute commands. Action controls remain display metadata only.
-
-Milestone 23 adds a camera-specific adapter under `gst_device_explorer.gui.camera`.
-It reshapes normalized V4L2 capability data into pixel format, resolution, and
-frame-rate choices, then builds display-only GStreamer pipeline text for the
-selected mode. The Qt detail pane renders this adapter ahead of generic
-diagnostic/report sections so selecting a camera feels like a camera explorer
-rather than a report page.
-
-Milestone 24 aligns the Qt camera explorer layout with the `camera-caps`
-reference. Mode selectors (Pixel Format, Image Size, Frame Duration) are rendered
-as expanding `QListWidget` columns so all available options are visible at once.
-The layout has been HIL-validated against real V4L2 hardware (Reachy Mini Camera,
-uvcvideo driver, MJPG and YUYV formats, 14 dynamic controls).
+`gst_device_explorer.gui.camera` reshapes normalized V4L2 capability data into
+pixel format, resolution, and frame-rate choices, then builds GStreamer pipeline
+text for the selected mode. Mode selectors are rendered as `QListWidget` columns
+so all available options are visible at once.
 
 Dynamic camera controls are modeled in core with immutable `CameraControl`,
 `CameraControlChoice`, and `CameraControlSet` values. The V4L2 probe layer reads
 advertised controls with `v4l2-ctl --list-ctrls-menus` and normalizes integer,
-boolean, menu, inactive/disabled, and unknown control metadata. This path is
-read-only: it does not call `v4l2-ctl --set-ctrl`, reset controls, preview media,
-capture media, or execute generated pipelines.
+boolean, menu, inactive/disabled, and unknown control metadata. This probe path
+is read-only: it collects control metadata but does not write control values.
+
+Camera control writes are handled at the GUI layer and are bounded to discovered
+active controls. The GUI writes active controls when the device reports them as
+writable and active; inactive and read-only controls are shown but cannot be
+changed. Control writes go through a structured, named request — not arbitrary
+`v4l2-ctl --set-ctrl` command execution.
+
+The GUI executes bounded, generated pipelines for camera preview and audio tests.
+Preview uses a generated pipeline candidate for the selected camera mode. Audio
+output tests produce a bounded generated tone or play a selected local file.
+Audio input activity tests check whether an input endpoint opens without
+recording. All subprocess execution goes through the safe `ExecutionPlan` path;
+arbitrary pipeline strings are not accepted.
+
+Copy buttons write already-displayed identifiers or suggested command strings to
+the local clipboard; they do not execute commands.
 
 ## TUI Review Mode
 
@@ -305,9 +292,9 @@ schema data. Its core review model and navigation state are pure and testable
 without opening a terminal. The curses runner is intentionally thin: it maps key
 presses to state transitions and draws rendered lines.
 
-Milestone 15 TUI mode displays suggested CLI commands but does not execute them.
-It does not run pipelines, run capture, execute presets, edit configuration,
-install packages, or change system settings.
+The TUI displays suggested CLI commands but does not execute them. It does not
+run pipelines, run capture, execute presets, edit configuration, install
+packages, or change system settings.
 
 ## Support Bundle Export
 
@@ -333,8 +320,9 @@ both JSON and text, renders the TUI snapshot using `core.tui.build_tui_review_mo
 and `render_overview_lines`, and writes the manifest as the final step. The
 manifest only lists files that were actually written.
 
-Milestone 18 defers: `.tar.gz` format, `--force`, bundle upload, media capture,
-running suggested commands, preset execution, and MCP/tool descriptor integration.
+Currently out of scope for the support bundle: `.tar.gz` format, `--force`
+overwrite, bundle upload, media capture, running suggested commands, preset
+execution, and MCP/tool descriptor integration.
 
 ## Execution Flow
 
@@ -365,14 +353,14 @@ families, normalized models, profiles, builders, and renderers. A later plugin
 might inspect robot hardware such as actuators, Dynamixel servos, sensors, or
 other device classes.
 
-This extensibility should remain secondary to the first domain. Milestone 1
-should establish GStreamer-oriented device exploration first and leave clean
-extension points for hardware exploration later.
+This extensibility remains secondary to the first domain. The project establishes
+GStreamer-oriented device exploration first and leaves clean extension points for
+hardware exploration later.
 
 ## Separation of Concerns
 
 Each layer should communicate through explicit data structures. Probes should not
 format CLI output. Renderers should not inspect hardware directly. Pipeline
 builders should accept normalized models and produce structured candidates.
-This separation keeps Milestone 1 small while leaving room for richer interfaces
-and future exploration plugins later.
+This separation keeps the codebase focused while leaving room for richer
+interfaces and future exploration plugins.

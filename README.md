@@ -163,8 +163,8 @@ See [docs/README.md](docs/README.md) for a full index.
 Start with:
 
 - `docs/SETUP.md`
-- `docs/ARCHITECTURE.md`
-- `docs/APP_PRODUCT_SPEC.md`
+- `docs/development/ARCHITECTURE.md`
+- `docs/development/APP_PRODUCT_SPEC.md`
 
 ## Contributing
 
