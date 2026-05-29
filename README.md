@@ -131,17 +131,6 @@ The GUI runs only supported actions generated for the selected endpoint. It does
 
 The application does not provide group-based execution, synchronized capture, long-running recording workflows, arbitrary V4L2 command entry, or system audio mixer/routing controls.
 
-## Project status
-
-`gst-device-explorer` is under active development. The current focus is a practical GUI for media-device exploration on Jetson Linux 38+ and Ubuntu 24.04+ systems.
-
-Recent work has focused on:
-
-- camera preview and camera-control adjustment
-- audio output tone and local-file playback tests
-- audio input availability testing without recording
-- composite device grouping
-- cleaner GUI workflows around generated GStreamer commands
 
 ## Repository layout
 
@@ -171,8 +160,9 @@ Start with:
 - `docs/development/ARCHITECTURE.md`
 - `docs/development/APP_PRODUCT_SPEC.md`
 
-## Contributing
 
-This project changes quickly. Before adding new user-facing behavior, prefer a brief design document that states the user problem, proposed behavior, safety boundary, out-of-scope work, and test plan.
-
-Keep generated commands structured, endpoint-specific, and testable. Avoid arbitrary command execution and hidden system changes.
+## Release Notes
+### Initial Release, May, 2026
+* JetPack 7 (Ubuntu 24.04.4)
+* Tested on Jetson AGX Thor
+* Tested on hardware devices: Logitech C920 webcam, Pollen Robotics Reachy Mini, Orbec Femto Bolt
