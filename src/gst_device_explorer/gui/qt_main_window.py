@@ -32,7 +32,7 @@ def create_main_window(
     class MediaExplorerMainWindow(QMainWindow):
         def __init__(self) -> None:
             super().__init__()
-            self.setWindowTitle("gst-device-explorer")
+            self.setWindowTitle("GStreamer Device Explorer")
             self.resize(980, 680)
             self._snapshot = snapshot
             self._detail_panes = dict(detail_panes or {})

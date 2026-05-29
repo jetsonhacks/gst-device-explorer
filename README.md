@@ -33,7 +33,7 @@ You can use it to:
 - check whether a microphone endpoint opens without recording audio
 - copy generated GStreamer commands for manual testing
 
-![gst-device-explorer camera view](docs/images/gst-device-explorer.jpeg)
+![gst-device-explorer camera view](docs/images/gst-device-explorer.png)
 
 ## Install
 
@@ -152,7 +152,12 @@ src/gst_device_explorer/
   gui/       PySide6 GUI
   probes/    V4L2, ALSA, GStreamer, and system probing
 
-docs/        setup, architecture, and product documentation
+docs/
+  SETUP.md         user-facing setup and verification guide
+  development/     product, architecture, and maintainer documentation
+  history/         archived development records (Git tag pointer)
+  images/          screenshots and assets
+
 tests/       unit and GUI tests
 ```
 
@@ -168,6 +173,6 @@ Start with:
 
 ## Contributing
 
-This project changes quickly. Before adding new user-facing behavior, prefer a small milestone document that states the user problem, proposed behavior, safety boundary, out-of-scope work, and test plan.
+This project changes quickly. Before adding new user-facing behavior, prefer a brief design document that states the user problem, proposed behavior, safety boundary, out-of-scope work, and test plan.
 
 Keep generated commands structured, endpoint-specific, and testable. Avoid arbitrary command execution and hidden system changes.

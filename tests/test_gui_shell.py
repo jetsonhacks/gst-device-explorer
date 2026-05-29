@@ -191,6 +191,24 @@ def test_main_window_refresh_cleans_up_audio_output_test_runner() -> None:
         _forget_pyside_modules()
 
 
+def test_main_window_title() -> None:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    from gst_device_explorer.gui.qt_main_window import create_main_window
+
+    demo = build_demo_gui_snapshot()
+    window = create_main_window(demo.snapshot, demo.detail_panes)
+
+    try:
+        assert window.windowTitle() == "GStreamer Device Explorer"
+    finally:
+        window.close()
+        window.deleteLater()
+        _forget_pyside_modules()
+
+
 def test_non_qt_gui_imports_do_not_import_pyside6() -> None:
     assert "PySide6" not in sys.modules
 
