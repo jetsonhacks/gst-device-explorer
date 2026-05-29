@@ -198,10 +198,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             from gst_device_explorer.gui.qt_app import launch_gui
             return launch_gui(demo=args.demo)
         except ImportError as error:
-            print(
-                "PySide6 is required for the GUI. "
-                "Install the gui extra, for example: uv sync --extra gui"
-            )
+            print("PySide6 is required for the GUI but could not be imported.")
             print(f"Import error: {error}")
             return 1
 

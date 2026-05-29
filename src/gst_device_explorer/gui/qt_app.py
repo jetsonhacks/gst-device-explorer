@@ -7,6 +7,21 @@ from gst_device_explorer.gui.live import build_live_gui_snapshot, refresh_gui_sn
 import gst_device_explorer.probes.v4l2 as v4l2_probe
 
 
+def gui_main() -> None:
+    """Console script entry point: launch the GUI, optionally in demo mode."""
+
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(
+        prog="gst-device-explorer",
+        description="GStreamer device explorer.",
+    )
+    parser.add_argument("--demo", action="store_true", help="Launch with synthetic demo devices.")
+    args = parser.parse_args()
+    sys.exit(launch_gui(demo=args.demo))
+
+
 def launch_gui(*, demo: bool = False) -> int:
     """Launch the minimal PySide6 GUI shell."""
 

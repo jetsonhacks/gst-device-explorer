@@ -25,11 +25,9 @@ wheels = [
 
 [[package]]
 name = "gst-device-explorer"
-version = "0.28.4"
+version = "0.29.0"
 source = { editable = "." }
-
-[package.optional-dependencies]
-gui = [
+dependencies = [
     { name = "pyside6" },
 ]
 
@@ -39,8 +37,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pyside6", marker = "extra == 'gui'", specifier = ">=6.7" }]
-provides-extras = ["gui"]
+requires-dist = [{ name = "pyside6", specifier = ">=6.7" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.0.0" }]

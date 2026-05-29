@@ -53,12 +53,12 @@ wget -qO- https://astral.sh/uv/install.sh | sh
 
 After installation, restart your shell or follow the installer instructions to update your `PATH`.
 
-Clone the repository and install the GUI dependencies:
+Clone the repository and install dependencies:
 
 ```sh
 git clone https://github.com/jetsonhacks/gst-device-explorer.git
 cd gst-device-explorer
-uv sync --extra gui
+uv sync
 ```
 
 Some probes depend on Ubuntu media tools. On Jetson Linux 38+ and Ubuntu 24.04+ systems, useful packages typically include GStreamer tools, V4L2 tools, and ALSA utilities.
@@ -70,25 +70,18 @@ See `docs/SETUP.md` for system packages and verification commands.
 Launch the live GUI:
 
 ```sh
-uv run gst-device-explorer gui
+uv run gst-device-explorer
 ```
 
-Launch the demo GUI:
+Launch the demo GUI (synthetic devices, no real hardware probed):
 
 ```sh
-uv run gst-device-explorer gui --demo
+uv run gst-device-explorer --demo
 ```
-
-Demo mode uses synthetic devices and does not probe real hardware.
 
 ## GUI overview
 
-The GUI is organized around two main views:
-
-- **Explore**: work with the selected endpoint or group
-- **Device Information**: inspect lower-level discovery details
-
-Current Explore surfaces include:
+The Explore view is the primary surface for each selected device:
 
 - **Camera**: mode selection, generated preview pipeline, preview start/stop, supported camera-control writes
 - **Audio Output**: generated tone test, local-file playback test, pipeline-local level presets
@@ -103,7 +96,6 @@ Group views explain and navigate. They do not run group-level pipelines or synch
 2. Select a camera, microphone, speaker, or composite group in the sidebar.
 3. Use **Explore** to inspect modes and generated commands.
 4. Run only explicitly supported actions.
-5. Use **Device Information** for lower-level discovery details.
 
 ## Camera exploration
 
@@ -127,10 +119,8 @@ Composite group views help explain when multiple endpoints appear to belong to t
 
 The project also includes a CLI for setup, debugging, automation, and development.
 
-Start with:
-
 ```sh
-uv run gst-device-explorer --help
+uv run gst-device-explorer-cli --help
 ```
 
 For detailed setup checks and command examples, see `docs/SETUP.md`.

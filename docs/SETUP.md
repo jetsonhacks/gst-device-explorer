@@ -47,11 +47,7 @@ uv sync
 uv run python -m pytest
 ```
 
-To install the minimal PySide6 GUI shell as well:
-
-```sh
-uv sync --extra gui
-```
+`uv sync` installs all runtime dependencies including PySide6. No extra flags are required.
 
 ## 4. Verify System Tools
 
@@ -555,12 +551,11 @@ and does not execute suggested commands.
 
 Hardware-in-the-loop validation is available for the GUI, but automated tests
 remain synthetic and hardware-independent. On a GUI-capable Jetson desktop,
-install the GUI extra and launch:
+launch after a normal `uv sync`:
 
 ```sh
-/home/jim/.local/bin/uv sync --extra gui
-/home/jim/.local/bin/uv run gst-device-explorer gui --demo
-/home/jim/.local/bin/uv run gst-device-explorer gui
+/home/jim/.local/bin/uv run gst-device-explorer --demo
+/home/jim/.local/bin/uv run gst-device-explorer
 ```
 
 Confirm that the window opens, the sidebar renders grouped and standalone demo

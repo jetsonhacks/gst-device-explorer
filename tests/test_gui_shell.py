@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tomllib
 
 import pytest
 
@@ -200,6 +201,68 @@ def _flatten_sidebar_ids(nodes) -> list[str]:
         result.append(node.id)
         result.extend(_flatten_sidebar_ids(node.children))
     return result
+
+
+def test_pyside6_is_a_default_project_dependency() -> None:
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        config = tomllib.load(f)
+    deps = config["project"]["dependencies"]
+    assert any("PySide6" in dep for dep in deps), "PySide6 must be in default project dependencies"
+    optional_gui = config.get("project", {}).get("optional-dependencies", {}).get("gui", [])
+    assert not any("PySide6" in dep for dep in optional_gui), "PySide6 should not remain in a gui optional extra"
+
+
+def test_gst_device_explorer_script_points_to_gui_main() -> None:
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        config = tomllib.load(f)
+    scripts = config["project"]["scripts"]
+    assert scripts.get("gst-device-explorer") == "gst_device_explorer.gui.qt_app:gui_main"
+
+
+def test_gst_device_explorer_cli_script_points_to_cli_main() -> None:
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        config = tomllib.load(f)
+    scripts = config["project"]["scripts"]
+    assert scripts.get("gst-device-explorer-cli") == "gst_device_explorer.cli.main:main"
+
+
+def test_gui_main_launches_gui_with_no_args(monkeypatch) -> None:
+    calls: list[bool] = []
+
+    def fake_launch_gui(*, demo: bool = False) -> int:
+        calls.append(demo)
+        return 0
+
+    monkeypatch.setattr(qt_app, "launch_gui", fake_launch_gui)
+    monkeypatch.setattr(sys, "argv", ["gst-device-explorer"])
+    with pytest.raises(SystemExit) as exc_info:
+        qt_app.gui_main()
+    assert exc_info.value.code == 0
+    assert calls == [False]
+
+
+def test_gui_main_passes_demo_flag_to_launch_gui(monkeypatch) -> None:
+    calls: list[bool] = []
+
+    def fake_launch_gui(*, demo: bool = False) -> int:
+        calls.append(demo)
+        return 0
+
+    monkeypatch.setattr(qt_app, "launch_gui", fake_launch_gui)
+    monkeypatch.setattr(sys, "argv", ["gst-device-explorer", "--demo"])
+    with pytest.raises(SystemExit) as exc_info:
+        qt_app.gui_main()
+    assert exc_info.value.code == 0
+    assert calls == [True]
+
+
+def test_cli_main_still_dispatches_subcommands(monkeypatch) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+    assert exc_info.value.code == 0
 
 
 def _forget_pyside_modules() -> None:
