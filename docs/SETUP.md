@@ -1,31 +1,40 @@
 # Setup
 
-`gst-device-explorer` is a Python project managed with `uv`. It also depends on
-external Linux media tools for device and environment inspection.
+`gst-device-explorer` is a GUI-first media endpoint explorer for cameras,
+microphones, speakers, and composite USB devices. It generates GStreamer
+commands from discovered device settings and lets you preview or test selected
+configurations.
 
-On Jetson and Ubuntu systems, install the system prerequisites before running
-the project commands.
+## Supported Systems
 
-## 1. Install System Prerequisites
+- NVIDIA Jetson running Jetson Linux 38+
+- Ubuntu 24.04+
 
-The current probes use system tools for V4L2 video devices, ALSA audio devices,
-and GStreamer environment inspection.
+The GUI requires an X11 or Wayland display. The CLI is available for headless
+and scripted use.
+
+## Prerequisites
+
+### System packages
+
+Install Linux media tools before running the project:
 
 ```sh
 sudo apt update
 sudo apt install -y v4l-utils alsa-utils gstreamer1.0-tools
 ```
 
-These packages provide:
+These provide:
 
-- `v4l-utils`: provides `v4l2-ctl`
-- `alsa-utils`: provides `arecord` and `aplay`
-- `gstreamer1.0-tools`: provides `gst-launch-1.0` and `gst-inspect-1.0`
+- `v4l-utils` — `v4l2-ctl` for V4L2 camera device discovery
+- `alsa-utils` — `arecord` and `aplay` for ALSA audio device discovery
+- `gstreamer1.0-tools` — `gst-launch-1.0` and `gst-inspect-1.0` for GStreamer
+  inspection and pipeline execution
 
-## 2. Optional GStreamer Plugins
+### Optional GStreamer plugins
 
-Generic Ubuntu systems may need additional GStreamer plugins for useful media
-inspection and future pipeline exploration:
+Generic Ubuntu systems may need additional GStreamer plugins for pipeline
+execution:
 
 ```sh
 sudo apt install -y \
@@ -36,251 +45,186 @@ sudo apt install -y \
   gstreamer1.0-libav
 ```
 
-On Jetson systems, NVIDIA-specific GStreamer elements such as `nvvidconv`,
-`nvjpegdec`, `nvv4l2decoder`, `nveglglessink`, and `nv3dsink` come from JetPack
-/ NVIDIA multimedia packages, not this Python project.
+On Jetson systems, NVIDIA-specific GStreamer elements (`nvvidconv`, `nvjpegdec`,
+`nvv4l2decoder`, `nveglglessink`, `nv3dsink`) come from JetPack / NVIDIA
+multimedia packages, not this project.
 
-## 3. Set Up the Python Project
+### uv
+
+Install `uv` if not already available:
 
 ```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Or with `wget`:
+
+```sh
+wget -qO- https://astral.sh/uv/install.sh | sh
+```
+
+Restart your shell or follow the installer instructions to update `PATH`.
+
+## Install Project Dependencies
+
+```sh
+git clone https://github.com/jetsonhacks/gst-device-explorer.git
+cd gst-device-explorer
 uv sync
-uv run python -m pytest
 ```
 
-`uv sync` installs all runtime dependencies including PySide6. No extra flags are required.
+`uv sync` installs all runtime dependencies including PySide6. No extra flags
+are required.
 
-## 4. Verify System Tools
-
-Check that expected tools are available:
+## Launch the GUI
 
 ```sh
-which v4l2-ctl
-which arecord
-which aplay
-which gst-launch-1.0
-which gst-inspect-1.0
+uv run gst-device-explorer
 ```
 
-Inspect local devices and GStreamer elements:
+The GUI opens a sidebar with discovered cameras, audio inputs, audio outputs,
+and composite device groups. Select any item to open the Explore pane for that
+device.
+
+To launch with deterministic demo data (no hardware required):
 
 ```sh
+uv run gst-device-explorer --demo
+```
+
+## Verify Camera Discovery
+
+Camera endpoints appear in the GUI sidebar under **Cameras** and inside any
+composite device groups they belong to.
+
+To check camera discovery from the command line:
+
+```sh
+uv run gst-device-explorer-cli devices
 v4l2-ctl --list-devices
+```
+
+Select a camera in the GUI to open the camera Explore pane. It shows:
+
+- pixel format, image size, and frame duration selectors derived from the
+  selected device
+- generated GStreamer pipeline for the current selections
+- copy pipeline button
+- active camera controls, including writable controls where the device reports
+  them as writable and active; inactive or read-only controls are shown but
+  cannot be changed
+
+## Verify Camera Preview and Pipeline Copy
+
+In the camera Explore pane, select a pixel format, image size, and frame
+duration. The generated pipeline updates automatically. Click **Copy Pipeline**
+to copy the command to the clipboard.
+
+To generate and inspect a pipeline from the CLI:
+
+```sh
+uv run gst-device-explorer-cli pipeline video /dev/video0
+uv run gst-device-explorer-cli run video /dev/video0 --dry-run
+uv run gst-device-explorer-cli run video /dev/video0
+```
+
+Press Ctrl+C in the terminal to stop a running pipeline.
+
+## Verify Audio Input Discovery
+
+Audio input endpoints appear in the GUI sidebar under **Audio Inputs**.
+
+To check audio input discovery from the command line:
+
+```sh
+uv run gst-device-explorer-cli audio-inputs
 arecord -l
+```
+
+Select an audio input in the GUI. The audio input Explore pane shows supported
+format, sample rate, and channel count selectors, a generated input pipeline,
+and a bounded audio input activity test that checks whether the endpoint opens
+without recording.
+
+To inspect and run an audio input test from the CLI:
+
+```sh
+uv run gst-device-explorer-cli pipeline audio-input hw:0,0
+uv run gst-device-explorer-cli run audio-input hw:0,0 --dry-run
+uv run gst-device-explorer-cli run audio-input hw:0,0
+```
+
+The audio input activity test runs without audible output. Press Ctrl+C to stop.
+
+## Verify Audio Output Discovery and Testing
+
+Audio output endpoints appear in the GUI sidebar under **Audio Outputs**.
+
+To check audio output discovery from the command line:
+
+```sh
+uv run gst-device-explorer-cli audio-outputs
 aplay -l
-gst-inspect-1.0 v4l2src
-gst-inspect-1.0 nvvidconv
 ```
 
-`nvvidconv` may not exist on generic Linux systems.
+Select an audio output in the GUI. The audio output Explore pane shows
+supported format, sample rate, and channel count selectors, a generated output
+pipeline, and an audio output test that plays a brief generated tone or a
+selected local file.
 
-## 5. Run gst-device-explorer
-
-Start with the general commands:
+To inspect and run an audio output test from the CLI:
 
 ```sh
-uv run gst-device-explorer --help
-uv run gst-device-explorer env
-uv run gst-device-explorer devices
-uv run gst-device-explorer audio-inputs
-uv run gst-device-explorer audio-outputs
-uv run gst-device-explorer groups
-uv run gst-device-explorer video /dev/video0
-uv run gst-device-explorer pipeline video /dev/video0
+uv run gst-device-explorer-cli pipeline audio-output hw:0,0
+uv run gst-device-explorer-cli run audio-output hw:0,0 --dry-run
+uv run gst-device-explorer-cli run audio-output hw:0,0
 ```
 
-Launch the GUI shell with live read-only discovery:
+The audio output test produces a 440 Hz sine tone. Press Ctrl+C to stop.
+
+## CLI Verification Path
+
+The full CLI is available for power users, headless systems, and scripts:
 
 ```sh
-uv run gst-device-explorer gui
+uv run gst-device-explorer-cli --help
 ```
 
-Launch the same shell with deterministic demo data:
+**Environment and discovery:**
 
 ```sh
-uv run gst-device-explorer gui --demo
+uv run gst-device-explorer-cli env
+uv run gst-device-explorer-cli devices
+uv run gst-device-explorer-cli audio-inputs
+uv run gst-device-explorer-cli audio-outputs
+uv run gst-device-explorer-cli groups
+uv run gst-device-explorer-cli groups --metadata
 ```
 
-The live GUI renders discovered cameras, audio inputs, audio outputs, and
-composite groups. The Refresh control rebuilds the read-only discovery snapshot.
-Demo mode does not probe real hardware. The detail pane includes organized
-sections and safe copy buttons for displayed identifiers and suggested commands.
-Action controls are metadata/copy only; they do not run pipelines, capture
-media, spawn subprocesses, or execute suggested commands.
-
-For selected cameras, the GUI opens a camera explorer pane. It shows pixel
-format, image size, and frame-duration selectors as expanding list panels
-(aligned with the camera-caps reference), generated pipeline text, a copy
-pipeline button, and dynamic V4L2 controls discovered from the selected device.
-Controls are read-only. The GUI does not write camera settings, reset controls,
-or call `v4l2-ctl --set-ctrl`. The camera explorer has been HIL-validated
-against the Reachy Mini Camera on Jetson (Milestone 24).
-
-Useful pipeline candidate variants:
+Composite device groups represent evidence-based physical groupings — for
+example, a USB device that exposes a camera, microphone, and speaker as
+separate Linux endpoints. Use `groups --metadata` to inspect the normalized
+metadata feeding the grouping engine. Inspect or validate a specific group
+by ID:
 
 ```sh
-uv run gst-device-explorer pipeline video /dev/video0 --limit 1
-uv run gst-device-explorer pipeline video /dev/video0 --all
-uv run gst-device-explorer pipeline video /dev/video0 --json --limit 1
+uv run gst-device-explorer-cli group <group-id>
+uv run gst-device-explorer-cli validate group <group-id>
+uv run gst-device-explorer-cli validate group <group-id> --json
 ```
 
-## 6. Verify Milestone 2 Pipeline Execution
-
-Inspect generated candidates first:
+**Pipeline candidates and diagnostics:**
 
 ```sh
-uv run gst-device-explorer pipeline video /dev/video0
-```
+uv run gst-device-explorer-cli pipeline video /dev/video0
+uv run gst-device-explorer-cli pipeline video /dev/video0 --diagnostics
+uv run gst-device-explorer-cli pipeline video /dev/video0 --json --limit 1
 
-Check the selected command without starting GStreamer:
+uv run gst-device-explorer-cli pipeline audio-input hw:0,0
+uv run gst-device-explorer-cli pipeline audio-input hw:0,0 --diagnostics
 
-```sh
-uv run gst-device-explorer run video /dev/video0 --dry-run
-```
-
-Run the selected candidate:
-
-```sh
-uv run gst-device-explorer run video /dev/video0
-```
-
-The real run command may open a GStreamer preview window depending on the
-selected sink. Press Ctrl+C in the terminal to stop a running pipeline.
-
-## 7. Verify Milestone 3 Composite Groups
-
-Inspect computed composite device groups:
-
-```sh
-uv run gst-device-explorer groups
-uv run gst-device-explorer groups --json
-uv run gst-device-explorer groups --metadata
-uv run gst-device-explorer groups --metadata --json
-```
-
-On systems where `uv` is installed outside `PATH`, use the absolute command:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer groups
-/home/jim/.local/bin/uv run gst-device-explorer groups --json
-```
-
-If a group is found, inspect it by ID:
-
-```sh
-uv run gst-device-explorer group <group-id>
-```
-
-Milestone 3 group output can include exact USB-device groups and parent
-USB-family groups. Exact USB-device groups contain devices sharing the same USB
-parent path. Parent USB-family groups sit above those child groups when they
-share a meaningful USB ancestor, USB vendor ID, and non-generic product-family
-token.
-
-Expected Reachy Mini-style output:
-
-```text
-Composite devices:
-- Reachy Mini Audio
-  id: usb-device-1-4-1-1
-  ...
-
-- Reachy Mini Camera
-  id: usb-device-1-4-1-4
-  ...
-
-- Reachy Mini
-  id: usb-family-1-4-1
-  confidence: 0.80
-  members:
-    - audio-input: hw:0,0
-    - audio-output: hw:0,0
-    - camera: /dev/video0
-    - camera: /dev/video1
-```
-
-Groups are computed from discovered device metadata. Systems without shared ALSA
-card metadata or USB topology metadata may report no composite groups. Devices
-that do not share the required evidence, such as a separate Orbbec Femto Bolt,
-remain independent. Use `groups --metadata` as the diagnostic view for the
-normalized records feeding the grouping engine.
-
-Milestone 3 does not add group-based pipeline generation or group-based
-execution. Pipeline generation and execution still target individual devices.
-
-## 8. Verify Milestone 4 Audio Pipelines
-
-Discover audio devices and groups first:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer audio-inputs
-/home/jim/.local/bin/uv run gst-device-explorer audio-outputs
-/home/jim/.local/bin/uv run gst-device-explorer groups
-```
-
-On the Reachy Mini hardware validated so far, the ALSA input and output are
-`hw:0,0`. Inspect the generated candidates:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0 --json
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0 --json
-```
-
-Check the selected commands without starting GStreamer:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0 --dry-run
-/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0 --dry-run
-```
-
-Run the selected audio tests:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0
-/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0
-```
-
-Expected behavior:
-
-- The audio input level test should run without audible output.
-- The audio output sine test should produce a 440 Hz tone.
-- Press Ctrl+C to stop a running audio pipeline.
-
-Audio loopback is intentionally deferred because it can create feedback or
-surprising routing behavior. ASR, TTS, WebRTC, PulseAudio, PipeWire, effects,
-echo cancellation, general-purpose recording workflows, synchronized audio/video
-workflows, and group-based execution are also out of scope.
-
-## 9. Verify Milestone 5 Diagnostics
-
-Diagnostics explain why existing pipeline candidates are available or
-unavailable. They do not execute pipelines.
-
-Recommended workflow:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer devices
-/home/jim/.local/bin/uv run gst-device-explorer audio-inputs
-/home/jim/.local/bin/uv run gst-device-explorer audio-outputs
-/home/jim/.local/bin/uv run gst-device-explorer groups
-```
-
-Inspect candidates, then inspect diagnostics if a candidate is missing or you
-want to see required elements:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0
-/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0 --diagnostics
-/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0 --diagnostics --json
-
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0 --diagnostics
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-input hw:0,0 --diagnostics --json
-
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0 --diagnostics
-/home/jim/.local/bin/uv run gst-device-explorer pipeline audio-output hw:0,0 --diagnostics --json
+uv run gst-device-explorer-cli pipeline audio-output hw:0,0
+uv run gst-device-explorer-cli pipeline audio-output hw:0,0 --diagnostics
 ```
 
 When diagnostics report missing GStreamer elements, check them directly:
@@ -290,301 +234,146 @@ gst-inspect-1.0 autovideosink
 gst-inspect-1.0 alsasink
 ```
 
-Then dry-run and run the selected candidate:
+**Device profiles:**
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer run video /dev/video0 --dry-run
-/home/jim/.local/bin/uv run gst-device-explorer run video /dev/video0
+uv run gst-device-explorer-cli profile video /dev/video0
+uv run gst-device-explorer-cli profile video /dev/video0 --json
 
-/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0 --dry-run
-/home/jim/.local/bin/uv run gst-device-explorer run audio-input hw:0,0
-
-/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0 --dry-run
-/home/jim/.local/bin/uv run gst-device-explorer run audio-output hw:0,0
+uv run gst-device-explorer-cli profile audio-input hw:0,0
+uv run gst-device-explorer-cli profile audio-output hw:0,0
 ```
 
-## 10. Verify Milestone 6 Device Profiles
+A profile summarizes device identity, capabilities, pipeline candidate
+availability, group membership, and suggested next commands.
 
-Device profiles summarize discovered device information, group membership,
-pipeline candidate availability, and suggested next commands in one view.
-
-Discover devices and groups first:
+**Bounded capture** (requires `--duration` and `--output`; does not overwrite
+existing files):
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer devices
-/home/jim/.local/bin/uv run gst-device-explorer audio-inputs
-/home/jim/.local/bin/uv run gst-device-explorer audio-outputs
-/home/jim/.local/bin/uv run gst-device-explorer groups
+uv run gst-device-explorer-cli capture video /dev/video0 --duration 5 --output sample.avi --dry-run
+uv run gst-device-explorer-cli capture video /dev/video0 --duration 5 --output sample.avi
+
+uv run gst-device-explorer-cli capture audio-input hw:0,0 --duration 5 --output sample.wav --dry-run
+uv run gst-device-explorer-cli capture audio-input hw:0,0 --duration 5 --output sample.wav
 ```
 
-Inspect profiles:
+Capture does not accept arbitrary pipelines, does not overwrite files, and does
+not perform group-based or synchronized capture.
+
+**Other CLI commands:**
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer profile video /dev/video0
-/home/jim/.local/bin/uv run gst-device-explorer profile video /dev/video0 --json
-
-/home/jim/.local/bin/uv run gst-device-explorer profile audio-input hw:0,0
-/home/jim/.local/bin/uv run gst-device-explorer profile audio-input hw:0,0 --json
-
-/home/jim/.local/bin/uv run gst-device-explorer profile audio-output hw:0,0
-/home/jim/.local/bin/uv run gst-device-explorer profile audio-output hw:0,0 --json
+uv run gst-device-explorer-cli preset list
+uv run gst-device-explorer-cli preset show camera-preview
+uv run gst-device-explorer-cli config show
+uv run gst-device-explorer-cli schema list
+uv run gst-device-explorer-cli tui
+uv run gst-device-explorer-cli report
+uv run gst-device-explorer-cli support bundle --output ./my-support-bundle
 ```
 
-A profile includes:
+The support bundle collects environment, device inventory, pipeline candidates,
+profiles, configuration, schema, and system report into a directory for
+diagnostics or support use. The output path must not already exist.
 
-- device kind, identifier, and display name when available
-- subsystem metadata
-- capabilities summary (video only: formats, max resolution, frame rates, mode count)
-- pipeline candidate summary (available and unavailable, with missing elements listed)
-- informational group membership when the endpoint belongs to a composite group
-- suggested next commands
+## Developer Validation
 
-Profiles are read-only summaries. They do not execute pipelines and do not
-change candidate or diagnostic behavior.
-
-After inspecting a profile, follow the suggested next commands to inspect
-candidates, view diagnostics, or dry-run the selected candidate:
+Run the test suite:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0
-/home/jim/.local/bin/uv run gst-device-explorer pipeline video /dev/video0 --diagnostics
-/home/jim/.local/bin/uv run gst-device-explorer run video /dev/video0 --dry-run
+uv run python -m pytest
 ```
 
-Group profiles are not implemented. Group membership shown in endpoint
-profiles is informational only.
-
-## 11. Verify Milestone 9 Bounded Capture
-
-Bounded capture writes short validation files from generated candidates only.
-Always dry-run first:
+Check the GStreamer environment and specific elements:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi --dry-run
-/home/jim/.local/bin/uv run gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav --dry-run
+uv run gst-device-explorer-cli env
+gst-inspect-1.0 v4l2src
+gst-inspect-1.0 autovideosink
+gst-inspect-1.0 alsasink
+gst-inspect-1.0 nvvidconv    # Jetson only; expected to fail on generic Linux
 ```
 
-Run the selected capture candidate only after inspecting the generated command:
+Generate a system report or export a support bundle:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer capture video /dev/video0 --duration 5 --output sample.avi
-/home/jim/.local/bin/uv run gst-device-explorer capture audio-input hw:0,0 --duration 5 --output sample.wav
+uv run gst-device-explorer-cli report
+uv run gst-device-explorer-cli support bundle --output ./my-support-bundle
 ```
 
-Capture requires `--duration` and `--output`. The duration must be a positive
-number of seconds, and existing output files are rejected. Video capture uses a
-simple AVI candidate in this first slice; audio input capture writes WAV.
+## Troubleshooting
 
-Capture is endpoint-based. It does not accept arbitrary raw pipelines, does not
-overwrite files, does not perform group-based capture, does not synchronize
-audio and video, and does not create background or long-running recordings.
+**uv not found**
 
-## 12. Verify Milestone 10 Composite Device Validation
-
-Inspect groups first, then validate a selected group by ID:
+Restart your shell after installing `uv`, or use the absolute path the
+installer reports (typically `~/.local/bin/uv`):
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer groups
-/home/jim/.local/bin/uv run gst-device-explorer validate group <group-id>
-/home/jim/.local/bin/uv run gst-device-explorer validate group <group-id> --json
+~/.local/bin/uv run gst-device-explorer
 ```
 
-Group validation summarizes existing endpoint profiles for the group's members.
-It reports a group status, endpoint statuses, candidate counts, missing
-GStreamer elements, grouping evidence, and suggested endpoint-level next
-commands.
+**PySide6 import error**
 
-Validation does not run pipelines, does not run capture, and does not generate
-group-level pipelines. Use endpoint commands such as `profile`, `recommend`,
-`run`, and `capture` after validation when you want to inspect or test one
-specific endpoint.
+Run `uv sync` from the project root. PySide6 is a default dependency and
+requires no extra flags.
 
-## 13. Verify Milestone 11 Presets
+**Missing GStreamer elements**
 
-Inspect the built-in preset catalog and ask for command suggestions:
+If pipeline candidates report missing elements, inspect them directly:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer preset list
-/home/jim/.local/bin/uv run gst-device-explorer preset list --json
-/home/jim/.local/bin/uv run gst-device-explorer preset show camera-preview
-/home/jim/.local/bin/uv run gst-device-explorer preset command camera-preview video /dev/video0
-/home/jim/.local/bin/uv run gst-device-explorer preset command short-video-capture video /dev/video0 --duration 5 --output sample.avi
+gst-inspect-1.0 autovideosink
+gst-inspect-1.0 alsasink
+gst-inspect-1.0 nvvidconv
 ```
 
-Presets suggest existing `gst-device-explorer` commands. They do not run those
-commands, do not accept raw GStreamer pipelines, do not add user-authored preset
-files, and do not introduce group execution.
+Install missing plugins from the Optional GStreamer Plugins section, or check
+whether the element is part of JetPack on Jetson systems.
 
-## 14. Verify Milestone 12 Configuration
+**No camera devices found**
 
-Inspect configuration search paths, show defaults, and validate the effective
-configuration:
+Check that the camera is connected and visible:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer config path
-/home/jim/.local/bin/uv run gst-device-explorer config show
-/home/jim/.local/bin/uv run gst-device-explorer config show --json
-/home/jim/.local/bin/uv run gst-device-explorer config validate
-/home/jim/.local/bin/uv run gst-device-explorer config validate --json
+v4l2-ctl --list-devices
+ls /dev/video*
 ```
 
-Validate an explicit TOML file:
+If `/dev/video*` nodes exist but the application reports nothing, your user may
+need `video` group membership:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer config validate --config ./gst-device-explorer.toml
-/home/jim/.local/bin/uv run gst-device-explorer config validate --config ./gst-device-explorer.toml --json
+sudo usermod -aG video $USER
 ```
 
-Configuration is optional. Milestone 12 validates and displays preferences only;
-preferences do not alter candidate generation, ranking, presets, reports,
-capture, validation, or execution yet. Config files cannot introduce arbitrary
-pipelines, shell commands, scripts, package installation, or system
-configuration changes.
+Log out and back in for the change to take effect.
 
-## 15. Verify Milestone 13 JSON Schema Envelope
+**No audio devices found**
 
-Inspect wrapped JSON output and schema discovery:
+Check ALSA device lists:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer config path --json
-/home/jim/.local/bin/uv run gst-device-explorer config show --json
-/home/jim/.local/bin/uv run gst-device-explorer config validate --json
-/home/jim/.local/bin/uv run gst-device-explorer preset list --json
-/home/jim/.local/bin/uv run gst-device-explorer schema list
-/home/jim/.local/bin/uv run gst-device-explorer schema show json-envelope
-/home/jim/.local/bin/uv run gst-device-explorer schema show json-envelope --json
+arecord -l
+aplay -l
 ```
 
-Selected config, preset, and schema JSON commands include the stable envelope
-fields `schema_version`, `tool_version`, `kind`, and `data`. The nested `data`
-payload remains command-specific, and full JSON Schema documents for every
-payload are deferred.
-
-## 16. Verify Milestone 14 Extended JSON Envelope Coverage
-
-Inspect representative older command families now wrapped in the shared
-envelope:
+If ALSA devices exist but are not discovered, check `audio` group membership:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer env --json
-/home/jim/.local/bin/uv run gst-device-explorer devices --json
-/home/jim/.local/bin/uv run gst-device-explorer audio-inputs --json
-/home/jim/.local/bin/uv run gst-device-explorer audio-outputs --json
-/home/jim/.local/bin/uv run gst-device-explorer report --json
-/home/jim/.local/bin/uv run gst-device-explorer schema list --json
+sudo usermod -aG audio $USER
 ```
 
-These commands preserve their command-specific payload under `data`. Text output
-is unchanged, and payload-specific JSON Schema documents remain deferred.
+**All commands return empty output**
 
-## 17. Verify Milestone 15 TUI Review Mode
-
-Check the TUI parser and non-interactive snapshot:
+Confirm that required system tools are installed:
 
 ```sh
-/home/jim/.local/bin/uv run gst-device-explorer tui --help
-/home/jim/.local/bin/uv run gst-device-explorer tui --snapshot
+which v4l2-ctl
+which arecord
+which aplay
+which gst-launch-1.0
 ```
 
-If the terminal supports curses, run the interactive TUI:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer tui
-```
-
-The TUI is read-only. It summarizes environment, devices, composite groups,
-presets, configuration, schema kinds, and suggested commands. It does not run
-pipelines, capture media, execute presets, edit configuration, install
-packages, or change system settings.
-
-## 18. Verify Milestone 18 Support Bundle Export
-
-Create a support bundle directory:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer support bundle --output ./my-support-bundle
-```
-
-Inspect the bundle contents:
-
-```sh
-ls ./my-support-bundle/
-cat ./my-support-bundle/manifest.json
-cat ./my-support-bundle/report/system-report.txt
-cat ./my-support-bundle/report/system-report.json
-cat ./my-support-bundle/inventory/devices.json
-```
-
-Expected layout:
-
-```text
-my-support-bundle/
-├── manifest.json
-├── report/
-│   ├── system-report.json
-│   └── system-report.txt
-├── inventory/
-│   ├── environment.json
-│   ├── devices.json
-│   ├── audio-inputs.json
-│   ├── audio-outputs.json
-│   ├── groups.json
-│   └── grouping-metadata.json
-├── config/
-│   ├── config-path.json
-│   ├── config-show.json
-│   └── config-validate.json
-├── schemas/
-│   └── schema-list.json
-├── suggestions/
-│   └── suggestions-list.json
-└── tui/
-    └── snapshot.txt
-```
-
-The bundle output path must not already exist. The parent directory must exist.
-
-The support bundle does not run GStreamer pipelines, does not capture media,
-and does not execute suggested commands.
-
-## 19. Manual GUI Validation
-
-Hardware-in-the-loop validation is available for the GUI, but automated tests
-remain synthetic and hardware-independent. On a GUI-capable Jetson desktop,
-launch after a normal `uv sync`:
-
-```sh
-/home/jim/.local/bin/uv run gst-device-explorer --demo
-/home/jim/.local/bin/uv run gst-device-explorer
-```
-
-Confirm that the window opens, the sidebar renders grouped and standalone demo
-endpoints, live mode renders discovered devices/groups when present, group nodes
-expand/collapse, selecting nodes updates the detail pane, and Refresh updates
-the tree without crashing. Check that copy buttons copy identifiers or suggested
-commands without running them. Do not use this milestone to validate preview,
-capture, or execution behavior; those controls are intentionally display-only.
-
-## 20. Current Limitations
-
-- The GUI is a minimal shell over live read-only discovery and deterministic demo data.
-- GUI action controls only display/copy metadata and do not execute commands yet.
-- The camera pane shows generated pipeline text and dynamic read-only V4L2 controls.
-- Camera preview in the GUI is not implemented.
-- Applying V4L2 control changes is not implemented.
-- Audio loopback is not implemented.
-- Group-based pipeline generation is not implemented.
-- Group-based pipeline execution is not implemented.
-- Group-based capture is not implemented.
-- Direct preset execution is not implemented.
-- Config-driven behavior changes are not implemented.
-- TUI execution/capture/config editing controls are not implemented.
-- Complete JSON Schema files for every payload are not implemented.
-- Stable JSON error envelopes are not implemented.
-- Synchronized audio/video capture is not implemented.
-- Preview-window lifecycle management is not implemented.
-- PulseAudio and PipeWire probing are not implemented.
-- ASR, TTS, WebRTC, effects, echo cancellation, general-purpose recording workflows, and
-  synchronized audio/video workflows are not implemented.
-- Empty output may mean tools are missing, no matching hardware is present,
-  permissions prevent access, or the device is not yet supported.
+If any tool is missing, install the corresponding package from the System
+packages section above.
