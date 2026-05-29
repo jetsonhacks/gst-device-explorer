@@ -143,8 +143,6 @@ Recent work has focused on:
 - composite device grouping
 - cleaner GUI workflows around generated GStreamer commands
 
-See `docs/GUI_ROADMAP.md` for the current roadmap.
-
 ## Repository layout
 
 ```text
@@ -154,18 +152,19 @@ src/gst_device_explorer/
   gui/       PySide6 GUI
   probes/    V4L2, ALSA, GStreamer, and system probing
 
-docs/        setup, architecture, roadmap, and milestone notes
+docs/        setup, architecture, and product documentation
 tests/       unit and GUI tests
 ```
 
 ## Documentation
 
+See [docs/README.md](docs/README.md) for a full index.
+
 Start with:
 
 - `docs/SETUP.md`
-- `docs/GUI_ROADMAP.md`
 - `docs/ARCHITECTURE.md`
-- `docs/DATA_MODEL.md`
+- `docs/APP_PRODUCT_SPEC.md`
 
 ## Contributing
 

@@ -30,11 +30,10 @@ A pipeline candidate should carry its purpose, required devices, assumptions,
 ranking metadata, warnings, and rendered GStreamer string. The string is only
 one representation of a richer object.
 
-## CLI and future GUI are renderers
+## CLI and GUI are renderers
 
-The CLI and any future GUI should present probe results, normalized models, and
-pipeline candidates. They should not own discovery logic or pipeline construction
-rules.
+The CLI and GUI present probe results, normalized models, and pipeline
+candidates. They should not own discovery logic or pipeline construction rules.
 
 ## Prefer capability detection over hard-coded JetPack version checks
 
@@ -53,8 +52,25 @@ hardware, actuators, Dynamixel servos, sensors, or other device classes. That
 extensibility should not make the project sound or behave like a generic
 hardware inventory system from day one.
 
-## Keep Milestone 1 narrow
+## Python file size
 
-Milestone 1 should establish the documentation, project metadata, and later a
-small CLI/probe foundation. It should avoid GUI work, live preview, recording,
-editing, broad media playback features, and non-media exploration plugins.
+Python files should generally stay limited to about **250 to 300 lines**.
+
+When a Python file grows beyond that range, it is usually a sign that the file
+is handling too many areas of concern. The implementation should be reviewed for
+clearer separation of responsibilities.
+
+When a Python file exceeds **400 lines**, there should be an explicit review
+before continuing to add functionality to that file. The review should consider
+whether to split the file by responsibility, such as:
+
+- UI widget construction
+- application service logic
+- model adaptation
+- command generation
+- formatting/rendering helpers
+- process execution
+- tests or fixtures
+
+The goal is not to enforce an arbitrary line count. The goal is to keep the
+codebase understandable, testable, and easy to reshape as the product evolves.

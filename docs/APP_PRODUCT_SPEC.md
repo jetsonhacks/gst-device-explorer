@@ -31,7 +31,7 @@ A first run should feel like this:
 5. Pick settings from choices discovered from the device.
 6. See a generated GStreamer pipeline for the selected settings.
 7. Copy the pipeline for use in a terminal, script, tutorial, or issue report.
-8. Open **Device Information** only when lower-level facts, diagnostics, or reproduction commands are needed.
+8. For lower-level device facts, raw capabilities, or reproduction commands, use the `gst-device-explorer` CLI or the system report.
 
 ## What The Application Is
 
@@ -94,11 +94,11 @@ Groups help users understand physical hardware organization. A group view may su
 
 **Diagnostics** are troubleshooting details and health checks. They should remain available, but they belong in secondary areas or targeted diagnostic sections rather than the default exploration workflow.
 
-**Commands** are reproducibility aids. Generated pipelines may appear in Explore when they are the direct result of current selections. CLI reproduction commands, probe commands, suggested commands, and report commands belong in Device Information or a future Commands/Reports area.
+**Commands** are reproducibility aids. Generated pipelines may appear in Explore when they are the direct result of current selections. CLI reproduction commands, probe commands, suggested commands, and report commands belong in a future Commands/Reports area.
 
 ## Safety Boundaries
 
-Until a later milestone deliberately changes them, preserve these boundaries:
+These safety boundaries apply:
 
 - no arbitrary pipeline execution
 - no arbitrary user-authored pipeline scripts
@@ -108,8 +108,7 @@ Until a later milestone deliberately changes them, preserve these boundaries:
 - no remote behavior
 - no group-based execution
 - no synchronized capture
-- no V4L2 control writes
-- no `v4l2-ctl --set-ctrl`
-- no GUI preview, capture, or test behavior unless deliberately scoped in a later milestone
+- V4L2 control writes are bounded to discovered active camera controls through the GUI; no arbitrary v4l2-ctl command execution as a user-facing workflow
+- GUI execution is bounded to generated, deliberate workflows; no arbitrary pipeline scripts or user-authored commands
 
 Safe read-only discovery, copy-to-clipboard behavior, and generated command rendering remain allowed.

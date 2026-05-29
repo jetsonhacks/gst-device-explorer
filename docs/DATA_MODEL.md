@@ -1,11 +1,11 @@
 # Data Model
 
-This document defines the first conceptual data model for `gst-device-explorer`.
-It is high-level and implementation-oriented, but it does not define Python
-classes or module structure yet.
+This document describes the conceptual data model for `gst-device-explorer`. It
+is a reference for the core model concepts implemented in
+`src/gst_device_explorer/core/`.
 
-The model should support GStreamer-oriented device exploration first while
-leaving room for additional hardware exploration plugins over time.
+The model supports GStreamer-oriented device exploration first while leaving room
+for additional hardware exploration plugins over time.
 
 ## Device
 
@@ -78,9 +78,9 @@ It should include:
 
 Example kinds include `robot`, `camera-system`, `audio-device`, and `unknown`.
 
-Composite devices are Milestone 3 scaffolding. They model a future grouping
-layer where related Linux devices can be presented together while the raw V4L2,
-ALSA, serial, HID, or other individual device entries remain available.
+Composite devices model the grouping layer where related Linux devices are
+presented together while the raw V4L2, ALSA, serial, HID, or other individual
+device entries remain available.
 
 ## GroupableDevice
 
@@ -202,7 +202,7 @@ It should include:
 - Profile label, if any (a string identifying the generation strategy)
 
 The candidate ID identifies the pipeline strategy or family. It should be stable
-enough for CLI selection, documentation, tests, and future GUI use, but it does
+enough for CLI selection, documentation, tests, and GUI use, but it does
 not need to encode every caps detail.
 
 The display command is for humans. The execution argv is for subprocess
@@ -266,25 +266,24 @@ policy objects; they do not execute commands or accept arbitrary pipeline text.
 `ExplorerConfig` records describe bounded preferences for future behavior.
 `ConfigValidationResult` records describe the source, validity, parsed config,
 warnings, and errors for defaults or TOML files. Configuration is display and
-validation only in Milestone 12; it does not change command behavior or allow
-raw pipelines, scripts, hooks, plugins, or arbitrary argv.
+validation only; it does not change command behavior or allow raw pipelines,
+scripts, hooks, plugins, or arbitrary argv.
 
 `JsonEnvelope` records describe the stable wrapper used by selected JSON
 outputs. The envelope fields are `schema_version`, `tool_version`, `kind`, and
 `data`. The wrapper identifies the response family while preserving the existing
 command-specific serialized payload under `data`.
 
-`SchemaDocument` records describe the modest schema discovery surface. Milestone
-13 documented the JSON envelope contract, and Milestone 14 lists the additional
-payload kinds that use the shared envelope. Full JSON Schema coverage for all
-payload models is deferred.
+`SchemaDocument` records describe the schema discovery surface. The JSON
+envelope contract and the payload kinds that use the shared envelope are listed
+in the schema discovery output. Full JSON Schema coverage for all payload models
+is deferred.
 
-Milestone 14 wraps legacy JSON payloads for environment inspection, device
-discovery, audio discovery, composite groups, grouping metadata, one composite
-group, video capabilities, pipeline candidates, pipeline diagnostics, endpoint
-profiles, system reports, candidate recommendations, and group validation.
-Capture commands do not expose JSON output in this milestone, and stable error
-envelopes remain deferred.
+JSON output is supported for environment inspection, device discovery, audio
+discovery, composite groups, grouping metadata, video capabilities, pipeline
+candidates, pipeline diagnostics, endpoint profiles, system reports, candidate
+recommendations, and group validation. Capture commands do not expose JSON
+output. Stable error envelopes are a known gap.
 
 `TuiReviewModel` records collect an existing system report, built-in presets,
 configuration validation status, and schema documents for read-only terminal
@@ -295,11 +294,10 @@ intent. These models do not execute suggested commands.
 `SuggestedCommand` records carry advisory command metadata. Builder functions
 in `core/suggestions.py` produce typed suggestions for profiles, validation,
 reports, and a generic catalog. Suggestions are never executed automatically;
-they are display-only advisory data that users copy and run manually. Four
-existing model fields changed from `list[str]` to `list[SuggestedCommand]` in
-Milestone 16: `DeviceProfile`, `SystemReport`, `EndpointValidationSummary`,
-and `GroupValidation`. Serializers expose the full shape; renderers extract
-`.command` for text display.
+they are display-only advisory data that users copy and run manually. The model
+fields `DeviceProfile`, `SystemReport`, `EndpointValidationSummary`, and
+`GroupValidation` carry `list[SuggestedCommand]`. Serializers expose the full
+shape; renderers extract `.command` for text display.
 
 `ErrorResponse` records carry structured JSON error payloads for selected known
 failure paths. They include a stable `code`, human-readable `message`, optional

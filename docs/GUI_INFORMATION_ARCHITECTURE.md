@@ -4,10 +4,9 @@
 
 The GUI should make `gst-device-explorer` feel like a media hardware exploration tool, not a rendered backend report.
 
-The main distinction is:
+The primary surface is:
 
 - **Explore**: work with the selected device
-- **Device Information**: understand the selected device
 
 ## Main Window
 
@@ -21,8 +20,7 @@ Main Window
 │   ├── Audio Inputs
 │   └── Audio Outputs
 └── Main Pane
-    ├── Explore
-    └── Device Information
+    └── Explore
 ```
 
 ## Sidebar Purpose
@@ -71,21 +69,6 @@ Explore should include:
 
 Explore should not become a dump of every model field the backend knows.
 
-## Device Information Tab Role
-
-The Device Information tab is the secondary explanatory surface. It should contain lower-level details that help a user understand, debug, report, or reproduce discovery.
-
-Device Information may include:
-
-- identity
-- hardware metadata
-- raw capabilities
-- candidate pipelines
-- recommended candidate
-- diagnostics
-- grouping evidence
-- reproduce with CLI
-
 ## Camera Explore
 
 The camera Explore tab should prioritize:
@@ -96,9 +79,9 @@ The camera Explore tab should prioritize:
 - frame duration / FPS selection
 - generated GStreamer pipeline
 - copy pipeline action
-- dynamic read-only camera controls
+- active camera controls, including writable controls where the device supports them
 
-Camera selectors should be derived from the selected camera endpoint. The generated pipeline should update from the selected format, size, and frame duration. V4L2 controls should remain read-only until a later milestone explicitly designs control writes.
+Camera selectors should be derived from the selected camera endpoint. The generated pipeline should update from the selected format, size, and frame duration. Active camera controls are writable where the device reports them as writable and active; inactive and read-only controls are shown but cannot be changed.
 
 The default camera Explore tab should not show:
 
@@ -111,33 +94,9 @@ The default camera Explore tab should not show:
 - raw JSON or envelope output
 - long lists of suggested commands
 
-## Camera Device Information
-
-The camera Device Information tab should contain:
-
-- identity
-- hardware metadata
-- raw V4L2 capabilities
-- candidate pipelines
-- recommended candidate
-- diagnostics
-- reproduce with CLI
-
-Useful reproduction commands may include:
-
-```sh
-gst-device-explorer video /dev/video0
-gst-device-explorer profile video /dev/video0
-gst-device-explorer pipeline video /dev/video0
-v4l2-ctl --device=/dev/video0 --list-formats-ext
-v4l2-ctl --device=/dev/video0 --list-ctrls-menus
-```
-
-These commands should teach and reproduce. They should not crowd the camera exploration workflow.
-
 ## Audio Input Explore
 
-The audio input Explore tab should eventually prioritize:
+The audio input Explore tab prioritizes:
 
 - compact device summary
 - supported format selection
@@ -145,13 +104,11 @@ The audio input Explore tab should eventually prioritize:
 - supported channel-count selection
 - generated input pipeline
 - copy pipeline action
-- placeholder for future level or capture testing
-
-No audio capture or test execution should be introduced unless a later milestone explicitly scopes it.
+- audio input activity test (bounded non-recording endpoint check)
 
 ## Audio Output Explore
 
-The audio output Explore tab should eventually prioritize:
+The audio output Explore tab prioritizes:
 
 - compact device summary
 - supported format selection
@@ -159,9 +116,7 @@ The audio output Explore tab should eventually prioritize:
 - supported channel-count selection
 - generated output or test pipeline
 - copy pipeline action
-- placeholder for future speaker testing
-
-No speaker test execution should be introduced unless a later milestone explicitly scopes it.
+- audio output test: bounded generated tone or local file playback
 
 ## Group View Behavior
 
@@ -183,13 +138,12 @@ Groups should not provide:
 - hidden endpoint execution
 - assumptions that endpoints are usable together without validation
 
-The group Device Information tab should explain why endpoints were grouped. It may include USB parent evidence, ALSA card relationships, endpoint metadata, diagnostics, and CLI reproduction commands.
 
 ## Reports And Diagnostics
 
 Reports and diagnostics should live outside the default Explore tab.
 
-Short, relevant diagnostics may appear inside Device Information for the selected item. Broader artifacts should move to a future Reports or Diagnostics area, including:
+Broader diagnostic artifacts should live outside the default Explore view, in a future Reports or Diagnostics area, including:
 
 - full device reports
 - system reports
@@ -204,7 +158,7 @@ Short, relevant diagnostics may appear inside Device Information for the selecte
 
 Generated pipelines belong in Explore when they reflect the current GUI selections.
 
-Command-reproduction information belongs in Device Information or a future Commands area. This includes:
+Command-reproduction information belongs in a future Commands area. This includes:
 
 - `gst-device-explorer` CLI equivalents
 - `v4l2-ctl` inspection commands
